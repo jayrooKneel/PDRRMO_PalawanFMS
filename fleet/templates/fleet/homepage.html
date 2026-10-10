@@ -488,7 +488,7 @@
                                     <th>Identifier Code</th>
                                     <th>Status Flag</th>
                                     <th>Reason for Maintenance</th>
-                                    <th>Last Assigned Operator Log</th>
+                                    <th>Last Assigned Driver</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -512,7 +512,7 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-muted small">
-                                            {% if vehicle.assigned_driver %}<i class="fa-solid fa-user-slash me-1"></i> Linked: {{ vehicle.assigned_driver.name }}{% else %}Cleared / Standby{% endif %}
+                                            <i class="fa-solid fa-user me-1"></i> {{ vehicle.maintenance_last_assigned_driver|default:"Not recorded" }}
                                         </td>
                                     </tr>
                                     {% endif %}
@@ -537,7 +537,7 @@
                                             {% endif %}
                                         </td>
                                         <td class="text-muted small">
-                                            {% if craft.assigned_driver %}<i class="fa-solid fa-user-slash me-1"></i> Linked: {{ craft.assigned_driver.name }}{% else %}Cleared / Standby{% endif %}
+                                            <i class="fa-solid fa-user me-1"></i> {{ craft.maintenance_last_assigned_driver|default:"Not recorded" }}
                                         </td>
                                     </tr>
                                     {% endif %}

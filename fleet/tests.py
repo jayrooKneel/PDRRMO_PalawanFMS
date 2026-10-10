@@ -1238,6 +1238,32 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, reverse('dashboard_portal:deployment_activity_log'))
         self.assertContains(response, 'Deployment Activity Log')
 
+    def test_public_homepage_maintenance_queue_shows_last_assigned_driver(self):
+        for vehicle_type, plate_number, driver_name in (
+            (self.land_type, 'LAND-MAINT-DRIVER', 'Last Land Maintenance Driver'),
+            (self.marine_type, 'SEA-MAINT-DRIVER', 'Last Sea Maintenance Driver'),
+        ):
+            with self.subTest(plate_number=plate_number):
+                driver = Driver.objects.create(name=driver_name)
+                vehicle = self.create_vehicle(
+                    model_name=f'Maintenance Unit {plate_number}',
+                    plate_number=plate_number,
+                    vehicle_type=vehicle_type,
+                    assigned_driver=driver,
+                )
+                vehicle.status = 'MAINTENANCE'
+                vehicle.save()
+                vehicle.assigned_driver = None
+                vehicle.save()
+
+        response = self.client.get(reverse('dashboard_portal:homepage'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Last Assigned Driver')
+        self.assertContains(response, 'Last Land Maintenance Driver')
+        self.assertContains(response, 'Last Sea Maintenance Driver')
+        self.assertNotContains(response, 'Linked:')
+
     def test_public_deployment_activity_log_shows_deployment_and_return(self):
         craft = self.create_vehicle(
             model_name='Deployment History Craft',
