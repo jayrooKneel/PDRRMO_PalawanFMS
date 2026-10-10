@@ -1,0 +1,409 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDRRMO | Land Assets Mechanical Workbench</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'fleet/css/asset_grid.css' %}">
+    <link rel="stylesheet" href="{% static 'fleet/css/dashboard_views.css' %}">
+    <link rel="stylesheet" href="{% static 'fleet/css/dashboard_print.css' %}">
+    <style>
+        body { background-color: #FFFFFF; }
+        .nav-header { background-color: #1A365D; border-bottom: 4px solid #0EA5E9; }
+        .table-theme th { background-color: #0EA5E9 !important; color: white !important; }
+        .dashboard-view-list[data-view-type="table"] tbody tr[data-land-fleet-group][hidden] {
+            display: none !important;
+        }
+        
+    </style>
+    <link rel="stylesheet" href="{% static 'fleet/css/dashboard_theme.css' %}">
+</head>
+<body class="dashboard-shell">
+    <div class="dashboard-print-header container-fluid">
+        <div class="d-flex justify-content-between align-items-end">
+            <div>
+                <h1>PDRRMO LAND ASSETS MECHANICAL WORKBENCH</h1>
+                <p>Official Fleet Work Orders Report</p>
+            </div>
+            <div class="text-end">
+                <small class="d-block text-uppercase fw-bold">Generated Date &amp; Time</small>
+                <time class="dashboard-print-timestamp"></time>
+            </div>
+        </div>
+    </div>
+
+    <nav class="navbar navbar-dark nav-header px-4 py-2 shadow-sm mb-4">
+        <span class="navbar-brand fw-bold text-white"><i class="fa-solid fa-screwdriver-wrench text-warning"></i> Land Assets Mechanical Workbench</span>
+        <button type="button" class="btn btn-sm btn-outline-light fw-bold px-3"
+                data-bs-toggle="offcanvas" data-bs-target="#mechanicMenuDrawer"
+                aria-controls="mechanicMenuDrawer" aria-label="Open mechanic menu">
+            <i class="fa-solid fa-bars me-1"></i>Menu
+        </button>
+    </nav>
+
+    {% include "fleet/_mechanic_menu_drawer.html" %}
+
+    {% include "fleet/_activity_report_modal.html" %}
+
+    <div class="container-fluid px-4">
+        
+        <h3 class="fw-bold mb-3" style="color: #1A365D;">Land Assets Mechanical Workbench</h3>
+        <ul class="nav nav-tabs mb-3" role="tablist" aria-label="Land fleet status">
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link active" id="land-maintenance-tab" role="tab" aria-controls="land-fleet-table" aria-selected="true" data-land-fleet-tab="maintenance">
+                    <i class="fa-solid fa-screwdriver-wrench me-1"></i> Maintenance
+                    <span class="badge bg-danger ms-1">{{ maintenance_count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link" id="land-operational-tab" role="tab" aria-controls="land-fleet-table" aria-selected="false" data-land-fleet-tab="operational">
+                    <i class="fa-solid fa-truck-fast me-1"></i> Operational Fleet
+                    <span class="badge bg-primary ms-1">{{ operational_count }}</span>
+                </button>
+            </li>
+        </ul>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0 border bg-white rounded dashboard-view-list" data-view-list="land-work-orders" data-view-type="table" data-view-default="grid" data-horizontal-card-scroll="true">
+                <table id="land-fleet-table" class="table table-hover align-middle mb-0 asset-grid-table">
+                    <thead class="table-theme">
+                        <tr>
+                            <th>Equipment Unit</th>
+                            <th>Identifier Tag</th>
+                            <th>Current Status</th>
+                            <th>Maintenance action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in vehicles %}
+                        <tr data-land-fleet-group="{% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' %}maintenance{% else %}operational{% endif %}"{% if vehicle.status == 'OPERATIONAL' or vehicle.status == 'DEPLOYED' %} hidden{% endif %}>
+                            <td class="fw-bold text-dark">
+                                {{ vehicle.model_name }} 
+                                <span class="badge bg-secondary font-monospace text-uppercase ms-1">{{ vehicle.vehicle_type.name }}</span>
+                                {% include "fleet/_land_vehicle_specs.html" with vehicle=vehicle %}
+                            </td>
+                            <td><code class="bg-light text-dark border px-2 py-1 rounded font-monospace">{{ vehicle.plate_number }}</code></td>
+                            
+                            <td>
+                                {% if vehicle.status == 'DEPLOYED' %}
+                                    <div class="border px-3 py-1.5 rounded d-inline-flex align-items-center gap-2 bg-light text-dark fw-semibold" style="min-width: 160px; height: 38px; font-size: 0.875rem;">
+                                        <span style="height: 10px; width: 10px; background-color: #0284C7; border-radius: 50%; display: inline-block;"></span>
+                                        DEPLOYED
+                                    </div>
+                                    <div class="small mt-2 text-primary-emphasis">
+                                        <div><strong>Location:</strong> {{ vehicle.deployment_location|default:"Not specified" }}</div>
+                                        <div><strong>Mission detail:</strong> {{ vehicle.deployment_purpose|default:"Not specified" }}</div>
+                                        {% if vehicle.deployment_time %}
+                                            <div><strong>Deployed:</strong> {{ vehicle.deployment_time|date:"M j, Y, P" }}</div>
+                                        {% endif %}
+                                        {% if vehicle.assigned_driver %}
+                                            <div class="mt-1"><strong>Driver:</strong> {{ vehicle.assigned_driver.name }}</div>
+                                            {% if vehicle.assigned_driver.phone_number %}
+                                                <a class="btn btn-sm btn-outline-primary mt-1" href="tel:{{ vehicle.assigned_driver.phone_number }}">
+                                                    <i class="fa-solid fa-phone me-1"></i> Call driver
+                                                    <span class="ms-1">{{ vehicle.assigned_driver.phone_number }}</span>
+                                                </a>
+                                            {% else %}
+                                                <div class="small text-muted mt-1">No driver phone number recorded.</div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                {% elif vehicle.status == 'MAINTENANCE' %}
+                                    {% if vehicle.maintenance_problem|slice:":9" == "Scheduled" %}
+                                        <span class="badge bg-info-subtle border border-info text-info-emphasis">REGULAR MAINTENANCE</span>
+                                        <div class="small mt-2 rounded border border-info-subtle bg-info-subtle p-2 text-info-emphasis">
+                                            {{ vehicle.maintenance_problem }}
+                                        </div>
+                                    {% else %}
+                                        <span class="badge bg-danger">FAULT REPAIR</span>
+                                        <div class="small mt-2 rounded border border-danger-subtle bg-danger-subtle p-2 text-danger-emphasis">
+                                            <strong>User-reported fault:</strong>
+                                            {{ vehicle.maintenance_problem|default:"No fault description recorded." }}
+                                        </div>
+                                    {% endif %}
+                                {% elif vehicle.status == 'PENDING_DISPOSAL' %}
+                                    <div class="border px-3 py-1.5 rounded d-inline-flex align-items-center gap-2 bg-light text-dark fw-semibold" style="min-width: 160px; height: 38px; font-size: 0.875rem;">
+                                        <span style="height: 10px; width: 10px; background-color: #F59E0B; border-radius: 50%; display: inline-block;"></span>
+                                        PENDING DISPOSAL
+                                    </div>
+                                    <div class="small text-danger mt-1">
+                                        <strong>Disposal reason:</strong>
+                                        {{ vehicle.disposal_reason|default:"No reason recorded." }}
+                                    </div>
+                                {% else %}
+                                    <div class="border px-3 py-1.5 rounded d-inline-flex align-items-center gap-2 bg-light text-dark fw-semibold" style="min-width: 160px; height: 38px; font-size: 0.875rem;">
+                                        <span style="height: 10px; width: 10px; background-color: #10B981; border-radius: 50%; display: inline-block;"></span>
+                                        OPERATIONAL
+                                    </div>
+                                {% endif %}
+                                {% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' %}
+                                    <div class="small mt-2 text-muted"><strong>Last assigned driver:</strong> {{ vehicle.maintenance_last_assigned_driver|default:"Not recorded" }}</div>
+                                {% endif %}
+                                {% if vehicle.scheduled_maintenance_date %}
+                                    <div class="small mt-2 rounded border border-info-subtle bg-info-subtle p-2 text-info-emphasis">
+                                        <span class="badge bg-info-subtle border border-info text-info-emphasis">REGULAR MAINTENANCE SCHEDULED</span>
+                                        <div><strong>{{ vehicle.get_scheduled_maintenance_type_display }} due:</strong>
+                                        {{ vehicle.scheduled_maintenance_date|date:"M j, Y" }}
+                                        {% if vehicle.scheduled_maintenance_description %}<div>{{ vehicle.scheduled_maintenance_description }}</div>{% endif %}</div>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                <div class="dashboard-row-actions">
+                                    {% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' or vehicle.status == 'OPERATIONAL' or vehicle.status == 'DEPLOYED' %}
+                                        <button type="button" class="btn btn-sm {% if vehicle.status == 'MAINTENANCE' %}btn-success{% elif vehicle.status == 'PENDING_DISPOSAL' %}btn-outline-warning{% else %}btn-danger{% endif %}" data-bs-toggle="modal" data-bs-target="#landMaintenanceModal{{ vehicle.id }}">
+                                            {% if vehicle.status == 'MAINTENANCE' %}
+                                                <i class="fa-solid fa-clipboard-check me-1"></i> Open return checklist
+                                            {% elif vehicle.status == 'PENDING_DISPOSAL' %}
+                                                <i class="fa-solid fa-clipboard-list me-1"></i> Manage disposal request
+                                            {% else %}
+                                                <i class="fa-solid fa-screwdriver-wrench me-1"></i> Report fault
+                                            {% endif %}
+                                        </button>
+                                        {% if vehicle.status == 'OPERATIONAL' %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary mt-1" data-bs-toggle="modal" data-bs-target="#landScheduleModal{{ vehicle.id }}">
+                                                <i class="fa-solid fa-calendar-plus me-1"></i> Schedule other maintenance
+                                            </button>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small">No mechanic action is available for this status.</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% include "fleet/_mechanic_incident_reports.html" %}
+    {% include "fleet/_fleet_incident_modal.html" %}
+
+    {% for vehicle in vehicles %}
+        {% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' or vehicle.status == 'OPERATIONAL' or vehicle.status == 'DEPLOYED' %}
+        <div class="modal fade" id="landMaintenanceModal{{ vehicle.id }}" tabindex="-1" aria-labelledby="landMaintenanceModalLabel{{ vehicle.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h2 class="modal-title fs-5 fw-bold" id="landMaintenanceModalLabel{{ vehicle.id }}">Maintenance action</h2>
+                            <div class="small text-muted">{{ vehicle.model_name }} · {{ vehicle.plate_number }}</div>
+                            <div class="small fw-semibold text-primary">
+                                <i class="fa-solid fa-user me-1"></i>
+                                Driver: {{ vehicle.assigned_driver.name|default:"Unassigned" }}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {% if vehicle.status == 'MAINTENANCE' %}
+                            <div class="alert alert-warning">
+                                <strong>User-reported fault:</strong>
+                                {{ vehicle.maintenance_problem|default:"No fault description recorded." }}
+                            </div>
+                            <form action="{% url 'dashboard_portal:repairman_dashboard' %}" method="POST">
+                                {% csrf_token %}
+                                <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                                <input type="hidden" name="action_type" value="COMPLETE_MAINTENANCE">
+                                <fieldset>
+                                    <legend class="fs-6 fw-bold">Return-to-service checklist</legend>
+                                    <p class="small text-muted">Complete all checks before return.</p>
+                                    {{ vehicle.checklist_form.maintenance_checklist }}
+                                </fieldset>
+                                <button type="submit" class="btn btn-success mt-3">
+                                    <i class="fa-solid fa-clipboard-check me-1"></i> Complete checks &amp; return to service
+                                </button>
+                            </form>
+                            <hr>
+                            <form action="{% url 'dashboard_portal:repairman_dashboard' %}" method="POST" onsubmit="return captureWorkshopDisposalRemarks(this);">
+                                {% csrf_token %}
+                                <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                                <input type="hidden" name="action_type" value="FLAG_DISPOSAL">
+                                <input type="hidden" name="disposal_remarks" id="workshop_remarks_input_{{ vehicle.id }}" value="">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fa-solid fa-trash-can me-1"></i> Move for disposal review
+                                </button>
+                            </form>
+                        {% elif vehicle.status == 'PENDING_DISPOSAL' %}
+                            <div class="alert alert-warning">This vehicle is pending disposal review. Update or cancel the request below.</div>
+                            <form action="{% url 'dashboard_portal:repairman_dashboard' %}" method="POST" class="mb-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                                <input type="hidden" name="action_type" value="UPDATE_DISPOSAL_REASON">
+                                <label for="land_disposal_reason_{{ vehicle.id }}" class="form-label fw-bold">Disposal reason</label>
+                                <input id="land_disposal_reason_{{ vehicle.id }}" type="text" name="disposal_remarks" class="form-control mb-2" value="{{ vehicle.disposal_reason }}" placeholder="Enter disposal reason" required>
+                                <button type="submit" class="btn btn-outline-primary">Update reason</button>
+                            </form>
+                            <form action="{% url 'dashboard_portal:repairman_dashboard' %}" method="POST" onsubmit="return confirm('Cancel the disposal request and return this asset to maintenance?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                                <input type="hidden" name="action_type" value="UNDO_DISPOSAL">
+                                <button type="submit" class="btn btn-outline-warning">Undo disposal request</button>
+                            </form>
+                        {% else %}
+                            <p class="text-muted">Describe the reported fault.</p>
+                            <form method="POST" action="{% url 'dashboard_portal:repairman_dashboard' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                                <input type="hidden" name="action_type" value="REPORT_FAULT">
+                                <label for="{{ vehicle.fault_form.fault_type.id_for_label }}" class="form-label fw-bold">{{ vehicle.fault_form.fault_type.label }}</label>
+                                {{ vehicle.fault_form.fault_type }}
+                                <label for="{{ vehicle.fault_form.fault_description.id_for_label }}" class="form-label fw-bold mt-3">{{ vehicle.fault_form.fault_description.label }}</label>
+                                {{ vehicle.fault_form.fault_description }}
+                                <button type="submit" class="btn btn-danger mt-3">
+                                    <i class="fa-solid fa-screwdriver-wrench me-1"></i> Record fault &amp; move to maintenance
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+
+    {% for vehicle in vehicles %}
+        {% if vehicle.status == 'OPERATIONAL' %}
+        <div class="modal fade" id="landScheduleModal{{ vehicle.id }}" tabindex="-1" aria-labelledby="landScheduleModalLabel{{ vehicle.id }}" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h2 class="modal-title fs-5 fw-bold" id="landScheduleModalLabel{{ vehicle.id }}">Schedule preventive maintenance</h2>
+                            <div class="small text-muted">{{ vehicle.model_name }} · {{ vehicle.plate_number }}</div>
+                            <div class="small fw-semibold text-primary">
+                                <i class="fa-solid fa-user me-1"></i>
+                                Driver: {{ vehicle.assigned_driver.name|default:"Unassigned" }}
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="{% url 'dashboard_portal:repairman_dashboard' %}" method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                        <input type="hidden" name="action_type" value="SCHEDULE_MAINTENANCE">
+                        <div class="modal-body">
+                            <p class="small text-muted">The vehicle enters maintenance on this date.</p>
+                            <div class="mb-3">
+                                <label for="{{ vehicle.schedule_form.maintenance_type.id_for_label }}" class="form-label fw-bold">{{ vehicle.schedule_form.maintenance_type.label }}</label>
+                                {{ vehicle.schedule_form.maintenance_type }}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ vehicle.schedule_form.due_date.id_for_label }}" class="form-label fw-bold">{{ vehicle.schedule_form.due_date.label }}</label>
+                                {{ vehicle.schedule_form.due_date }}
+                            </div>
+                            <div>
+                                <label for="{{ vehicle.schedule_form.description.id_for_label }}" class="form-label">{{ vehicle.schedule_form.description.label }}</label>
+                                {{ vehicle.schedule_form.description }}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-calendar-check me-1"></i> Save maintenance schedule
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    {% if messages %}
+    <div id="alert-container" class="fixed-bottom p-4 d-flex flex-column align-items-end z-50 space-y-3 w-full max-w-sm" style="left: auto; top: auto; right: 0; bottom: 0;">
+        {% for message in messages %}
+            <div class="alert-box p-4 rounded-xl shadow-lg border text-sm font-medium d-flex align-items-center justify-content-between bg-white backdrop-blur-md mb-2" style="min-width: 300px; {% if message.tags == 'success' %}border-color: #10B981; color: #065F46; background-color: rgba(240, 253, 250, 0.95);{% else %}border-color: #F59E0B; color: #78350F; background-color: rgba(254, 243, 199, 0.95);{% endif %}">
+                <div class="d-flex align-items-center gap-2">
+                    {% if message.tags == 'success' %}
+                        <svg style="width: 20px; height: 20px; color: #10B981;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    {% else %}
+                        <svg style="width: 20px; height: 20px; color: #F59E0B;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    {% endif %}
+                    <span>{{ message }}</span>
+                </div>
+                
+                <button onclick="this.parentElement.remove()" class="btn-close ms-3" style="font-size: 0.75rem; shadow: none; cursor: pointer;"></button>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %} 
+
+    <script src="{% static 'fleet/js/dashboard_views.js' %}"></script>
+    <script src="{% static 'fleet/js/dashboard_print.js' %}"></script>
+    <script src="{% static 'fleet/js/activity_report.js' %}"></script>
+    <script src="{% static 'fleet/js/mechanic_menu.js' %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const fleetTabs = document.querySelectorAll('[data-land-fleet-tab]');
+            function selectFleetTab(selectedTab) {
+                const selectedGroup = selectedTab.dataset.landFleetTab;
+                fleetTabs.forEach(function(tab) {
+                    const isSelected = tab === selectedTab;
+                    tab.classList.toggle('active', isSelected);
+                    tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                });
+                document.querySelectorAll('[data-land-fleet-group]').forEach(function(row) {
+                    row.hidden = row.dataset.landFleetGroup !== selectedGroup;
+                });
+            }
+            fleetTabs.forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    selectFleetTab(tab);
+                });
+            });
+            if (fleetTabs.length) {
+                selectFleetTab(document.querySelector('[data-land-fleet-tab="maintenance"]'));
+            }
+
+            const alertContainer = document.getElementById("alert-container");
+            
+            if (alertContainer) {
+                setTimeout(function() {
+                    alertContainer.style.transition = "all 0.5s ease-in-out";
+                    alertContainer.style.opacity = '0';
+                    alertContainer.style.transform = 'translate(50px, 20px)';
+                    
+                    setTimeout(function() {
+                        alertContainer.remove();
+                    }, 500); 
+                }, 4000);
+            }
+        });
+
+        // 🚨 Intercepts form submission to mandate structural justification input reasons
+        function captureWorkshopDisposalRemarks(form) {
+            const vehicleId = form.querySelector('input[name="vehicle_id"]').value;
+            const remarksInput = document.getElementById('workshop_remarks_input_' + vehicleId);
+            
+            const userRemarks = prompt("🚨 WORKSHOP ATTENTION: Please specify the unrepairable fault or justification for decommissioning this asset:");
+            
+            if (userRemarks === null) {
+                return false; // Action dropped by operator
+            }
+            
+            if (userRemarks.trim() === "") {
+                alert("⚠️ Action Denied: Workshop diagnosis remarks are required to initiate disposal workflows.");
+                return false;
+            }
+            
+            remarksInput.value = userRemarks;
+            return true;
+        }
+    </script>
+
+</body>
+</html>
