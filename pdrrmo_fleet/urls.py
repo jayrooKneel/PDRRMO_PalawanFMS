@@ -4,6 +4,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
 from django.http import HttpResponseRedirect
+from fleet.admin import system_console
 
 
 def admin_redirect_to_login(request):
@@ -12,6 +13,7 @@ def admin_redirect_to_login(request):
 
 urlpatterns = [
     path('', include(('fleet.urls', 'dashboard_portal'), namespace='dashboard_portal')),
+    path('admin/system-console/', admin.site.admin_view(system_console), name='admin_system_console'),
     path('admin/', admin.site.urls),
     path('admin/fleet/vehicletype/', RedirectView.as_view(url='/admin/', permanent=False), name='admin_vehicletype_redirect'),
     path('admin/login/', admin_redirect_to_login),

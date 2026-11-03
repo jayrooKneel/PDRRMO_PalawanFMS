@@ -58,6 +58,16 @@ JAZZMIN_SETTINGS = {
     
     # ... keep all your existing jazzmin title, theme, and logo specs below ...
     "site_title": "PDRRMO Fleet Control",
+    "custom_links": {
+        "fleet": [
+            {
+                "name": "System Console",
+                "url": "admin_system_console",
+                "icon": "fas fa-terminal",
+                "permissions": ["admin.view_logentry"],
+            },
+        ],
+    },
 }
 
 ROOT_URLCONF = 'pdrrmo_fleet.urls'

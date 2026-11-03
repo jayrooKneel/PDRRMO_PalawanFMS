@@ -31,6 +31,63 @@ class LoginViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'ACCESS DENIED: Invalid Username or Password.')
 
+    def test_successful_login_and_logout_are_audited(self):
+        user = User.objects.create_user(username='audited_user', password='SecurePass123!')
+
+        self.client.post(
+            reverse('dashboard_portal:login'),
+            {'username': user.username, 'password': 'SecurePass123!'},
+        )
+        self.client.post(reverse('dashboard_portal:custom_logout'))
+
+        self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged in successfully.').exists())
+        self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged out.').exists())
+
+
+class SystemConsoleTests(TestCase):
+    def test_console_shows_actions_from_multiple_users(self):
+        admin_user = User.objects.create_superuser(
+            username='console_admin', email='console@example.com', password='SecurePass123!'
+        )
+        operator = User.objects.create_user(username='console_operator')
+        content_type = ContentType.objects.get_for_model(User)
+        for user, message in (
+            (admin_user, 'Admin action'),
+            (operator, 'Operator action'),
+        ):
+            LogEntry.objects.create(
+                user=user,
+                content_type=content_type,
+                object_id=str(user.pk),
+                object_repr=user.username,
+                action_flag=CHANGE,
+                change_message=message,
+            )
+
+        self.client.force_login(admin_user)
+        response = self.client.get(reverse('admin_system_console'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'console_admin')
+        self.assertContains(response, 'console_operator')
+        self.assertContains(response, 'Operator action')
+
+    def test_console_requires_staff_access(self):
+        user = User.objects.create_user(username='non_staff')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('admin_system_console'))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_console_requires_log_entry_view_permission(self):
+        user = User.objects.create_user(username='staff_without_log_permission', is_staff=True)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('admin_system_console'))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_logistics_dashboard_allows_non_staff_user_in_logistics_group(self):
         group = Group.objects.create(name='Logistics Officers')
         user = User.objects.create_user(username='logistics_user', password='SecurePass123!')

@@ -7,6 +7,9 @@ from django.contrib import messages
 from django.contrib.auth.hashers import check_password
 from django.template.response import TemplateResponse
 from django.http import HttpResponseRedirect
+from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
+from django.db.models import Q
 from .models import FleetIncident, Vehicle, VehicleType, Driver
 
 # =========================================================================
@@ -29,6 +32,36 @@ class LogEntryAdmin(admin.ModelAdmin):
     def has_add_permission(self, request): return False
     def has_change_permission(self, request, obj=None): return False
     def has_delete_permission(self, request, obj=None): return False
+
+
+def system_console(request):
+    if not admin.site._registry[LogEntry].has_view_permission(request):
+        raise PermissionDenied
+
+    entries = LogEntry.objects.select_related('user', 'content_type').order_by('-action_time', '-pk')
+    query = request.GET.get('q', '').strip()
+    action = request.GET.get('action', '')
+
+    if query:
+        entries = entries.filter(
+            Q(user__username__icontains=query)
+            | Q(object_repr__icontains=query)
+            | Q(change_message__icontains=query)
+        )
+    if action in {'1', '2', '3'}:
+        entries = entries.filter(action_flag=int(action))
+    else:
+        action = ''
+
+    page_obj = Paginator(entries, 50).get_page(request.GET.get('page'))
+    context = admin.site.each_context(request)
+    context.update({
+        'title': 'System Console',
+        'page_obj': page_obj,
+        'query': query,
+        'action': action,
+    })
+    return TemplateResponse(request, 'admin/system_console.html', context)
 
 
 # =========================================================================
@@ -218,11 +251,31 @@ class ArchivedVehicleAdmin(admin.ModelAdmin):
 @admin.action(description="🔒 Deactivate selected user accounts")
 def deactivate_users(modeladmin, request, queryset):
     queryset.update(is_active=False)
+    content_type = ContentType.objects.get_for_model(User)
+    for user in queryset:
+        LogEntry.objects.create(
+            user_id=request.user.id,
+            content_type=content_type,
+            object_id=str(user.pk),
+            object_repr=str(user),
+            action_flag=CHANGE,
+            change_message='Deactivated user account.',
+        )
     modeladmin.message_user(request, "Selected accounts have been cleanly deactivated.", messages.SUCCESS)
 
 @admin.action(description="🔓 Activate selected user accounts")
 def activate_users(modeladmin, request, queryset):
     queryset.update(is_active=True)
+    content_type = ContentType.objects.get_for_model(User)
+    for user in queryset:
+        LogEntry.objects.create(
+            user_id=request.user.id,
+            content_type=content_type,
+            object_id=str(user.pk),
+            object_repr=str(user),
+            action_flag=CHANGE,
+            change_message='Activated user account.',
+        )
     modeladmin.message_user(request, "Selected accounts have been reactivated.", messages.SUCCESS)
 
 # Safely swap default User registration for our custom actionable layout

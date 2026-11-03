@@ -59,6 +59,7 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
+            log_action_to_admin(request, user, CHANGE, 'User logged in successfully.')
             return redirect('dashboard_portal:dashboard_portal')
 
         messages.error(request, "ACCESS DENIED: Invalid Username or Password.")
@@ -68,6 +69,8 @@ def login_view(request):
 
 def custom_user_logout(request):
     if request.method == 'POST':
+        if request.user.is_authenticated:
+            log_action_to_admin(request, request.user, CHANGE, 'User logged out.')
         logout(request)
         messages.success(request, "You have been logged out of the PDRRMO operations network.")
     return redirect('dashboard_portal:login')
