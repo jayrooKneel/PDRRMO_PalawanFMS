@@ -13,11 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='vehicle',
             name='deployment_destination',
-            field=models.CharField(blank=True, max_length=255),
-        ),
-        migrations.AddField(
-            model_name='vehicle',
-            name='deployment_purpose',
-            field=models.CharField(blank=True, choices=[('EMERGENCY_RESPONSE', 'Emergency response'), ('MEDICAL_TRANSPORT', 'Medical transport'), ('RESCUE_OPERATION', 'Rescue operation'), ('OFFICIAL_BUSINESS', 'Official business'), ('LOGISTICS_SUPPORT', 'Logistics support'), ('OTHER', 'Other')], max_length=30),
+            field=models.CharField(blank=True, max_length=255, null=True),
         ),
     ]

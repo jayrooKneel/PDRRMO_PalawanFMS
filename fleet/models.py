@@ -132,6 +132,7 @@ class Vehicle(models.Model):
 
     # PERSISTENT DEPLOYMENT TRACKING PARAMETERS
     deployment_location = models.CharField(max_length=255, blank=True, null=True)
+    deployment_destination = models.CharField(max_length=255, blank=True, null=True)
     deployment_purpose = models.CharField(max_length=255, blank=True, null=True)
     deployment_time = models.DateTimeField(blank=True, null=True)
 
