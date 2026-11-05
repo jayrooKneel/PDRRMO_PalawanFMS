@@ -118,11 +118,144 @@ The available pages depend on the project's configured URL routes.
 
 Database
 
-The project includes an SQLite database named db.sqlite3.
-
-SQLite is suitable for local development and testing. Before deploying the application to a production environment, review the database configuration, backup procedures, access controls, and data protection requirements.
+The project includes an SQLite database named `db.sqlite3` for local development. The production deployment below uses PostgreSQL; it does not use or overwrite the local SQLite file.
 
 Avoid deleting or replacing the existing database unless you have confirmed that its contents are no longer needed.
+
+Production Deployment (Render + PostgreSQL)
+-------------------------------------------
+
+This guide deploys the Django application to a Render Web Service and stores production records in a Render PostgreSQL database. The current checked-in settings are development settings (SQLite, `DEBUG=True`, and a literal secret key), and the requirements do not yet include a production web server, PostgreSQL driver, database URL parser, or static-file middleware. Complete the preparation below before connecting a public service. These are deployment steps; they do not change the local development setup.
+
+### 1. Prepare production settings and dependencies
+
+Add these packages to `requirements.txt` and commit the updated file:
+
+```text
+dj-database-url
+gunicorn
+psycopg[binary]
+whitenoise
+```
+
+In `pdrrmo_fleet/settings.py`, replace the development `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, and SQLite `DATABASES` definitions with environment-driven settings. Add the imports shown here:
+
+```python
+import os
+import dj_database_url
+```
+
+Use the following production configuration (keep the rest of the existing settings):
+
+```python
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ["DJANGO_ALLOWED_HOSTS"].split(",")
+    if host.strip()
+]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+DATABASES = {
+    "default": dj_database_url.config(
+        default=os.environ["DATABASE_URL"],
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
+```
+
+For static files, add `whitenoise.middleware.WhiteNoiseMiddleware` immediately after `django.middleware.security.SecurityMiddleware` in `MIDDLEWARE`, then configure:
+
+```python
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+```
+
+For HTTPS behind Render's proxy, also set:
+
+```python
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+```
+
+The database URL must be a PostgreSQL URL provided by Render, not a URL committed to source control. Keep `DJANGO_DEBUG` false in production. Set `DJANGO_ALLOWED_HOSTS` to the exact Render hostname (and any custom domain), without a scheme; set `CSRF_TRUSTED_ORIGINS` to the corresponding `https://` origins.
+
+### 2. Create the Render PostgreSQL database
+
+1. In the Render Dashboard, create a PostgreSQL database in the region you will use for the web service. Choose a plan and retention period suitable for the sensitivity, availability, and backup requirements of official fleet records.
+2. Copy the database's **Internal Database URL** from its connection details. Use the internal URL when the web service and database are in the same Render region. Do not publish, commit, or share database URLs or credentials.
+3. Keep the database's backups and retention settings enabled according to your organization's recovery policy. Test restoring a backup before relying on it.
+
+### 3. Create and configure the web service
+
+1. Push the prepared application to a GitHub repository accessible to Render, then create a Render **Web Service** from that repository. Select the branch to deploy and a Python runtime supported by the pinned Django version.
+2. Set the build command to:
+
+   ```sh
+   pip install -r requirements.txt && python manage.py collectstatic --no-input
+   ```
+
+3. Set the start command to:
+
+   ```sh
+   python -m gunicorn pdrrmo_fleet.wsgi:application --bind 0.0.0.0:$PORT
+   ```
+
+4. In the service's **Environment** settings, add:
+   - `DATABASE_URL`: the PostgreSQL **Internal Database URL** from step 2.
+   - `DJANGO_SECRET_KEY`: a newly generated, private production secret key. Do not reuse the development key or commit the value.
+   - `DJANGO_DEBUG`: `False`.
+   - `DJANGO_ALLOWED_HOSTS`: the service hostname, for example `your-service.onrender.com`; add a custom hostname as needed, separated by commas.
+   - `CSRF_TRUSTED_ORIGINS`: for example `https://your-service.onrender.com`; add each custom HTTPS origin as needed, separated by commas.
+5. Save the settings and deploy. Use Render's environment-variable UI or secret management; never put credential values in the repository or deployment logs.
+
+### 4. Initialize the production database
+
+Before directing users to the new service, open a Render Shell for the web service and run:
+
+```sh
+python manage.py check --deploy
+python manage.py migrate --noinput
+python manage.py createsuperuser
+```
+
+Run migrations once for the target database, before serving production traffic. Do not run `makemigrations` on the hosting service: generate and review migrations in development, commit them, and apply them to production with `migrate`. For later releases, apply pending migrations as a controlled deployment step before the new application code needs them; avoid running migrations concurrently from multiple web workers.
+
+Verify the service health, sign in through the configured login page, test static assets and essential workflows, and check that records persist after a new deployment. Configure a custom domain and HTTPS in Render before sharing the site.
+
+### 5. Move existing local data, if required
+
+The Render database starts separately from `db.sqlite3`. Do not copy or rename the SQLite file to use it as PostgreSQL. If local fleet records must be carried over, first take and retain a tested backup of both databases, freeze writes during the transfer, and test the process against a staging database. Django can export and import application data:
+
+```sh
+# On the source environment, after backing up db.sqlite3:
+python manage.py dumpdata --natural-foreign --natural-primary --exclude contenttypes --exclude auth.permission --indent 2 > fleet-data.json
+
+# On the target environment, after deploying code and applying migrations:
+python manage.py loaddata fleet-data.json
+```
+
+Transfer the export through a protected channel, restrict access to it, and remove temporary copies when the migration is verified. This is a data transfer, not a substitute for validating relationships, user access, audit history, record counts, and application behavior. Plan a controlled cutover; do not allow users to write independently to both databases.
+
+### Enterprise PostgreSQL and operations
+
+If PostgreSQL is hosted by your organization instead of Render, have the database administrator provision a production database and a dedicated least-privilege application role. Set `DATABASE_URL` to the approved PostgreSQL connection URL in Render's environment settings. Confirm the hosting service can reach the database over an approved private network or allowlisted route, and require TLS as directed by the DBA. Never expose a database port publicly just to make the connection work. Confirm connection limits, maintenance windows, backup/restore ownership, retention, recovery objectives, monitoring, and incident contacts with the organization before launch.
+
+The Render and database dashboards can change; consult the current [Render Django deployment guide](https://render.com/docs/deploy-django), [Render PostgreSQL connection guide](https://render.com/docs/postgresql-creating-connecting), and [Django deployment checklist](https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/) while preparing production.
 
 Development Commands
 
@@ -137,15 +270,7 @@ python manage.py createsuperuser	Create an administrator
 python manage.py collectstatic	Collect static files when configured for deployment
 Security and Deployment
 
-Before deploying the system to a production server:
-
-Set DEBUG = False.
-Configure ALLOWED_HOSTS for the intended domain or server.
-Store the Django secret key and other sensitive settings securely in environment variables.
-Use HTTPS and appropriate authentication and authorization controls.
-Back up the database and verify that restoration works.
-Avoid committing passwords, secret keys, private records, or sensitive operational information to Git.
-Review database and application access permissions before handling official fleet or maritime records.
+Before going live, review Django's deployment checklist, enforce HTTPS and appropriate authentication and authorization controls, back up the database and verify restoration, and review database and application access permissions before handling official fleet or maritime records. Avoid committing passwords, secret keys, private records, or sensitive operational information to Git.
 
 The Django development server is intended for development and testing, not direct production use.
 
