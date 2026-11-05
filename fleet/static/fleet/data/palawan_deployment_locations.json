@@ -1,0 +1,3049 @@
+{
+  "source": "Philippines Administrative Divisions dataset",
+  "source_url": "https://github.com/open-admin-data/philippines-administrative-divisions",
+  "source_revision": "c3249a9b0ab3c81db84f3e46e142cb34bc0529ae",
+  "license": "CC-BY-4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "scope": "Puerto Princesa City and barangays within the Province of Palawan",
+  "changes": "Filtered to Puerto Princesa City and Palawan barangays; barangay labels include their municipality and province.",
+  "locations": [
+    {
+      "id": "175316",
+      "type": "city",
+      "name": "Puerto Princesa City",
+      "municipality": "",
+      "label": "Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175302007",
+      "type": "barangay",
+      "name": "Abagat (Pob.)",
+      "municipality": "Agutaya",
+      "label": "Abagat (Pob.), Agutaya, Palawan"
+    },
+    {
+      "id": "175318001",
+      "type": "barangay",
+      "name": "Abaroan",
+      "municipality": "Roxas",
+      "label": "Abaroan, Roxas, Palawan"
+    },
+    {
+      "id": "175312018",
+      "type": "barangay",
+      "name": "Aberawan",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Aberawan, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175324001",
+      "type": "barangay",
+      "name": "Abo-abo",
+      "municipality": "Sofronio Española",
+      "label": "Abo-abo, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175320001",
+      "type": "barangay",
+      "name": "Abongan",
+      "municipality": "Taytay",
+      "label": "Abongan, Taytay, Palawan"
+    },
+    {
+      "id": "175304001",
+      "type": "barangay",
+      "name": "Agutayan",
+      "municipality": "Balabac",
+      "label": "Agutayan, Balabac, Palawan"
+    },
+    {
+      "id": "175320025",
+      "type": "barangay",
+      "name": "Alacalian",
+      "municipality": "Taytay",
+      "label": "Alacalian, Taytay, Palawan"
+    },
+    {
+      "id": "175314001",
+      "type": "barangay",
+      "name": "Alcoba",
+      "municipality": "Magsaysay",
+      "label": "Alcoba, Magsaysay, Palawan"
+    },
+    {
+      "id": "175317001",
+      "type": "barangay",
+      "name": "Alfonso XIII (Pob.)",
+      "municipality": "Quezon",
+      "label": "Alfonso XIII (Pob.), Quezon, Palawan"
+    },
+    {
+      "id": "175302002",
+      "type": "barangay",
+      "name": "Algeciras",
+      "municipality": "Agutaya",
+      "label": "Algeciras, Agutaya, Palawan"
+    },
+    {
+      "id": "175319001",
+      "type": "barangay",
+      "name": "Alimanguan",
+      "municipality": "San Vicente",
+      "label": "Alimanguan, San Vicente, Palawan"
+    },
+    {
+      "id": "175306001",
+      "type": "barangay",
+      "name": "Amas",
+      "municipality": "Brooke'S Point",
+      "label": "Amas, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175315001",
+      "type": "barangay",
+      "name": "Antipuluan",
+      "municipality": "Narra",
+      "label": "Antipuluan, Narra, Palawan"
+    },
+    {
+      "id": "175318002",
+      "type": "barangay",
+      "name": "Antonino",
+      "municipality": "Roxas",
+      "label": "Antonino, Roxas, Palawan"
+    },
+    {
+      "id": "175301001",
+      "type": "barangay",
+      "name": "Apo-Aporawan",
+      "municipality": "Aborlan",
+      "label": "Apo-Aporawan, Aborlan, Palawan"
+    },
+    {
+      "id": "175301002",
+      "type": "barangay",
+      "name": "Apoc-apoc",
+      "municipality": "Aborlan",
+      "label": "Apoc-apoc, Aborlan, Palawan"
+    },
+    {
+      "id": "175301003",
+      "type": "barangay",
+      "name": "Aporawan",
+      "municipality": "Aborlan",
+      "label": "Aporawan, Aborlan, Palawan"
+    },
+    {
+      "id": "175315002",
+      "type": "barangay",
+      "name": "Aramaywan",
+      "municipality": "Narra",
+      "label": "Aramaywan, Narra, Palawan"
+    },
+    {
+      "id": "175317002",
+      "type": "barangay",
+      "name": "Aramaywan",
+      "municipality": "Quezon",
+      "label": "Aramaywan, Quezon, Palawan"
+    },
+    {
+      "id": "175306002",
+      "type": "barangay",
+      "name": "Aribungos",
+      "municipality": "Brooke'S Point",
+      "label": "Aribungos, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175316001",
+      "type": "barangay",
+      "name": "Babuyan",
+      "municipality": "Puerto Princesa City",
+      "label": "Babuyan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175311001",
+      "type": "barangay",
+      "name": "Bacao",
+      "municipality": "Dumaran",
+      "label": "Bacao, Dumaran, Palawan"
+    },
+    {
+      "id": "175316002",
+      "type": "barangay",
+      "name": "Bacungan",
+      "municipality": "Puerto Princesa City",
+      "label": "Bacungan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175312001",
+      "type": "barangay",
+      "name": "Bagong Bayan",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Bagong Bayan, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175316003",
+      "type": "barangay",
+      "name": "Bagong Bayan",
+      "municipality": "Puerto Princesa City",
+      "label": "Bagong Bayan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175318003",
+      "type": "barangay",
+      "name": "Bagong Bayan",
+      "municipality": "Roxas",
+      "label": "Bagong Bayan, Roxas, Palawan"
+    },
+    {
+      "id": "175316004",
+      "type": "barangay",
+      "name": "Bagong Pag-Asa (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Bagong Pag-Asa (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316005",
+      "type": "barangay",
+      "name": "Bagong Sikat (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Bagong Sikat (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175315022",
+      "type": "barangay",
+      "name": "Bagong Sikat",
+      "municipality": "Narra",
+      "label": "Bagong Sikat, Narra, Palawan"
+    },
+    {
+      "id": "175316006",
+      "type": "barangay",
+      "name": "Bagong Silang (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Bagong Silang (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316008",
+      "type": "barangay",
+      "name": "Bahile",
+      "municipality": "Puerto Princesa City",
+      "label": "Bahile, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175310001",
+      "type": "barangay",
+      "name": "Balading",
+      "municipality": "Cuyo",
+      "label": "Balading, Cuyo, Palawan"
+    },
+    {
+      "id": "175314002",
+      "type": "barangay",
+      "name": "Balaguen",
+      "municipality": "Magsaysay",
+      "label": "Balaguen, Magsaysay, Palawan"
+    },
+    {
+      "id": "175322001",
+      "type": "barangay",
+      "name": "Balala",
+      "municipality": "Culion",
+      "label": "Balala, Culion, Palawan"
+    },
+    {
+      "id": "175322002",
+      "type": "barangay",
+      "name": "Baldat",
+      "municipality": "Culion",
+      "label": "Baldat, Culion, Palawan"
+    },
+    {
+      "id": "175303001",
+      "type": "barangay",
+      "name": "Balogo",
+      "municipality": "Araceli",
+      "label": "Balogo, Araceli, Palawan"
+    },
+    {
+      "id": "175320002",
+      "type": "barangay",
+      "name": "Banbanan",
+      "municipality": "Taytay",
+      "label": "Banbanan, Taytay, Palawan"
+    },
+    {
+      "id": "175304003",
+      "type": "barangay",
+      "name": "Bancalaan",
+      "municipality": "Balabac",
+      "label": "Bancalaan, Balabac, Palawan"
+    },
+    {
+      "id": "175316009",
+      "type": "barangay",
+      "name": "Bancao-bancao",
+      "municipality": "Puerto Princesa City",
+      "label": "Bancao-bancao, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175302008",
+      "type": "barangay",
+      "name": "Bangcal (Pob.)",
+      "municipality": "Agutaya",
+      "label": "Bangcal (Pob.), Agutaya, Palawan"
+    },
+    {
+      "id": "175310002",
+      "type": "barangay",
+      "name": "Bangcal (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Bangcal (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175308001",
+      "type": "barangay",
+      "name": "Bantayan (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Bantayan (Pob.), Cagayancillo, Palawan"
+    },
+    {
+      "id": "175320003",
+      "type": "barangay",
+      "name": "Bantulan",
+      "municipality": "Taytay",
+      "label": "Bantulan, Taytay, Palawan"
+    },
+    {
+      "id": "175309001",
+      "type": "barangay",
+      "name": "Banuang Daan",
+      "municipality": "Coron",
+      "label": "Banuang Daan, Coron, Palawan"
+    },
+    {
+      "id": "175301004",
+      "type": "barangay",
+      "name": "Barake",
+      "municipality": "Aborlan",
+      "label": "Barake, Aborlan, Palawan"
+    },
+    {
+      "id": "175318015",
+      "type": "barangay",
+      "name": "Barangay 1 (Pob.)",
+      "municipality": "Roxas",
+      "label": "Barangay 1 (Pob.), Roxas, Palawan"
+    },
+    {
+      "id": "175309016",
+      "type": "barangay",
+      "name": "Barangay I (Pob.)",
+      "municipality": "Coron",
+      "label": "Barangay I (Pob.), Coron, Palawan"
+    },
+    {
+      "id": "175309017",
+      "type": "barangay",
+      "name": "Barangay II (Pob.)",
+      "municipality": "Coron",
+      "label": "Barangay II (Pob.), Coron, Palawan"
+    },
+    {
+      "id": "175318029",
+      "type": "barangay",
+      "name": "Barangay II (Pob.)",
+      "municipality": "Roxas",
+      "label": "Barangay II (Pob.), Roxas, Palawan"
+    },
+    {
+      "id": "175309018",
+      "type": "barangay",
+      "name": "Barangay III (Pob.)",
+      "municipality": "Coron",
+      "label": "Barangay III (Pob.), Coron, Palawan"
+    },
+    {
+      "id": "175318030",
+      "type": "barangay",
+      "name": "Barangay III (Pob.)",
+      "municipality": "Roxas",
+      "label": "Barangay III (Pob.), Roxas, Palawan"
+    },
+    {
+      "id": "175309019",
+      "type": "barangay",
+      "name": "Barangay IV (Pob.)",
+      "municipality": "Coron",
+      "label": "Barangay IV (Pob.), Coron, Palawan"
+    },
+    {
+      "id": "175318031",
+      "type": "barangay",
+      "name": "Barangay IV (Pob.)",
+      "municipality": "Roxas",
+      "label": "Barangay IV (Pob.), Roxas, Palawan"
+    },
+    {
+      "id": "175316062",
+      "type": "barangay",
+      "name": "Barangay ng mga Mangingisda",
+      "municipality": "Puerto Princesa City",
+      "label": "Barangay ng mga Mangingisda, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175309020",
+      "type": "barangay",
+      "name": "Barangay V (Pob.)",
+      "municipality": "Coron",
+      "label": "Barangay V (Pob.), Coron, Palawan"
+    },
+    {
+      "id": "175318032",
+      "type": "barangay",
+      "name": "Barangay V Pob. (Porao Island)",
+      "municipality": "Roxas",
+      "label": "Barangay V Pob. (Porao Island), Roxas, Palawan"
+    },
+    {
+      "id": "175309032",
+      "type": "barangay",
+      "name": "Barangay VI (Pob.)",
+      "municipality": "Coron",
+      "label": "Barangay VI (Pob.), Coron, Palawan"
+    },
+    {
+      "id": "175318033",
+      "type": "barangay",
+      "name": "Barangay VI Pob. (Johnson Island)",
+      "municipality": "Roxas",
+      "label": "Barangay VI Pob. (Johnson Island), Roxas, Palawan"
+    },
+    {
+      "id": "175313001",
+      "type": "barangay",
+      "name": "Barangonan (Iloc)",
+      "municipality": "Linapacan",
+      "label": "Barangonan (Iloc), Linapacan, Palawan"
+    },
+    {
+      "id": "175320026",
+      "type": "barangay",
+      "name": "Baras (Pangpang)",
+      "municipality": "Taytay",
+      "label": "Baras (Pangpang), Taytay, Palawan"
+    },
+    {
+      "id": "175306003",
+      "type": "barangay",
+      "name": "Barong-barong",
+      "municipality": "Brooke'S Point",
+      "label": "Barong-barong, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175312003",
+      "type": "barangay",
+      "name": "Barotuan",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Barotuan, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175315003",
+      "type": "barangay",
+      "name": "Batang-batang",
+      "municipality": "Narra",
+      "label": "Batang-batang, Narra, Palawan"
+    },
+    {
+      "id": "175320004",
+      "type": "barangay",
+      "name": "Batas",
+      "municipality": "Taytay",
+      "label": "Batas, Taytay, Palawan"
+    },
+    {
+      "id": "175320005",
+      "type": "barangay",
+      "name": "Bato",
+      "municipality": "Taytay",
+      "label": "Bato, Taytay, Palawan"
+    },
+    {
+      "id": "175315004",
+      "type": "barangay",
+      "name": "Bato-bato",
+      "municipality": "Narra",
+      "label": "Bato-bato, Narra, Palawan"
+    },
+    {
+      "id": "175312004",
+      "type": "barangay",
+      "name": "Bebeladan",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Bebeladan, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175317003",
+      "type": "barangay",
+      "name": "Berong",
+      "municipality": "Quezon",
+      "label": "Berong, Quezon, Palawan"
+    },
+    {
+      "id": "175320006",
+      "type": "barangay",
+      "name": "Beton",
+      "municipality": "Taytay",
+      "label": "Beton, Taytay, Palawan"
+    },
+    {
+      "id": "175316010",
+      "type": "barangay",
+      "name": "Binduyan",
+      "municipality": "Puerto Princesa City",
+      "label": "Binduyan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175319002",
+      "type": "barangay",
+      "name": "Binga",
+      "municipality": "San Vicente",
+      "label": "Binga, San Vicente, Palawan"
+    },
+    {
+      "id": "175309002",
+      "type": "barangay",
+      "name": "Bintuan",
+      "municipality": "Coron",
+      "label": "Bintuan, Coron, Palawan"
+    },
+    {
+      "id": "175322003",
+      "type": "barangay",
+      "name": "Binudac",
+      "municipality": "Culion",
+      "label": "Binudac, Culion, Palawan"
+    },
+    {
+      "id": "175307001",
+      "type": "barangay",
+      "name": "Bogtong",
+      "municipality": "Busuanga",
+      "label": "Bogtong, Busuanga, Palawan"
+    },
+    {
+      "id": "175311002",
+      "type": "barangay",
+      "name": "Bohol",
+      "municipality": "Dumaran",
+      "label": "Bohol, Dumaran, Palawan"
+    },
+    {
+      "id": "175305001",
+      "type": "barangay",
+      "name": "Bono-bono",
+      "municipality": "Bataraza",
+      "label": "Bono-bono, Bataraza, Palawan"
+    },
+    {
+      "id": "175309003",
+      "type": "barangay",
+      "name": "Borac",
+      "municipality": "Coron",
+      "label": "Borac, Coron, Palawan"
+    },
+    {
+      "id": "175312017",
+      "type": "barangay",
+      "name": "Bucana",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Bucana, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175312002",
+      "type": "barangay",
+      "name": "Buena Suerte Pob. (Barangay 2)",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Buena Suerte Pob. (Barangay 2), El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175309004",
+      "type": "barangay",
+      "name": "Buenavista",
+      "municipality": "Coron",
+      "label": "Buenavista, Coron, Palawan"
+    },
+    {
+      "id": "175316011",
+      "type": "barangay",
+      "name": "Buenavista",
+      "municipality": "Puerto Princesa City",
+      "label": "Buenavista, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175304002",
+      "type": "barangay",
+      "name": "Bugsuk (New Cagayancillo)",
+      "municipality": "Balabac",
+      "label": "Bugsuk (New Cagayancillo), Balabac, Palawan"
+    },
+    {
+      "id": "175305002",
+      "type": "barangay",
+      "name": "Bulalacao",
+      "municipality": "Bataraza",
+      "label": "Bulalacao, Bataraza, Palawan"
+    },
+    {
+      "id": "175309005",
+      "type": "barangay",
+      "name": "Bulalacao",
+      "municipality": "Coron",
+      "label": "Bulalacao, Coron, Palawan"
+    },
+    {
+      "id": "175305003",
+      "type": "barangay",
+      "name": "Buliluyan",
+      "municipality": "Bataraza",
+      "label": "Buliluyan, Bataraza, Palawan"
+    },
+    {
+      "id": "175307002",
+      "type": "barangay",
+      "name": "Buluang",
+      "municipality": "Busuanga",
+      "label": "Buluang, Busuanga, Palawan"
+    },
+    {
+      "id": "175323001",
+      "type": "barangay",
+      "name": "Bunog",
+      "municipality": "Rizal (Marcos)",
+      "label": "Bunog, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175322012",
+      "type": "barangay",
+      "name": "Burabod",
+      "municipality": "Culion",
+      "label": "Burabod, Culion, Palawan"
+    },
+    {
+      "id": "175315005",
+      "type": "barangay",
+      "name": "Burirao",
+      "municipality": "Narra",
+      "label": "Burirao, Narra, Palawan"
+    },
+    {
+      "id": "175320007",
+      "type": "barangay",
+      "name": "Busy Bees",
+      "municipality": "Taytay",
+      "label": "Busy Bees, Taytay, Palawan"
+    },
+    {
+      "id": "175316012",
+      "type": "barangay",
+      "name": "Cabayugan",
+      "municipality": "Puerto Princesa City",
+      "label": "Cabayugan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175301005",
+      "type": "barangay",
+      "name": "Cabigaan",
+      "municipality": "Aborlan",
+      "label": "Cabigaan, Aborlan, Palawan"
+    },
+    {
+      "id": "175310003",
+      "type": "barangay",
+      "name": "Cabigsing (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Cabigsing (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175309006",
+      "type": "barangay",
+      "name": "Cabugao",
+      "municipality": "Coron",
+      "label": "Cabugao, Coron, Palawan"
+    },
+    {
+      "id": "175313002",
+      "type": "barangay",
+      "name": "Cabunlawan",
+      "municipality": "Linapacan",
+      "label": "Cabunlawan, Linapacan, Palawan"
+    },
+    {
+      "id": "175310004",
+      "type": "barangay",
+      "name": "Caburian",
+      "municipality": "Cuyo",
+      "label": "Caburian, Cuyo, Palawan"
+    },
+    {
+      "id": "175315006",
+      "type": "barangay",
+      "name": "Caguisan",
+      "municipality": "Narra",
+      "label": "Caguisan, Narra, Palawan"
+    },
+    {
+      "id": "175311003",
+      "type": "barangay",
+      "name": "Calasag",
+      "municipality": "Dumaran",
+      "label": "Calasag, Dumaran, Palawan"
+    },
+    {
+      "id": "175306004",
+      "type": "barangay",
+      "name": "Calasaguen",
+      "municipality": "Brooke'S Point",
+      "label": "Calasaguen, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175317023",
+      "type": "barangay",
+      "name": "Calatagbak",
+      "municipality": "Quezon",
+      "label": "Calatagbak, Quezon, Palawan"
+    },
+    {
+      "id": "175315007",
+      "type": "barangay",
+      "name": "Calategas",
+      "municipality": "Narra",
+      "label": "Calategas, Narra, Palawan"
+    },
+    {
+      "id": "175320008",
+      "type": "barangay",
+      "name": "Calawag",
+      "municipality": "Taytay",
+      "label": "Calawag, Taytay, Palawan"
+    },
+    {
+      "id": "175313003",
+      "type": "barangay",
+      "name": "Calibangbangan",
+      "municipality": "Linapacan",
+      "label": "Calibangbangan, Linapacan, Palawan"
+    },
+    {
+      "id": "175308002",
+      "type": "barangay",
+      "name": "Calsada (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Calsada (Pob.), Cagayancillo, Palawan"
+    },
+    {
+      "id": "175317005",
+      "type": "barangay",
+      "name": "Calumpang",
+      "municipality": "Quezon",
+      "label": "Calumpang, Quezon, Palawan"
+    },
+    {
+      "id": "175302009",
+      "type": "barangay",
+      "name": "Cambian (Pob.)",
+      "municipality": "Agutaya",
+      "label": "Cambian (Pob.), Agutaya, Palawan"
+    },
+    {
+      "id": "175323002",
+      "type": "barangay",
+      "name": "Campong Ulay",
+      "municipality": "Rizal (Marcos)",
+      "label": "Campong Ulay, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175323003",
+      "type": "barangay",
+      "name": "Candawaga",
+      "municipality": "Rizal (Marcos)",
+      "label": "Candawaga, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175323004",
+      "type": "barangay",
+      "name": "Canipaan",
+      "municipality": "Rizal (Marcos)",
+      "label": "Canipaan, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175314003",
+      "type": "barangay",
+      "name": "Canipo",
+      "municipality": "Magsaysay",
+      "label": "Canipo, Magsaysay, Palawan"
+    },
+    {
+      "id": "175311004",
+      "type": "barangay",
+      "name": "Capayas",
+      "municipality": "Dumaran",
+      "label": "Capayas, Dumaran, Palawan"
+    },
+    {
+      "id": "175310005",
+      "type": "barangay",
+      "name": "Caponayan",
+      "municipality": "Cuyo",
+      "label": "Caponayan, Cuyo, Palawan"
+    },
+    {
+      "id": "175318004",
+      "type": "barangay",
+      "name": "Caramay",
+      "municipality": "Roxas",
+      "label": "Caramay, Roxas, Palawan"
+    },
+    {
+      "id": "175319003",
+      "type": "barangay",
+      "name": "Caruray",
+      "municipality": "San Vicente",
+      "label": "Caruray, San Vicente, Palawan"
+    },
+    {
+      "id": "175320009",
+      "type": "barangay",
+      "name": "Casian",
+      "municipality": "Taytay",
+      "label": "Casian, Taytay, Palawan"
+    },
+    {
+      "id": "175320010",
+      "type": "barangay",
+      "name": "Cataban",
+      "municipality": "Taytay",
+      "label": "Cataban, Taytay, Palawan"
+    },
+    {
+      "id": "175310006",
+      "type": "barangay",
+      "name": "Catadman (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Catadman (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175304006",
+      "type": "barangay",
+      "name": "Catagupan",
+      "municipality": "Balabac",
+      "label": "Catagupan, Balabac, Palawan"
+    },
+    {
+      "id": "175311005",
+      "type": "barangay",
+      "name": "Catep",
+      "municipality": "Dumaran",
+      "label": "Catep, Dumaran, Palawan"
+    },
+    {
+      "id": "175307004",
+      "type": "barangay",
+      "name": "Cheey",
+      "municipality": "Busuanga",
+      "label": "Cheey, Busuanga, Palawan"
+    },
+    {
+      "id": "175314004",
+      "type": "barangay",
+      "name": "Cocoro",
+      "municipality": "Magsaysay",
+      "label": "Cocoro, Magsaysay, Palawan"
+    },
+    {
+      "id": "175302003",
+      "type": "barangay",
+      "name": "Concepcion",
+      "municipality": "Agutaya",
+      "label": "Concepcion, Agutaya, Palawan"
+    },
+    {
+      "id": "175307005",
+      "type": "barangay",
+      "name": "Concepcion",
+      "municipality": "Busuanga",
+      "label": "Concepcion, Busuanga, Palawan"
+    },
+    {
+      "id": "175316013",
+      "type": "barangay",
+      "name": "Concepcion",
+      "municipality": "Puerto Princesa City",
+      "label": "Concepcion, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175308003",
+      "type": "barangay",
+      "name": "Convento (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Convento (Pob.), Cagayancillo, Palawan"
+    },
+    {
+      "id": "175312005",
+      "type": "barangay",
+      "name": "Corong-corong Pob. (Barangay 4)",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Corong-corong Pob. (Barangay 4), El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175301020",
+      "type": "barangay",
+      "name": "Culandanum",
+      "municipality": "Aborlan",
+      "label": "Culandanum, Aborlan, Palawan"
+    },
+    {
+      "id": "175305004",
+      "type": "barangay",
+      "name": "Culandanum",
+      "municipality": "Bataraza",
+      "label": "Culandanum, Bataraza, Palawan"
+    },
+    {
+      "id": "175322004",
+      "type": "barangay",
+      "name": "Culango",
+      "municipality": "Culion",
+      "label": "Culango, Culion, Palawan"
+    },
+    {
+      "id": "175311006",
+      "type": "barangay",
+      "name": "Culasian",
+      "municipality": "Dumaran",
+      "label": "Culasian, Dumaran, Palawan"
+    },
+    {
+      "id": "175323005",
+      "type": "barangay",
+      "name": "Culasian",
+      "municipality": "Rizal (Marcos)",
+      "label": "Culasian, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175303004",
+      "type": "barangay",
+      "name": "Dagman",
+      "municipality": "Araceli",
+      "label": "Dagman, Araceli, Palawan"
+    },
+    {
+      "id": "175303005",
+      "type": "barangay",
+      "name": "Dalayawon",
+      "municipality": "Araceli",
+      "label": "Dalayawon, Araceli, Palawan"
+    },
+    {
+      "id": "175314005",
+      "type": "barangay",
+      "name": "Danawan (Pob.)",
+      "municipality": "Magsaysay",
+      "label": "Danawan (Pob.), Magsaysay, Palawan"
+    },
+    {
+      "id": "175311007",
+      "type": "barangay",
+      "name": "Danleg",
+      "municipality": "Dumaran",
+      "label": "Danleg, Dumaran, Palawan"
+    },
+    {
+      "id": "175322014",
+      "type": "barangay",
+      "name": "De Carabao",
+      "municipality": "Culion",
+      "label": "De Carabao, Culion, Palawan"
+    },
+    {
+      "id": "175320011",
+      "type": "barangay",
+      "name": "Debangan",
+      "municipality": "Taytay",
+      "label": "Debangan, Taytay, Palawan"
+    },
+    {
+      "id": "175313004",
+      "type": "barangay",
+      "name": "Decabaitot",
+      "municipality": "Linapacan",
+      "label": "Decabaitot, Linapacan, Palawan"
+    },
+    {
+      "id": "175309008",
+      "type": "barangay",
+      "name": "Decabobo",
+      "municipality": "Coron",
+      "label": "Decabobo, Coron, Palawan"
+    },
+    {
+      "id": "175309009",
+      "type": "barangay",
+      "name": "Decalachao",
+      "municipality": "Coron",
+      "label": "Decalachao, Coron, Palawan"
+    },
+    {
+      "id": "175320012",
+      "type": "barangay",
+      "name": "Depla",
+      "municipality": "Taytay",
+      "label": "Depla, Taytay, Palawan"
+    },
+    {
+      "id": "175302004",
+      "type": "barangay",
+      "name": "Diit",
+      "municipality": "Agutaya",
+      "label": "Diit, Agutaya, Palawan"
+    },
+    {
+      "id": "175315008",
+      "type": "barangay",
+      "name": "Dumagueña",
+      "municipality": "Narra",
+      "label": "Dumagueña, Narra, Palawan"
+    },
+    {
+      "id": "175311008",
+      "type": "barangay",
+      "name": "Dumaran (Pob.)",
+      "municipality": "Dumaran",
+      "label": "Dumaran (Pob.), Dumaran, Palawan"
+    },
+    {
+      "id": "175318005",
+      "type": "barangay",
+      "name": "Dumarao",
+      "municipality": "Roxas",
+      "label": "Dumarao, Roxas, Palawan"
+    },
+    {
+      "id": "175315009",
+      "type": "barangay",
+      "name": "Elvita",
+      "municipality": "Narra",
+      "label": "Elvita, Narra, Palawan"
+    },
+    {
+      "id": "175314006",
+      "type": "barangay",
+      "name": "Emilod",
+      "municipality": "Magsaysay",
+      "label": "Emilod, Magsaysay, Palawan"
+    },
+    {
+      "id": "175315010",
+      "type": "barangay",
+      "name": "Estrella Village",
+      "municipality": "Narra",
+      "label": "Estrella Village, Narra, Palawan"
+    },
+    {
+      "id": "175310007",
+      "type": "barangay",
+      "name": "Funda",
+      "municipality": "Cuyo",
+      "label": "Funda, Cuyo, Palawan"
+    },
+    {
+      "id": "175322005",
+      "type": "barangay",
+      "name": "Galoc",
+      "municipality": "Culion",
+      "label": "Galoc, Culion, Palawan"
+    },
+    {
+      "id": "175301006",
+      "type": "barangay",
+      "name": "Gogognan",
+      "municipality": "Aborlan",
+      "label": "Gogognan, Aborlan, Palawan"
+    },
+    {
+      "id": "175309010",
+      "type": "barangay",
+      "name": "Guadalupe",
+      "municipality": "Coron",
+      "label": "Guadalupe, Coron, Palawan"
+    },
+    {
+      "id": "175322013",
+      "type": "barangay",
+      "name": "Halsey",
+      "municipality": "Culion",
+      "label": "Halsey, Culion, Palawan"
+    },
+    {
+      "id": "175314007",
+      "type": "barangay",
+      "name": "Igabas",
+      "municipality": "Magsaysay",
+      "label": "Igabas, Magsaysay, Palawan"
+    },
+    {
+      "id": "175305005",
+      "type": "barangay",
+      "name": "Igang-igang",
+      "municipality": "Bataraza",
+      "label": "Igang-igang, Bataraza, Palawan"
+    },
+    {
+      "id": "175311010",
+      "type": "barangay",
+      "name": "Ilian",
+      "municipality": "Dumaran",
+      "label": "Ilian, Dumaran, Palawan"
+    },
+    {
+      "id": "175306005",
+      "type": "barangay",
+      "name": "Imulnod",
+      "municipality": "Brooke'S Point",
+      "label": "Imulnod, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175316063",
+      "type": "barangay",
+      "name": "Inagawan Sub-Colony",
+      "municipality": "Puerto Princesa City",
+      "label": "Inagawan Sub-Colony, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316014",
+      "type": "barangay",
+      "name": "Inagawan",
+      "municipality": "Puerto Princesa City",
+      "label": "Inagawan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175304005",
+      "type": "barangay",
+      "name": "Indalawan",
+      "municipality": "Balabac",
+      "label": "Indalawan, Balabac, Palawan"
+    },
+    {
+      "id": "175305006",
+      "type": "barangay",
+      "name": "Inogbong",
+      "municipality": "Bataraza",
+      "label": "Inogbong, Bataraza, Palawan"
+    },
+    {
+      "id": "175306006",
+      "type": "barangay",
+      "name": "Ipilan",
+      "municipality": "Brooke'S Point",
+      "label": "Ipilan, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175315011",
+      "type": "barangay",
+      "name": "Ipilan",
+      "municipality": "Narra",
+      "label": "Ipilan, Narra, Palawan"
+    },
+    {
+      "id": "175301007",
+      "type": "barangay",
+      "name": "Iraan",
+      "municipality": "Aborlan",
+      "label": "Iraan, Aborlan, Palawan"
+    },
+    {
+      "id": "175323006",
+      "type": "barangay",
+      "name": "Iraan",
+      "municipality": "Rizal (Marcos)",
+      "label": "Iraan, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175318006",
+      "type": "barangay",
+      "name": "Iraan",
+      "municipality": "Roxas",
+      "label": "Iraan, Roxas, Palawan"
+    },
+    {
+      "id": "175324002",
+      "type": "barangay",
+      "name": "Iraray",
+      "municipality": "Sofronio Española",
+      "label": "Iraray, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175316015",
+      "type": "barangay",
+      "name": "Irawan",
+      "municipality": "Puerto Princesa City",
+      "label": "Irawan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175301008",
+      "type": "barangay",
+      "name": "Isaub",
+      "municipality": "Aborlan",
+      "label": "Isaub, Aborlan, Palawan"
+    },
+    {
+      "id": "175317011",
+      "type": "barangay",
+      "name": "Isugod",
+      "municipality": "Quezon",
+      "label": "Isugod, Quezon, Palawan"
+    },
+    {
+      "id": "175324003",
+      "type": "barangay",
+      "name": "Isumbo",
+      "municipality": "Sofronio Española",
+      "label": "Isumbo, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175311009",
+      "type": "barangay",
+      "name": "Itangil",
+      "municipality": "Dumaran",
+      "label": "Itangil, Dumaran, Palawan"
+    },
+    {
+      "id": "175316016",
+      "type": "barangay",
+      "name": "Iwahig (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Iwahig (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175305007",
+      "type": "barangay",
+      "name": "Iwahig",
+      "municipality": "Bataraza",
+      "label": "Iwahig, Bataraza, Palawan"
+    },
+    {
+      "id": "175322006",
+      "type": "barangay",
+      "name": "Jardin",
+      "municipality": "Culion",
+      "label": "Jardin, Culion, Palawan"
+    },
+    {
+      "id": "175318008",
+      "type": "barangay",
+      "name": "Jolo",
+      "municipality": "Roxas",
+      "label": "Jolo, Roxas, Palawan"
+    },
+    {
+      "id": "175301009",
+      "type": "barangay",
+      "name": "Jose Rizal",
+      "municipality": "Aborlan",
+      "label": "Jose Rizal, Aborlan, Palawan"
+    },
+    {
+      "id": "175316017",
+      "type": "barangay",
+      "name": "Kalipay (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Kalipay (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316018",
+      "type": "barangay",
+      "name": "Kamuning",
+      "municipality": "Puerto Princesa City",
+      "label": "Kamuning, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175319004",
+      "type": "barangay",
+      "name": "Kemdeng",
+      "municipality": "San Vicente",
+      "label": "Kemdeng, San Vicente, Palawan"
+    },
+    {
+      "id": "175324004",
+      "type": "barangay",
+      "name": "Labog",
+      "municipality": "Sofronio Española",
+      "label": "Labog, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175314008",
+      "type": "barangay",
+      "name": "Lacaren",
+      "municipality": "Magsaysay",
+      "label": "Lacaren, Magsaysay, Palawan"
+    },
+    {
+      "id": "175310008",
+      "type": "barangay",
+      "name": "Lagaoriao (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Lagaoriao (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175309011",
+      "type": "barangay",
+      "name": "Lajala",
+      "municipality": "Coron",
+      "label": "Lajala, Coron, Palawan"
+    },
+    {
+      "id": "175316019",
+      "type": "barangay",
+      "name": "Langogan",
+      "municipality": "Puerto Princesa City",
+      "label": "Langogan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175323007",
+      "type": "barangay",
+      "name": "Latud",
+      "municipality": "Rizal (Marcos)",
+      "label": "Latud, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175320027",
+      "type": "barangay",
+      "name": "Libertad",
+      "municipality": "Taytay",
+      "label": "Libertad, Taytay, Palawan"
+    },
+    {
+      "id": "175322007",
+      "type": "barangay",
+      "name": "Libis",
+      "municipality": "Culion",
+      "label": "Libis, Culion, Palawan"
+    },
+    {
+      "id": "175320013",
+      "type": "barangay",
+      "name": "Liminangcong",
+      "municipality": "Taytay",
+      "label": "Liminangcong, Taytay, Palawan"
+    },
+    {
+      "id": "175308004",
+      "type": "barangay",
+      "name": "Lipot North (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Lipot North (Pob.), Cagayancillo, Palawan"
+    },
+    {
+      "id": "175308005",
+      "type": "barangay",
+      "name": "Lipot South (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Lipot South (Pob.), Cagayancillo, Palawan"
+    },
+    {
+      "id": "175316020",
+      "type": "barangay",
+      "name": "Liwanag (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Liwanag (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175314009",
+      "type": "barangay",
+      "name": "Los Angeles",
+      "municipality": "Magsaysay",
+      "label": "Los Angeles, Magsaysay, Palawan"
+    },
+    {
+      "id": "175322008",
+      "type": "barangay",
+      "name": "Luac",
+      "municipality": "Culion",
+      "label": "Luac, Culion, Palawan"
+    },
+    {
+      "id": "175310009",
+      "type": "barangay",
+      "name": "Lubid",
+      "municipality": "Cuyo",
+      "label": "Lubid, Cuyo, Palawan"
+    },
+    {
+      "id": "175314010",
+      "type": "barangay",
+      "name": "Lucbuan",
+      "municipality": "Magsaysay",
+      "label": "Lucbuan, Magsaysay, Palawan"
+    },
+    {
+      "id": "175316021",
+      "type": "barangay",
+      "name": "Lucbuan",
+      "municipality": "Puerto Princesa City",
+      "label": "Lucbuan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175303006",
+      "type": "barangay",
+      "name": "Lumacad",
+      "municipality": "Araceli",
+      "label": "Lumacad, Araceli, Palawan"
+    },
+    {
+      "id": "175310012",
+      "type": "barangay",
+      "name": "Lungsod (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Lungsod (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175316064",
+      "type": "barangay",
+      "name": "Luzviminda",
+      "municipality": "Puerto Princesa City",
+      "label": "Luzviminda, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175306010",
+      "type": "barangay",
+      "name": "Maasin",
+      "municipality": "Brooke'S Point",
+      "label": "Maasin, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175317014",
+      "type": "barangay",
+      "name": "Maasin",
+      "municipality": "Quezon",
+      "label": "Maasin, Quezon, Palawan"
+    },
+    {
+      "id": "175301010",
+      "type": "barangay",
+      "name": "Mabini",
+      "municipality": "Aborlan",
+      "label": "Mabini, Aborlan, Palawan"
+    },
+    {
+      "id": "175312006",
+      "type": "barangay",
+      "name": "Mabini",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Mabini, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175316022",
+      "type": "barangay",
+      "name": "Mabuhay (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Mabuhay (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316023",
+      "type": "barangay",
+      "name": "Macarascas",
+      "municipality": "Puerto Princesa City",
+      "label": "Macarascas, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175303007",
+      "type": "barangay",
+      "name": "Madoldolon",
+      "municipality": "Araceli",
+      "label": "Madoldolon, Araceli, Palawan"
+    },
+    {
+      "id": "175318009",
+      "type": "barangay",
+      "name": "Magara (Arasan)",
+      "municipality": "Roxas",
+      "label": "Magara (Arasan), Roxas, Palawan"
+    },
+    {
+      "id": "175301011",
+      "type": "barangay",
+      "name": "Magbabadil",
+      "municipality": "Aborlan",
+      "label": "Magbabadil, Aborlan, Palawan"
+    },
+    {
+      "id": "175316024",
+      "type": "barangay",
+      "name": "Magkakaibigan (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Magkakaibigan (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175307006",
+      "type": "barangay",
+      "name": "Maglalambay",
+      "municipality": "Busuanga",
+      "label": "Maglalambay, Busuanga, Palawan"
+    },
+    {
+      "id": "175308006",
+      "type": "barangay",
+      "name": "Magsaysay",
+      "municipality": "Cagayancillo",
+      "label": "Magsaysay, Cagayancillo, Palawan"
+    },
+    {
+      "id": "175311011",
+      "type": "barangay",
+      "name": "Magsaysay",
+      "municipality": "Dumaran",
+      "label": "Magsaysay, Dumaran, Palawan"
+    },
+    {
+      "id": "175306011",
+      "type": "barangay",
+      "name": "Mainit",
+      "municipality": "Brooke'S Point",
+      "label": "Mainit, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175304007",
+      "type": "barangay",
+      "name": "Malaking Ilog",
+      "municipality": "Balabac",
+      "label": "Malaking Ilog, Balabac, Palawan"
+    },
+    {
+      "id": "175322009",
+      "type": "barangay",
+      "name": "Malaking Patag",
+      "municipality": "Culion",
+      "label": "Malaking Patag, Culion, Palawan"
+    },
+    {
+      "id": "175315012",
+      "type": "barangay",
+      "name": "Malatgao",
+      "municipality": "Narra",
+      "label": "Malatgao, Narra, Palawan"
+    },
+    {
+      "id": "175317024",
+      "type": "barangay",
+      "name": "Malatgao",
+      "municipality": "Quezon",
+      "label": "Malatgao, Quezon, Palawan"
+    },
+    {
+      "id": "175309012",
+      "type": "barangay",
+      "name": "Malawig",
+      "municipality": "Coron",
+      "label": "Malawig, Coron, Palawan"
+    },
+    {
+      "id": "175318010",
+      "type": "barangay",
+      "name": "Malcampo",
+      "municipality": "Roxas",
+      "label": "Malcampo, Roxas, Palawan"
+    },
+    {
+      "id": "175316025",
+      "type": "barangay",
+      "name": "Maligaya (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Maligaya (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175312011",
+      "type": "barangay",
+      "name": "Maligaya Pob. (Barangay 1)",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Maligaya Pob. (Barangay 1), El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175305008",
+      "type": "barangay",
+      "name": "Malihud",
+      "municipality": "Bataraza",
+      "label": "Malihud, Bataraza, Palawan"
+    },
+    {
+      "id": "175315013",
+      "type": "barangay",
+      "name": "Malinao",
+      "municipality": "Narra",
+      "label": "Malinao, Narra, Palawan"
+    },
+    {
+      "id": "175306012",
+      "type": "barangay",
+      "name": "Malis",
+      "municipality": "Brooke'S Point",
+      "label": "Malis, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175305009",
+      "type": "barangay",
+      "name": "Malitub",
+      "municipality": "Bataraza",
+      "label": "Malitub, Bataraza, Palawan"
+    },
+    {
+      "id": "175306013",
+      "type": "barangay",
+      "name": "Mambalot",
+      "municipality": "Brooke'S Point",
+      "label": "Mambalot, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175308007",
+      "type": "barangay",
+      "name": "Mampio",
+      "municipality": "Cagayancillo",
+      "label": "Mampio, Cagayancillo, Palawan"
+    },
+    {
+      "id": "175316026",
+      "type": "barangay",
+      "name": "Manalo",
+      "municipality": "Puerto Princesa City",
+      "label": "Manalo, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175310010",
+      "type": "barangay",
+      "name": "Manamoc",
+      "municipality": "Cuyo",
+      "label": "Manamoc, Cuyo, Palawan"
+    },
+    {
+      "id": "175316065",
+      "type": "barangay",
+      "name": "Mandaragat",
+      "municipality": "Puerto Princesa City",
+      "label": "Mandaragat, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316027",
+      "type": "barangay",
+      "name": "Manggahan (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Manggahan (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175304008",
+      "type": "barangay",
+      "name": "Mangsee",
+      "municipality": "Balabac",
+      "label": "Mangsee, Balabac, Palawan"
+    },
+    {
+      "id": "175316028",
+      "type": "barangay",
+      "name": "Maningning (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Maningning (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175312007",
+      "type": "barangay",
+      "name": "Manlag",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Manlag, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175316029",
+      "type": "barangay",
+      "name": "Maoyon",
+      "municipality": "Puerto Princesa City",
+      "label": "Maoyon, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175302005",
+      "type": "barangay",
+      "name": "Maracanao",
+      "municipality": "Agutaya",
+      "label": "Maracanao, Agutaya, Palawan"
+    },
+    {
+      "id": "175305010",
+      "type": "barangay",
+      "name": "Marangas (Pob.)",
+      "municipality": "Bataraza",
+      "label": "Marangas (Pob.), Bataraza, Palawan"
+    },
+    {
+      "id": "175309013",
+      "type": "barangay",
+      "name": "Marcilla",
+      "municipality": "Coron",
+      "label": "Marcilla, Coron, Palawan"
+    },
+    {
+      "id": "175310011",
+      "type": "barangay",
+      "name": "Maringian",
+      "municipality": "Cuyo",
+      "label": "Maringian, Cuyo, Palawan"
+    },
+    {
+      "id": "175313006",
+      "type": "barangay",
+      "name": "Maroyogroyog",
+      "municipality": "Linapacan",
+      "label": "Maroyogroyog, Linapacan, Palawan"
+    },
+    {
+      "id": "175316030",
+      "type": "barangay",
+      "name": "Marufinas",
+      "municipality": "Puerto Princesa City",
+      "label": "Marufinas, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316031",
+      "type": "barangay",
+      "name": "Maruyogon",
+      "municipality": "Puerto Princesa City",
+      "label": "Maruyogon, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175312008",
+      "type": "barangay",
+      "name": "Masagana Pob. (Barangay 3)",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Masagana Pob. (Barangay 3), El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175316032",
+      "type": "barangay",
+      "name": "Masigla (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Masigla (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316033",
+      "type": "barangay",
+      "name": "Masikap (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Masikap (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316034",
+      "type": "barangay",
+      "name": "Masipag (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Masipag (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316035",
+      "type": "barangay",
+      "name": "Matahimik (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Matahimik (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175302006",
+      "type": "barangay",
+      "name": "Matarawis",
+      "municipality": "Agutaya",
+      "label": "Matarawis, Agutaya, Palawan"
+    },
+    {
+      "id": "175316036",
+      "type": "barangay",
+      "name": "Matiyaga (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Matiyaga (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316037",
+      "type": "barangay",
+      "name": "Maunlad (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Maunlad (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175303008",
+      "type": "barangay",
+      "name": "Mauringuen",
+      "municipality": "Araceli",
+      "label": "Mauringuen, Araceli, Palawan"
+    },
+    {
+      "id": "175304009",
+      "type": "barangay",
+      "name": "Melville",
+      "municipality": "Balabac",
+      "label": "Melville, Balabac, Palawan"
+    },
+    {
+      "id": "175318011",
+      "type": "barangay",
+      "name": "Mendoza",
+      "municipality": "Roxas",
+      "label": "Mendoza, Roxas, Palawan"
+    },
+    {
+      "id": "175320014",
+      "type": "barangay",
+      "name": "Meytegued",
+      "municipality": "Taytay",
+      "label": "Meytegued, Taytay, Palawan"
+    },
+    {
+      "id": "175316038",
+      "type": "barangay",
+      "name": "Milagrosa (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Milagrosa (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175320028",
+      "type": "barangay",
+      "name": "Minapla",
+      "municipality": "Taytay",
+      "label": "Minapla, Taytay, Palawan"
+    },
+    {
+      "id": "175316039",
+      "type": "barangay",
+      "name": "Model (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Model (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316040",
+      "type": "barangay",
+      "name": "Montible (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Montible (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175313007",
+      "type": "barangay",
+      "name": "Nangalao",
+      "municipality": "Linapacan",
+      "label": "Nangalao, Linapacan, Palawan"
+    },
+    {
+      "id": "175316041",
+      "type": "barangay",
+      "name": "Napsan",
+      "municipality": "Puerto Princesa City",
+      "label": "Napsan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175318012",
+      "type": "barangay",
+      "name": "Narra (Minara)",
+      "municipality": "Roxas",
+      "label": "Narra (Minara), Roxas, Palawan"
+    },
+    {
+      "id": "175315014",
+      "type": "barangay",
+      "name": "Narra (Pob.)",
+      "municipality": "Narra",
+      "label": "Narra (Pob.), Narra, Palawan"
+    },
+    {
+      "id": "175319005",
+      "type": "barangay",
+      "name": "New Agutaya",
+      "municipality": "San Vicente",
+      "label": "New Agutaya, San Vicente, Palawan"
+    },
+    {
+      "id": "175318013",
+      "type": "barangay",
+      "name": "New Barbacan (Retac)",
+      "municipality": "Roxas",
+      "label": "New Barbacan (Retac), Roxas, Palawan"
+    },
+    {
+      "id": "175307007",
+      "type": "barangay",
+      "name": "New Busuanga (Pob.)",
+      "municipality": "Busuanga",
+      "label": "New Busuanga (Pob.), Busuanga, Palawan"
+    },
+    {
+      "id": "175319006",
+      "type": "barangay",
+      "name": "New Canipo",
+      "municipality": "San Vicente",
+      "label": "New Canipo, San Vicente, Palawan"
+    },
+    {
+      "id": "175313008",
+      "type": "barangay",
+      "name": "New Culaylayan",
+      "municipality": "Linapacan",
+      "label": "New Culaylayan, Linapacan, Palawan"
+    },
+    {
+      "id": "175318014",
+      "type": "barangay",
+      "name": "New Cuyo",
+      "municipality": "Roxas",
+      "label": "New Cuyo, Roxas, Palawan"
+    },
+    {
+      "id": "175320015",
+      "type": "barangay",
+      "name": "New Guinlo",
+      "municipality": "Taytay",
+      "label": "New Guinlo, Taytay, Palawan"
+    },
+    {
+      "id": "175312009",
+      "type": "barangay",
+      "name": "New Ibajay",
+      "municipality": "El Nido (Bacuit)",
+      "label": "New Ibajay, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175316042",
+      "type": "barangay",
+      "name": "New Panggangan",
+      "municipality": "Puerto Princesa City",
+      "label": "New Panggangan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175318034",
+      "type": "barangay",
+      "name": "Nicanor Zabala",
+      "municipality": "Roxas",
+      "label": "Nicanor Zabala, Roxas, Palawan"
+    },
+    {
+      "id": "175308008",
+      "type": "barangay",
+      "name": "Nusa",
+      "municipality": "Cagayancillo",
+      "label": "Nusa, Cagayancillo, Palawan"
+    },
+    {
+      "id": "175305011",
+      "type": "barangay",
+      "name": "Ocayan",
+      "municipality": "Bataraza",
+      "label": "Ocayan, Bataraza, Palawan"
+    },
+    {
+      "id": "175307008",
+      "type": "barangay",
+      "name": "Old Busuanga",
+      "municipality": "Busuanga",
+      "label": "Old Busuanga, Busuanga, Palawan"
+    },
+    {
+      "id": "175320016",
+      "type": "barangay",
+      "name": "Old Guinlo",
+      "municipality": "Taytay",
+      "label": "Old Guinlo, Taytay, Palawan"
+    },
+    {
+      "id": "175306014",
+      "type": "barangay",
+      "name": "Oring-oring",
+      "municipality": "Brooke'S Point",
+      "label": "Oring-oring, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175303009",
+      "type": "barangay",
+      "name": "Osmeña",
+      "municipality": "Araceli",
+      "label": "Osmeña, Araceli, Palawan"
+    },
+    {
+      "id": "175322010",
+      "type": "barangay",
+      "name": "Osmeña",
+      "municipality": "Culion",
+      "label": "Osmeña, Culion, Palawan"
+    },
+    {
+      "id": "175321004",
+      "type": "barangay",
+      "name": "Pag-Asa (Pob.)",
+      "municipality": "Kalayaan",
+      "label": "Pag-Asa (Pob.), Kalayaan, Palawan"
+    },
+    {
+      "id": "175316043",
+      "type": "barangay",
+      "name": "Pagkakaisa (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Pagkakaisa (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175320031",
+      "type": "barangay",
+      "name": "Paglaum",
+      "municipality": "Taytay",
+      "label": "Paglaum, Taytay, Palawan"
+    },
+    {
+      "id": "175320019",
+      "type": "barangay",
+      "name": "Paly (Paly Island)",
+      "municipality": "Taytay",
+      "label": "Paly (Paly Island), Taytay, Palawan"
+    },
+    {
+      "id": "175320017",
+      "type": "barangay",
+      "name": "Pamantolon",
+      "municipality": "Taytay",
+      "label": "Pamantolon, Taytay, Palawan"
+    },
+    {
+      "id": "175315023",
+      "type": "barangay",
+      "name": "Panacan 2",
+      "municipality": "Narra",
+      "label": "Panacan 2, Narra, Palawan"
+    },
+    {
+      "id": "175315015",
+      "type": "barangay",
+      "name": "Panacan",
+      "municipality": "Narra",
+      "label": "Panacan, Narra, Palawan"
+    },
+    {
+      "id": "175323008",
+      "type": "barangay",
+      "name": "Panalingaan",
+      "municipality": "Rizal (Marcos)",
+      "label": "Panalingaan, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175320018",
+      "type": "barangay",
+      "name": "Pancol",
+      "municipality": "Taytay",
+      "label": "Pancol, Taytay, Palawan"
+    },
+    {
+      "id": "175304011",
+      "type": "barangay",
+      "name": "Pandanan",
+      "municipality": "Balabac",
+      "label": "Pandanan, Balabac, Palawan"
+    },
+    {
+      "id": "175306015",
+      "type": "barangay",
+      "name": "Pangobilian",
+      "municipality": "Brooke'S Point",
+      "label": "Pangobilian, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175317016",
+      "type": "barangay",
+      "name": "Panitian",
+      "municipality": "Quezon",
+      "label": "Panitian, Quezon, Palawan"
+    },
+    {
+      "id": "175324005",
+      "type": "barangay",
+      "name": "Panitian",
+      "municipality": "Sofronio Española",
+      "label": "Panitian, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175307009",
+      "type": "barangay",
+      "name": "Panlaitan",
+      "municipality": "Busuanga",
+      "label": "Panlaitan, Busuanga, Palawan"
+    },
+    {
+      "id": "175312010",
+      "type": "barangay",
+      "name": "Pasadeña",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Pasadeña, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175304012",
+      "type": "barangay",
+      "name": "Pasig",
+      "municipality": "Balabac",
+      "label": "Pasig, Balabac, Palawan"
+    },
+    {
+      "id": "175310014",
+      "type": "barangay",
+      "name": "Pawa",
+      "municipality": "Cuyo",
+      "label": "Pawa, Cuyo, Palawan"
+    },
+    {
+      "id": "175313009",
+      "type": "barangay",
+      "name": "Pical",
+      "municipality": "Linapacan",
+      "label": "Pical, Linapacan, Palawan"
+    },
+    {
+      "id": "175317017",
+      "type": "barangay",
+      "name": "Pinaglabanan",
+      "municipality": "Quezon",
+      "label": "Pinaglabanan, Quezon, Palawan"
+    },
+    {
+      "id": "175301012",
+      "type": "barangay",
+      "name": "Plaridel",
+      "municipality": "Aborlan",
+      "label": "Plaridel, Aborlan, Palawan"
+    },
+    {
+      "id": "175303015",
+      "type": "barangay",
+      "name": "Poblacion (Centro)",
+      "municipality": "Araceli",
+      "label": "Poblacion (Centro), Araceli, Palawan"
+    },
+    {
+      "id": "175319008",
+      "type": "barangay",
+      "name": "Poblacion (San Vicente)",
+      "municipality": "San Vicente",
+      "label": "Poblacion (San Vicente), San Vicente, Palawan"
+    },
+    {
+      "id": "175304024",
+      "type": "barangay",
+      "name": "Poblacion I",
+      "municipality": "Balabac",
+      "label": "Poblacion I, Balabac, Palawan"
+    },
+    {
+      "id": "175306017",
+      "type": "barangay",
+      "name": "Poblacion I",
+      "municipality": "Brooke'S Point",
+      "label": "Poblacion I, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175304025",
+      "type": "barangay",
+      "name": "Poblacion II",
+      "municipality": "Balabac",
+      "label": "Poblacion II, Balabac, Palawan"
+    },
+    {
+      "id": "175306018",
+      "type": "barangay",
+      "name": "Poblacion II",
+      "municipality": "Brooke'S Point",
+      "label": "Poblacion II, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175304026",
+      "type": "barangay",
+      "name": "Poblacion III",
+      "municipality": "Balabac",
+      "label": "Poblacion III, Balabac, Palawan"
+    },
+    {
+      "id": "175304027",
+      "type": "barangay",
+      "name": "Poblacion IV",
+      "municipality": "Balabac",
+      "label": "Poblacion IV, Balabac, Palawan"
+    },
+    {
+      "id": "175304028",
+      "type": "barangay",
+      "name": "Poblacion V",
+      "municipality": "Balabac",
+      "label": "Poblacion V, Balabac, Palawan"
+    },
+    {
+      "id": "175304029",
+      "type": "barangay",
+      "name": "Poblacion VI",
+      "municipality": "Balabac",
+      "label": "Poblacion VI, Balabac, Palawan"
+    },
+    {
+      "id": "175301019",
+      "type": "barangay",
+      "name": "Poblacion",
+      "municipality": "Aborlan",
+      "label": "Poblacion, Aborlan, Palawan"
+    },
+    {
+      "id": "175320020",
+      "type": "barangay",
+      "name": "Poblacion",
+      "municipality": "Taytay",
+      "label": "Poblacion, Taytay, Palawan"
+    },
+    {
+      "id": "175319007",
+      "type": "barangay",
+      "name": "Port Barton",
+      "municipality": "San Vicente",
+      "label": "Port Barton, San Vicente, Palawan"
+    },
+    {
+      "id": "175316044",
+      "type": "barangay",
+      "name": "Princesa (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Princesa (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175315016",
+      "type": "barangay",
+      "name": "Princess Urduja",
+      "municipality": "Narra",
+      "label": "Princess Urduja, Narra, Palawan"
+    },
+    {
+      "id": "175320021",
+      "type": "barangay",
+      "name": "Pularaquen (Canique)",
+      "municipality": "Taytay",
+      "label": "Pularaquen (Canique), Taytay, Palawan"
+    },
+    {
+      "id": "175324006",
+      "type": "barangay",
+      "name": "Pulot Center",
+      "municipality": "Sofronio Española",
+      "label": "Pulot Center, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175324007",
+      "type": "barangay",
+      "name": "Pulot Interior (Pulot II)",
+      "municipality": "Sofronio Española",
+      "label": "Pulot Interior (Pulot II), Sofronio Española, Palawan"
+    },
+    {
+      "id": "175324008",
+      "type": "barangay",
+      "name": "Pulot Shore (Pulot I)",
+      "municipality": "Sofronio Española",
+      "label": "Pulot Shore (Pulot I), Sofronio Española, Palawan"
+    },
+    {
+      "id": "175324009",
+      "type": "barangay",
+      "name": "Punang",
+      "municipality": "Sofronio Española",
+      "label": "Punang, Sofronio Española, Palawan"
+    },
+    {
+      "id": "175323009",
+      "type": "barangay",
+      "name": "Punta Baja",
+      "municipality": "Rizal (Marcos)",
+      "label": "Punta Baja, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175305012",
+      "type": "barangay",
+      "name": "Puring",
+      "municipality": "Bataraza",
+      "label": "Puring, Bataraza, Palawan"
+    },
+    {
+      "id": "175307010",
+      "type": "barangay",
+      "name": "Quezon",
+      "municipality": "Busuanga",
+      "label": "Quezon, Busuanga, Palawan"
+    },
+    {
+      "id": "175317012",
+      "type": "barangay",
+      "name": "Quinlogan",
+      "municipality": "Quezon",
+      "label": "Quinlogan, Quezon, Palawan"
+    },
+    {
+      "id": "175304019",
+      "type": "barangay",
+      "name": "Rabor",
+      "municipality": "Balabac",
+      "label": "Rabor, Balabac, Palawan"
+    },
+    {
+      "id": "175301014",
+      "type": "barangay",
+      "name": "Ramon Magsaysay",
+      "municipality": "Aborlan",
+      "label": "Ramon Magsaysay, Aborlan, Palawan"
+    },
+    {
+      "id": "175304020",
+      "type": "barangay",
+      "name": "Ramos",
+      "municipality": "Balabac",
+      "label": "Ramos, Balabac, Palawan"
+    },
+    {
+      "id": "175323010",
+      "type": "barangay",
+      "name": "Ransang",
+      "municipality": "Rizal (Marcos)",
+      "label": "Ransang, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175305013",
+      "type": "barangay",
+      "name": "Rio Tuba",
+      "municipality": "Bataraza",
+      "label": "Rio Tuba, Bataraza, Palawan"
+    },
+    {
+      "id": "175314011",
+      "type": "barangay",
+      "name": "Rizal",
+      "municipality": "Magsaysay",
+      "label": "Rizal, Magsaysay, Palawan"
+    },
+    {
+      "id": "175318017",
+      "type": "barangay",
+      "name": "Rizal",
+      "municipality": "Roxas",
+      "label": "Rizal, Roxas, Palawan"
+    },
+    {
+      "id": "175301015",
+      "type": "barangay",
+      "name": "Sagpangan",
+      "municipality": "Aborlan",
+      "label": "Sagpangan, Aborlan, Palawan"
+    },
+    {
+      "id": "175307011",
+      "type": "barangay",
+      "name": "Sagrada",
+      "municipality": "Busuanga",
+      "label": "Sagrada, Busuanga, Palawan"
+    },
+    {
+      "id": "175304021",
+      "type": "barangay",
+      "name": "Salang",
+      "municipality": "Balabac",
+      "label": "Salang, Balabac, Palawan"
+    },
+    {
+      "id": "175306023",
+      "type": "barangay",
+      "name": "Salogon",
+      "municipality": "Brooke'S Point",
+      "label": "Salogon, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175307012",
+      "type": "barangay",
+      "name": "Salvacion",
+      "municipality": "Busuanga",
+      "label": "Salvacion, Busuanga, Palawan"
+    },
+    {
+      "id": "175316045",
+      "type": "barangay",
+      "name": "Salvacion",
+      "municipality": "Puerto Princesa City",
+      "label": "Salvacion, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175318018",
+      "type": "barangay",
+      "name": "Salvacion",
+      "municipality": "Roxas",
+      "label": "Salvacion, Roxas, Palawan"
+    },
+    {
+      "id": "175306024",
+      "type": "barangay",
+      "name": "Samareñana",
+      "municipality": "Brooke'S Point",
+      "label": "Samareñana, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175310015",
+      "type": "barangay",
+      "name": "San Carlos",
+      "municipality": "Cuyo",
+      "label": "San Carlos, Cuyo, Palawan"
+    },
+    {
+      "id": "175312012",
+      "type": "barangay",
+      "name": "San Fernando",
+      "municipality": "El Nido (Bacuit)",
+      "label": "San Fernando, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175307013",
+      "type": "barangay",
+      "name": "San Isidro",
+      "municipality": "Busuanga",
+      "label": "San Isidro, Busuanga, Palawan"
+    },
+    {
+      "id": "175318019",
+      "type": "barangay",
+      "name": "San Isidro",
+      "municipality": "Roxas",
+      "label": "San Isidro, Roxas, Palawan"
+    },
+    {
+      "id": "175319009",
+      "type": "barangay",
+      "name": "San Isidro",
+      "municipality": "San Vicente",
+      "label": "San Isidro, San Vicente, Palawan"
+    },
+    {
+      "id": "175303010",
+      "type": "barangay",
+      "name": "San Jose De Oro",
+      "municipality": "Araceli",
+      "label": "San Jose De Oro, Araceli, Palawan"
+    },
+    {
+      "id": "175309022",
+      "type": "barangay",
+      "name": "San Jose",
+      "municipality": "Coron",
+      "label": "San Jose, Coron, Palawan"
+    },
+    {
+      "id": "175316046",
+      "type": "barangay",
+      "name": "San Jose",
+      "municipality": "Puerto Princesa City",
+      "label": "San Jose, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175318020",
+      "type": "barangay",
+      "name": "San Jose",
+      "municipality": "Roxas",
+      "label": "San Jose, Roxas, Palawan"
+    },
+    {
+      "id": "175320022",
+      "type": "barangay",
+      "name": "San Jose",
+      "municipality": "Taytay",
+      "label": "San Jose, Taytay, Palawan"
+    },
+    {
+      "id": "175301016",
+      "type": "barangay",
+      "name": "San Juan",
+      "municipality": "Aborlan",
+      "label": "San Juan, Aborlan, Palawan"
+    },
+    {
+      "id": "175311012",
+      "type": "barangay",
+      "name": "San Juan",
+      "municipality": "Dumaran",
+      "label": "San Juan, Dumaran, Palawan"
+    },
+    {
+      "id": "175316066",
+      "type": "barangay",
+      "name": "San Manuel",
+      "municipality": "Puerto Princesa City",
+      "label": "San Manuel, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175313010",
+      "type": "barangay",
+      "name": "San Miguel (Pob.)",
+      "municipality": "Linapacan",
+      "label": "San Miguel (Pob.), Linapacan, Palawan"
+    },
+    {
+      "id": "175316047",
+      "type": "barangay",
+      "name": "San Miguel",
+      "municipality": "Puerto Princesa City",
+      "label": "San Miguel, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175318021",
+      "type": "barangay",
+      "name": "San Miguel",
+      "municipality": "Roxas",
+      "label": "San Miguel, Roxas, Palawan"
+    },
+    {
+      "id": "175309023",
+      "type": "barangay",
+      "name": "San Nicolas",
+      "municipality": "Coron",
+      "label": "San Nicolas, Coron, Palawan"
+    },
+    {
+      "id": "175313011",
+      "type": "barangay",
+      "name": "San Nicolas",
+      "municipality": "Linapacan",
+      "label": "San Nicolas, Linapacan, Palawan"
+    },
+    {
+      "id": "175318022",
+      "type": "barangay",
+      "name": "San Nicolas",
+      "municipality": "Roxas",
+      "label": "San Nicolas, Roxas, Palawan"
+    },
+    {
+      "id": "175316048",
+      "type": "barangay",
+      "name": "San Pedro",
+      "municipality": "Puerto Princesa City",
+      "label": "San Pedro, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175307014",
+      "type": "barangay",
+      "name": "San Rafael",
+      "municipality": "Busuanga",
+      "label": "San Rafael, Busuanga, Palawan"
+    },
+    {
+      "id": "175316049",
+      "type": "barangay",
+      "name": "San Rafael",
+      "municipality": "Puerto Princesa City",
+      "label": "San Rafael, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175305014",
+      "type": "barangay",
+      "name": "Sandoval",
+      "municipality": "Bataraza",
+      "label": "Sandoval, Bataraza, Palawan"
+    },
+    {
+      "id": "175315017",
+      "type": "barangay",
+      "name": "Sandoval",
+      "municipality": "Narra",
+      "label": "Sandoval, Narra, Palawan"
+    },
+    {
+      "id": "175318023",
+      "type": "barangay",
+      "name": "Sandoval",
+      "municipality": "Roxas",
+      "label": "Sandoval, Roxas, Palawan"
+    },
+    {
+      "id": "175320023",
+      "type": "barangay",
+      "name": "Sandoval",
+      "municipality": "Taytay",
+      "label": "Sandoval, Taytay, Palawan"
+    },
+    {
+      "id": "175308009",
+      "type": "barangay",
+      "name": "Santa Cruz",
+      "municipality": "Cagayancillo",
+      "label": "Santa Cruz, Cagayancillo, Palawan"
+    },
+    {
+      "id": "175316050",
+      "type": "barangay",
+      "name": "Santa Cruz",
+      "municipality": "Puerto Princesa City",
+      "label": "Santa Cruz, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316051",
+      "type": "barangay",
+      "name": "Santa Lourdes",
+      "municipality": "Puerto Princesa City",
+      "label": "Santa Lourdes, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316052",
+      "type": "barangay",
+      "name": "Santa Lucia (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Santa Lucia (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175311016",
+      "type": "barangay",
+      "name": "Santa Maria",
+      "municipality": "Dumaran",
+      "label": "Santa Maria, Dumaran, Palawan"
+    },
+    {
+      "id": "175316053",
+      "type": "barangay",
+      "name": "Santa Monica",
+      "municipality": "Puerto Princesa City",
+      "label": "Santa Monica, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175311013",
+      "type": "barangay",
+      "name": "Santa Teresita",
+      "municipality": "Dumaran",
+      "label": "Santa Teresita, Dumaran, Palawan"
+    },
+    {
+      "id": "175303011",
+      "type": "barangay",
+      "name": "Santo Niño",
+      "municipality": "Araceli",
+      "label": "Santo Niño, Araceli, Palawan"
+    },
+    {
+      "id": "175307015",
+      "type": "barangay",
+      "name": "Santo Niño",
+      "municipality": "Busuanga",
+      "label": "Santo Niño, Busuanga, Palawan"
+    },
+    {
+      "id": "175319010",
+      "type": "barangay",
+      "name": "Santo Niño",
+      "municipality": "San Vicente",
+      "label": "Santo Niño, San Vicente, Palawan"
+    },
+    {
+      "id": "175311014",
+      "type": "barangay",
+      "name": "Santo Tomas",
+      "municipality": "Dumaran",
+      "label": "Santo Tomas, Dumaran, Palawan"
+    },
+    {
+      "id": "175305015",
+      "type": "barangay",
+      "name": "Sapa",
+      "municipality": "Bataraza",
+      "label": "Sapa, Bataraza, Palawan"
+    },
+    {
+      "id": "175306025",
+      "type": "barangay",
+      "name": "Saraza",
+      "municipality": "Brooke'S Point",
+      "label": "Saraza, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175305016",
+      "type": "barangay",
+      "name": "Sarong",
+      "municipality": "Bataraza",
+      "label": "Sarong, Bataraza, Palawan"
+    },
+    {
+      "id": "175316054",
+      "type": "barangay",
+      "name": "Seaside (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Seaside (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175304022",
+      "type": "barangay",
+      "name": "Sebaring",
+      "municipality": "Balabac",
+      "label": "Sebaring, Balabac, Palawan"
+    },
+    {
+      "id": "175312013",
+      "type": "barangay",
+      "name": "Sibaltan",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Sibaltan, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175316055",
+      "type": "barangay",
+      "name": "Sicsican",
+      "municipality": "Puerto Princesa City",
+      "label": "Sicsican, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175320024",
+      "type": "barangay",
+      "name": "Silanga",
+      "municipality": "Taytay",
+      "label": "Silanga, Taytay, Palawan"
+    },
+    {
+      "id": "175316056",
+      "type": "barangay",
+      "name": "Simpocan",
+      "municipality": "Puerto Princesa City",
+      "label": "Simpocan, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175317020",
+      "type": "barangay",
+      "name": "Sowangan",
+      "municipality": "Quezon",
+      "label": "Sowangan, Quezon, Palawan"
+    },
+    {
+      "id": "175310016",
+      "type": "barangay",
+      "name": "Suba",
+      "municipality": "Cuyo",
+      "label": "Suba, Cuyo, Palawan"
+    },
+    {
+      "id": "175305017",
+      "type": "barangay",
+      "name": "Sumbiling",
+      "municipality": "Bataraza",
+      "label": "Sumbiling, Bataraza, Palawan"
+    },
+    {
+      "id": "175317021",
+      "type": "barangay",
+      "name": "Tabon",
+      "municipality": "Quezon",
+      "label": "Tabon, Quezon, Palawan"
+    },
+    {
+      "id": "175305018",
+      "type": "barangay",
+      "name": "Tabud",
+      "municipality": "Bataraza",
+      "label": "Tabud, Bataraza, Palawan"
+    },
+    {
+      "id": "175323011",
+      "type": "barangay",
+      "name": "Taburi",
+      "municipality": "Rizal (Marcos)",
+      "label": "Taburi, Rizal (Marcos), Palawan"
+    },
+    {
+      "id": "175308010",
+      "type": "barangay",
+      "name": "Tacas (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Tacas (Pob.), Cagayancillo, Palawan"
+    },
+    {
+      "id": "175315018",
+      "type": "barangay",
+      "name": "Tacras",
+      "municipality": "Narra",
+      "label": "Tacras, Narra, Palawan"
+    },
+    {
+      "id": "175316057",
+      "type": "barangay",
+      "name": "Tagabinit",
+      "municipality": "Puerto Princesa City",
+      "label": "Tagabinit, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175316058",
+      "type": "barangay",
+      "name": "Tagburos",
+      "municipality": "Puerto Princesa City",
+      "label": "Tagburos, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175305019",
+      "type": "barangay",
+      "name": "Tagnato",
+      "municipality": "Bataraza",
+      "label": "Tagnato, Bataraza, Palawan"
+    },
+    {
+      "id": "175305020",
+      "type": "barangay",
+      "name": "Tagolango",
+      "municipality": "Bataraza",
+      "label": "Tagolango, Bataraza, Palawan"
+    },
+    {
+      "id": "175301017",
+      "type": "barangay",
+      "name": "Tagpait",
+      "municipality": "Aborlan",
+      "label": "Tagpait, Aborlan, Palawan"
+    },
+    {
+      "id": "175316059",
+      "type": "barangay",
+      "name": "Tagumpay (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Tagumpay (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175309024",
+      "type": "barangay",
+      "name": "Tagumpay",
+      "municipality": "Coron",
+      "label": "Tagumpay, Coron, Palawan"
+    },
+    {
+      "id": "175318024",
+      "type": "barangay",
+      "name": "Tagumpay",
+      "municipality": "Roxas",
+      "label": "Tagumpay, Roxas, Palawan"
+    },
+    {
+      "id": "175317025",
+      "type": "barangay",
+      "name": "Tagusao",
+      "municipality": "Quezon",
+      "label": "Tagusao, Quezon, Palawan"
+    },
+    {
+      "id": "175308011",
+      "type": "barangay",
+      "name": "Talaga",
+      "municipality": "Cagayancillo",
+      "label": "Talaga, Cagayancillo, Palawan"
+    },
+    {
+      "id": "175320029",
+      "type": "barangay",
+      "name": "Talog",
+      "municipality": "Taytay",
+      "label": "Talog, Taytay, Palawan"
+    },
+    {
+      "id": "175303012",
+      "type": "barangay",
+      "name": "Taloto",
+      "municipality": "Araceli",
+      "label": "Taloto, Araceli, Palawan"
+    },
+    {
+      "id": "175316060",
+      "type": "barangay",
+      "name": "Tanabag",
+      "municipality": "Puerto Princesa City",
+      "label": "Tanabag, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175311015",
+      "type": "barangay",
+      "name": "Tanatanaon",
+      "municipality": "Dumaran",
+      "label": "Tanatanaon, Dumaran, Palawan"
+    },
+    {
+      "id": "175316061",
+      "type": "barangay",
+      "name": "Tanglaw (Pob.)",
+      "municipality": "Puerto Princesa City",
+      "label": "Tanglaw (Pob.), Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175309025",
+      "type": "barangay",
+      "name": "Tara",
+      "municipality": "Coron",
+      "label": "Tara, Coron, Palawan"
+    },
+    {
+      "id": "175318025",
+      "type": "barangay",
+      "name": "Taradungan",
+      "municipality": "Roxas",
+      "label": "Taradungan, Roxas, Palawan"
+    },
+    {
+      "id": "175305021",
+      "type": "barangay",
+      "name": "Taratak",
+      "municipality": "Bataraza",
+      "label": "Taratak, Bataraza, Palawan"
+    },
+    {
+      "id": "175315019",
+      "type": "barangay",
+      "name": "Taritien",
+      "municipality": "Narra",
+      "label": "Taritien, Narra, Palawan"
+    },
+    {
+      "id": "175305022",
+      "type": "barangay",
+      "name": "Tarusan",
+      "municipality": "Bataraza",
+      "label": "Tarusan, Bataraza, Palawan"
+    },
+    {
+      "id": "175312014",
+      "type": "barangay",
+      "name": "Teneguiban",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Teneguiban, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175310017",
+      "type": "barangay",
+      "name": "Tenga-tenga (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Tenga-tenga (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175315020",
+      "type": "barangay",
+      "name": "Teresa",
+      "municipality": "Narra",
+      "label": "Teresa, Narra, Palawan"
+    },
+    {
+      "id": "175301018",
+      "type": "barangay",
+      "name": "Tigman",
+      "municipality": "Aborlan",
+      "label": "Tigman, Aborlan, Palawan"
+    },
+    {
+      "id": "175315021",
+      "type": "barangay",
+      "name": "Tinagong Dagat",
+      "municipality": "Narra",
+      "label": "Tinagong Dagat, Narra, Palawan"
+    },
+    {
+      "id": "175316067",
+      "type": "barangay",
+      "name": "Tiniguiban",
+      "municipality": "Puerto Princesa City",
+      "label": "Tiniguiban, Puerto Princesa City, Palawan"
+    },
+    {
+      "id": "175303013",
+      "type": "barangay",
+      "name": "Tinintinan",
+      "municipality": "Araceli",
+      "label": "Tinintinan, Araceli, Palawan"
+    },
+    {
+      "id": "175318026",
+      "type": "barangay",
+      "name": "Tinitian",
+      "municipality": "Roxas",
+      "label": "Tinitian, Roxas, Palawan"
+    },
+    {
+      "id": "175322011",
+      "type": "barangay",
+      "name": "Tiza",
+      "municipality": "Culion",
+      "label": "Tiza, Culion, Palawan"
+    },
+    {
+      "id": "175310018",
+      "type": "barangay",
+      "name": "Tocadan (Pob.)",
+      "municipality": "Cuyo",
+      "label": "Tocadan (Pob.), Cuyo, Palawan"
+    },
+    {
+      "id": "175306026",
+      "type": "barangay",
+      "name": "Tubtub",
+      "municipality": "Brooke'S Point",
+      "label": "Tubtub, Brooke'S Point, Palawan"
+    },
+    {
+      "id": "175303014",
+      "type": "barangay",
+      "name": "Tudela (Calandagan)",
+      "municipality": "Araceli",
+      "label": "Tudela (Calandagan), Araceli, Palawan"
+    },
+    {
+      "id": "175318028",
+      "type": "barangay",
+      "name": "Tumarbong",
+      "municipality": "Roxas",
+      "label": "Tumarbong, Roxas, Palawan"
+    },
+    {
+      "id": "175320030",
+      "type": "barangay",
+      "name": "Tumbod",
+      "municipality": "Taytay",
+      "label": "Tumbod, Taytay, Palawan"
+    },
+    {
+      "id": "175309026",
+      "type": "barangay",
+      "name": "Turda",
+      "municipality": "Coron",
+      "label": "Turda, Coron, Palawan"
+    },
+    {
+      "id": "175312015",
+      "type": "barangay",
+      "name": "Villa Libertad",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Villa Libertad, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175312016",
+      "type": "barangay",
+      "name": "Villa Paz",
+      "municipality": "El Nido (Bacuit)",
+      "label": "Villa Paz, El Nido (Bacuit), Palawan"
+    },
+    {
+      "id": "175302010",
+      "type": "barangay",
+      "name": "Villafria",
+      "municipality": "Agutaya",
+      "label": "Villafria, Agutaya, Palawan"
+    },
+    {
+      "id": "175302011",
+      "type": "barangay",
+      "name": "Villasol",
+      "municipality": "Agutaya",
+      "label": "Villasol, Agutaya, Palawan"
+    },
+    {
+      "id": "175308012",
+      "type": "barangay",
+      "name": "Wahig (Pob.)",
+      "municipality": "Cagayancillo",
+      "label": "Wahig (Pob.), Cagayancillo, Palawan"
+    }
+  ]
+}

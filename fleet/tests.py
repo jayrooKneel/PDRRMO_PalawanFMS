@@ -842,6 +842,66 @@ class DispatchDashboardAlignmentTests(TestCase):
             license_number='MAR-001',
         )
 
+    def test_deployment_locations_are_scoped_and_reject_custom_values(self):
+        land_vehicle = self.create_vehicle(
+            model_name='Scoped Location Land Unit',
+            plate_number='LAND-LOCATION-01',
+            vehicle_type=self.land_type,
+        )
+        land_driver = Driver.objects.create(
+            name='Scoped Location Land Driver',
+            license_number='LTO-LOCATION-01',
+        )
+        sea_vehicle = self.create_vehicle(
+            model_name='Scoped Location Sea Unit',
+            plate_number='SEA-LOCATION-01',
+            vehicle_type=self.maritime_type,
+        )
+
+        self.client.force_login(self.logistics_user)
+        logistics_response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+        self.assertContains(logistics_response, 'Open Admin Data')
+        self.assertContains(logistics_response, 'palawan_deployment_locations.json')
+        self.assertContains(logistics_response, 'src="/static/fleet/js/deployment_location_search.js"')
+        self.assertNotContains(logistics_response, 'maps.googleapis.com')
+        land_response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'deploy_vehicle',
+                'vehicle_id': land_vehicle.pk,
+                'driver_id': land_driver.pk,
+                'deployment_location': 'Honda Bay',
+                'deployment_purpose': 'Logistics Support',
+                'deployment_time': '2030-01-02T10:30',
+            },
+            follow=True,
+        )
+        self.assertContains(land_response, 'Select a deployment location')
+        land_vehicle.refresh_from_db()
+        self.assertEqual(land_vehicle.status, 'OPERATIONAL')
+
+        self.client.force_login(self.seacraft_user)
+        seacraft_response = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+        self.assertContains(seacraft_response, 'Open Admin Data')
+        self.assertContains(seacraft_response, 'palawan_deployment_locations.json')
+        self.assertContains(seacraft_response, 'src="/static/fleet/js/deployment_location_search.js"')
+        self.assertNotContains(seacraft_response, 'maps.googleapis.com')
+        sea_response = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            {
+                'action': 'deploy_vehicle',
+                'vehicle_id': sea_vehicle.pk,
+                'driver_id': self.operator.pk,
+                'deployment_location': 'Coron Bay',
+                'deployment_purpose': 'Search and Rescue',
+                'deployment_time': '2030-01-02T10:30',
+            },
+            follow=True,
+        )
+        self.assertContains(sea_response, 'Select a deployment location')
+        sea_vehicle.refresh_from_db()
+        self.assertEqual(sea_vehicle.status, 'OPERATIONAL')
+
     def create_vehicle(self, *, model_name, plate_number, vehicle_type, **kwargs):
         return Vehicle.objects.create(
             model_name=model_name,
@@ -849,6 +909,39 @@ class DispatchDashboardAlignmentTests(TestCase):
             vehicle_type=vehicle_type,
             **kwargs,
         )
+
+    def test_public_active_deployments_are_ordered_newest_first_across_divisions(self):
+        older_land = self.create_vehicle(
+            model_name='Older Land Deployment',
+            plate_number='LAND-OLDER-01',
+            vehicle_type=self.land_type,
+            status='DEPLOYED',
+            deployment_time=timezone.make_aware(datetime(2030, 1, 2, 10, 30)),
+        )
+        newest_seacraft = self.create_vehicle(
+            model_name='Newest Sea Deployment',
+            plate_number='SEA-NEWEST-01',
+            vehicle_type=self.maritime_type,
+            status='DEPLOYED',
+            deployment_time=timezone.make_aware(datetime(2030, 1, 3, 10, 30)),
+        )
+        undated_land = self.create_vehicle(
+            model_name='Undated Land Deployment',
+            plate_number='LAND-UNDATED-01',
+            vehicle_type=self.land_type,
+            status='DEPLOYED',
+        )
+
+        response = self.client.get(reverse('dashboard_portal:homepage'))
+
+        self.assertEqual(response.status_code, 200)
+        active_deployments = response.content.decode().split('ACTIVE FIELD DEPLOYMENTS', 1)[1]
+        active_deployments = active_deployments.split('</table>', 1)[0]
+        newest_position = active_deployments.index(newest_seacraft.plate_number)
+        older_position = active_deployments.index(older_land.plate_number)
+        undated_position = active_deployments.index(undated_land.plate_number)
+        self.assertLess(newest_position, older_position)
+        self.assertLess(older_position, undated_position)
 
     def test_logistics_can_add_land_drivers_and_seacraft_operators(self):
         self.client.force_login(self.logistics_user)
@@ -1334,7 +1427,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': craft.pk,
                 'driver_id': self.operator.pk,
-                'deployment_location': 'Honda Bay',
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Search and Rescue',
                 'deployment_time': '2030-01-02T10:30',
             },
@@ -1353,7 +1446,7 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Deployment Activity Log')
         self.assertContains(response, 'Deployment History Craft')
-        self.assertContains(response, 'Honda Bay')
+        self.assertContains(response, 'Bancao-bancao, Puerto Princesa City, Palawan')
         self.assertContains(response, 'Search and Rescue')
         self.assertContains(response, 'RETURNED')
         self.assertContains(response, 'fa-ship text-info')
@@ -1378,7 +1471,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': land_vehicle.pk,
                 'driver_id': land_driver.pk,
-                'deployment_location': 'Puerto Princesa',
+                'deployment_location': 'Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Logistics Support',
                 'deployment_time': '2030-01-02T10:30',
             },
@@ -1527,7 +1620,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': craft.id,
                 'driver_id': self.operator.id,
-                'deployment_location': 'Honda Bay',
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Emergency Search & Rescue',
                 'deployment_time': '2030-01-02T10:30',
             },
@@ -1537,14 +1630,14 @@ class DispatchDashboardAlignmentTests(TestCase):
         craft.refresh_from_db()
         self.assertEqual(craft.status, 'DEPLOYED')
         self.assertEqual(craft.assigned_driver, self.operator)
-        self.assertEqual(craft.deployment_location, 'Honda Bay')
+        self.assertEqual(craft.deployment_location, 'Bancao-bancao, Puerto Princesa City, Palawan')
         self.assertEqual(craft.deployment_purpose, 'Emergency Search & Rescue')
         self.assertIsNotNone(craft.deployment_time)
 
         self.client.force_login(self.logistics_user)
         dashboard = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
         self.assertContains(dashboard, 'Shared Dispatch Craft')
-        self.assertContains(dashboard, 'Honda Bay')
+        self.assertContains(dashboard, 'Bancao-bancao, Puerto Princesa City, Palawan')
         self.assertContains(dashboard, 'Emergency Search &amp; Rescue')
         self.assertContains(dashboard, 'Qualified Maritime Operator')
 
@@ -1562,7 +1655,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': craft.id,
                 'driver_id': self.operator.id,
-                'deployment_location': 'Coron Bay',
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Coastal & Sea Patrol / Reconnaissance',
                 'deployment_time': '2030-01-03T08:15',
             },
@@ -1572,14 +1665,14 @@ class DispatchDashboardAlignmentTests(TestCase):
         craft.refresh_from_db()
         self.assertEqual(craft.status, 'DEPLOYED')
         self.assertEqual(craft.assigned_driver, self.operator)
-        self.assertEqual(craft.deployment_location, 'Coron Bay')
+        self.assertEqual(craft.deployment_location, 'Bancao-bancao, Puerto Princesa City, Palawan')
         self.assertEqual(craft.deployment_purpose, 'Coastal & Sea Patrol / Reconnaissance')
         self.assertIsNotNone(craft.deployment_time)
 
         self.client.force_login(self.seacraft_user)
         dispatch_dashboard = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
         self.assertContains(dispatch_dashboard, 'Logistics Deployed Craft')
-        self.assertContains(dispatch_dashboard, 'Coron Bay')
+        self.assertContains(dispatch_dashboard, 'Bancao-bancao, Puerto Princesa City, Palawan')
         self.assertContains(dispatch_dashboard, 'Coastal &amp; Sea Patrol / Reconnaissance')
 
     def test_dispatch_rejects_nonoperational_craft_and_unqualified_operator(self):
@@ -1601,7 +1694,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': craft.id,
                 'driver_id': self.operator.id,
-                'deployment_location': 'Honda Bay',
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Emergency Search & Rescue',
                 'deployment_time': '2030-01-02T10:30',
             },
@@ -1619,7 +1712,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': craft.id,
                 'driver_id': land_operator.id,
-                'deployment_location': 'Honda Bay',
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Emergency Search & Rescue',
                 'deployment_time': '2030-01-02T10:30',
             },
@@ -1650,7 +1743,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'action': 'deploy_vehicle',
                 'vehicle_id': operational_craft.id,
                 'driver_id': self.operator.id,
-                'deployment_location': 'Honda Bay',
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
                 'deployment_purpose': 'Emergency Search & Rescue',
                 'deployment_time': '2030-01-02T10:30',
             },

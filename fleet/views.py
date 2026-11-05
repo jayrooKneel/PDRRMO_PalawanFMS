@@ -38,6 +38,7 @@ from .forms import (
     ScheduledMaintenanceForm,
 )
 from .models import FleetIncident, Vehicle, VehicleType, Driver, VehicleAsset, OperatorProfile
+from .deployment_locations import get_deployment_location_labels
 
 # =========================================================================
 # SYSTEM SECURITY & AUDIT LOG HELPERS
@@ -317,6 +318,19 @@ def homepage(request):
     all_vehicles = Vehicle.objects.all().select_related('vehicle_type', 'assigned_driver')
     sea_crafts = all_vehicles.filter(seacraft_vehicle_type_filter())
     land_vehicles = all_vehicles.exclude(seacraft_vehicle_type_filter())
+    deployed_vehicles = list(all_vehicles.filter(status='DEPLOYED'))
+    for vehicle in deployed_vehicles:
+        vehicle.is_seacraft = (
+            vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
+        )
+    deployed_vehicles.sort(
+        key=lambda vehicle: (
+            vehicle.deployment_time.timestamp()
+            if vehicle.deployment_time else float('-inf'),
+            vehicle.pk,
+        ),
+        reverse=True,
+    )
     total_fleet = Vehicle.objects.exclude(status='disposal').count()
     land_operational_count = land_vehicles.filter(status='OPERATIONAL').count()
     sea_operational_count = sea_crafts.filter(status='OPERATIONAL').count()
@@ -329,6 +343,7 @@ def homepage(request):
         'total_fleet': total_fleet,
         'sea_crafts': sea_crafts,
         'land_vehicles': land_vehicles,
+        'deployed_vehicles': deployed_vehicles,
         'land_operational_count': land_operational_count,
         'sea_operational_count': sea_operational_count,
         'land_deployed_count': land_deployed_count,
@@ -1240,7 +1255,11 @@ def logistics_dashboard(request):
             deploy_time_str = request.POST.get('deployment_time', '').strip()
             driver_id = request.POST.get('driver_id', '').strip()
 
-            if not location or not purpose or not deploy_time_str:
+            if location not in get_deployment_location_labels():
+                messages.error(request, "Select a deployment location from Puerto Princesa City or the Palawan barangay list.")
+                return redirect('dashboard_portal:logistics_dashboard')
+
+            if not purpose or not deploy_time_str:
                 messages.error(request, "Deployment location, deployment purpose, and deployment time are required to dispatch an asset.")
                 return redirect('dashboard_portal:logistics_dashboard')
 
@@ -1669,7 +1688,11 @@ def seacraft_dispatch_view(request):
             deploy_time_str = request.POST.get("deployment_time", "").strip()
             driver_id = request.POST.get("driver_id", "").strip()
 
-            if not location or not purpose or not deploy_time_str:
+            if location not in get_deployment_location_labels():
+                messages.error(request, "Select a deployment location from Puerto Princesa City or the Palawan barangay list.")
+                return redirect("dashboard_portal:seacraft_dispatch")
+
+            if not purpose or not deploy_time_str:
                 messages.error(request, "Deployment location, deployment purpose, and deployment time are required to dispatch a vessel.")
                 return redirect("dashboard_portal:seacraft_dispatch")
 

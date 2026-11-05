@@ -27,6 +27,8 @@ Excel and PDF libraries — Dependencies available for spreadsheet processing an
 
 Note: The components listed above are based on the repository structure and dependencies. Specific application features depend on the implemented source code.
 
+Deployment location searches use a locally bundled, filtered copy of the [Philippines Administrative Divisions dataset](https://github.com/open-admin-data/philippines-administrative-divisions), limited to Puerto Princesa City and barangays in Palawan. Location selections are validated by the server as well as the browser. The data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the source and filtering changes are attributed in the deployment forms and location data file.
+
 Project Structure
 PDRRMO_PalawanFMS/
 ├── fleet/                  # Fleet management application

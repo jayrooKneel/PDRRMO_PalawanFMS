@@ -757,8 +757,11 @@
                         <!-- LOCATION INPUT -->
                         <div class="mb-3">
                             <label class="form-label fw-semibold"><i class="fa-solid fa-map-location-dot text-danger me-1"></i> Deployment Location</label>
-                            <input type="text" id="deployment_location_input" name="deployment_location" class="form-control" placeholder="Search Palawan locations..." autocomplete="off" required>
-                            <div class="form-text small text-muted"><i class="fa-solid fa-location-crosshairs text-success me-1"></i> Palawan locations only.</div>
+                            <div class="position-relative">
+                                <input type="text" id="deployment_location_input" name="deployment_location" class="form-control" placeholder="Search Puerto Princesa or Palawan barangays..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="deployment-location-suggestions" data-locations-url="{% static 'fleet/data/palawan_deployment_locations.json' %}" required>
+                                <div id="deployment-location-suggestions" class="list-group position-absolute top-100 start-0 w-100 shadow d-none" role="listbox" style="z-index: 1060; max-height: 16rem; overflow-y: auto;"></div>
+                            </div>
+                            <div class="form-text small text-muted"><i class="fa-solid fa-location-crosshairs text-success me-1"></i> Puerto Princesa City and Palawan barangays only. Data: <a href="https://github.com/open-admin-data/philippines-administrative-divisions" target="_blank" rel="noopener noreferrer">Open Admin Data</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.</div>
                         </div>
 
                         <!-- PURPOSE OF DEPLOYMENT SELECT SELECTION -->
@@ -947,68 +950,10 @@
     <script src="{% static 'fleet/js/dashboard_views.js' %}"></script>
     <script src="{% static 'fleet/js/dashboard_print.js' %}"></script>
     <script src="{% static 'fleet/js/activity_report.js' %}"></script>
+    <script src="{% static 'fleet/js/deployment_location_search.js' %}"></script>
 
     <script>
-        window.gm_authFailure = function() {
-            console.warn("Google Maps API authentication failed. Reverting to native text input.");
-            const locationInput = document.getElementById("deployment_location_input");
-            if (locationInput) {
-                locationInput.removeAttribute("disabled");
-                locationInput.style.pointerEvents = "auto";
-                locationInput.placeholder = "Type Palawan barangay, municipality, or landmark...";
-            }
-        };
-
-        let autocompleteBound = false;
-
-        function initPalawanAutocompleteOnModal() {
-            const locationInput = document.getElementById("deployment_location_input");
-            if (!locationInput) return;
-
-            locationInput.removeAttribute("disabled");
-            locationInput.style.pointerEvents = "auto";
-
-            if (typeof google !== "undefined" && google.maps && google.maps.places && !autocompleteBound) {
-                try {
-                    const palawanBounds = new google.maps.LatLngBounds(
-                        new google.maps.LatLng(7.30, 116.85),
-                        new google.maps.LatLng(12.40, 120.40)
-                    );
-
-                    const autocomplete = new google.maps.places.Autocomplete(locationInput, {
-                        types: ["geocode", "establishment"],
-                        componentRestrictions: { country: "ph" },
-                        bounds: palawanBounds,
-                        strictBounds: true,
-                        fields: ["formatted_address", "geometry", "name"]
-                    });
-
-                    autocompleteBound = true;
-
-                    locationInput.addEventListener("keydown", function(e) {
-                        if (e.key === "Enter") {
-                            const pacContainer = document.querySelector(".pac-container");
-                            if (pacContainer && pacContainer.offsetWidth > 0 && pacContainer.getClientRects().length > 0) {
-                                e.preventDefault();
-                            }
-                        }
-                    });
-                } catch (e) {
-                    console.error("Autocomplete init error:", e);
-                    locationInput.removeAttribute("disabled");
-                }
-            }
-        }
-    </script>
-
-    <script 
-        src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places" 
-        async 
-        defer>
-    </script>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        document.addEventListener("DOMContentLoaded", function() {
             const assetEntries = document.getElementById('assetRegistrationEntries');
             const assetCount = document.getElementById('assetCount');
             const updateAssetFields = function (entry) {
@@ -1252,7 +1197,6 @@
             if (deployModal) {
                 deployModal.addEventListener('shown.bs.modal', function () {
                     deployModal.removeAttribute('tabindex'); 
-                    initPalawanAutocompleteOnModal();
                 });
             }
         });
