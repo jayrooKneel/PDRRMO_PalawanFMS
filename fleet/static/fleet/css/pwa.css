@@ -1,0 +1,104 @@
+html {
+    min-height: 100%;
+    scroll-padding-top: 1rem;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    min-width: 320px;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+button,
+[role="button"],
+input,
+select,
+textarea {
+    touch-action: manipulation;
+}
+
+button,
+.btn {
+    max-width: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+}
+
+.pwa-install-button {
+    position: fixed;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 1090;
+    min-height: 44px;
+    padding: .65rem 1rem;
+    border: 0;
+    border-radius: 999px;
+    background: #ea580c;
+    box-shadow: 0 4px 14px rgb(15 23 42 / 25%);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+}
+
+.pwa-install-button:hover,
+.pwa-install-button:focus-visible {
+    background: #c2410c;
+    color: #fff;
+}
+
+@media (max-width: 767.98px) {
+    body:not(.login-page) main {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .dashboard-shell > main,
+    .dashboard-shell > .container-fluid {
+        padding-right: 1rem !important;
+        padding-left: 1rem !important;
+    }
+
+    .dashboard-shell nav.navbar {
+        gap: .75rem;
+        padding-right: 1rem !important;
+        padding-left: 1rem !important;
+    }
+
+    .dashboard-shell nav .navbar-brand {
+        min-width: 0;
+        max-width: 100%;
+        white-space: normal;
+    }
+
+    .table-responsive,
+    .modal-body,
+    .offcanvas-body {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-responsive table {
+        white-space: nowrap;
+    }
+
+    .form-control,
+    .form-select,
+    .btn,
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pwa-install-button {
+        right: max(.75rem, env(safe-area-inset-right));
+        bottom: max(.75rem, env(safe-area-inset-bottom));
+    }
+}

@@ -44,6 +44,32 @@ class LoginViewTests(TestCase):
         self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged out.').exists())
 
 
+class ProgressiveWebAppTests(TestCase):
+    def test_manifest_is_served_with_web_app_metadata(self):
+        response = self.client.get(reverse('dashboard_portal:pwa_manifest'))
+        manifest = json.loads(response.content)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/manifest+json')
+        self.assertEqual(manifest['display'], 'standalone')
+        self.assertEqual(manifest['scope'], '/')
+        self.assertTrue(manifest['icons'])
+        png_icon_sizes = {
+            icon['sizes']
+            for icon in manifest['icons']
+            if icon['type'] == 'image/png'
+        }
+        self.assertEqual(png_icon_sizes, {'192x192', '512x512'})
+
+    def test_service_worker_is_served_with_root_scope_permission(self):
+        response = self.client.get(reverse('dashboard_portal:pwa_service_worker'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Service-Worker-Allowed'], '/')
+        self.assertContains(response, 'pdrrmo-fms-shell-v1')
+        self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
+
+
 class SystemConsoleTests(TestCase):
     def test_console_shows_actions_from_multiple_users(self):
         admin_user = User.objects.create_superuser(

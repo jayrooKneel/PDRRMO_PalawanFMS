@@ -4,6 +4,8 @@ from . import views
 app_name = 'dashboard_portal'
 
 urlpatterns = [
+    path('manifest.webmanifest', views.pwa_manifest, name='pwa_manifest'),
+    path('service-worker.js', views.pwa_service_worker, name='pwa_service_worker'),
     # 🏠 Root URL loads the login screen.
     path('', views.login_view, name='login'),
 

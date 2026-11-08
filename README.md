@@ -116,6 +116,10 @@ Django Admin: http://127.0.0.1:8000/admin/
 
 The available pages depend on the project's configured URL routes.
 
+### Mobile and installable app
+
+The fleet pages include responsive layouts for phone and tablet screens and can be installed as a Progressive Web App (PWA). Open the application in a supported browser and choose **Install app** when prompted (or use the browser's install option). The service worker caches only the app's static shell; sign-in and fleet records still require a network connection. PWA installation requires HTTPS in production; `localhost` and `127.0.0.1` are treated as secure for local development.
+
 Database
 
 The project includes an SQLite database named `db.sqlite3` for local development. The production deployment below uses PostgreSQL; it does not use or overwrite the local SQLite file.

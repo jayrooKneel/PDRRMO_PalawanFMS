@@ -1,5 +1,6 @@
 import csv
 import io
+from pathlib import Path
 from datetime import date, datetime, time, timedelta
 from xml.sax.saxutils import escape
 
@@ -39,6 +40,28 @@ from .forms import (
 )
 from .models import FleetIncident, Vehicle, VehicleType, Driver, VehicleAsset, OperatorProfile
 from .deployment_locations import get_deployment_location_labels
+
+
+def pwa_manifest(request):
+    manifest_path = Path(__file__).parent / 'static' / 'fleet' / 'manifest.webmanifest'
+    response = HttpResponse(
+        manifest_path.read_text(encoding='utf-8'),
+        content_type='application/manifest+json',
+    )
+    response['Cache-Control'] = 'public, max-age=3600'
+    return response
+
+
+def pwa_service_worker(request):
+    service_worker_path = Path(__file__).parent / 'static' / 'fleet' / 'js' / 'service-worker.js'
+    response = HttpResponse(
+        service_worker_path.read_text(encoding='utf-8'),
+        content_type='application/javascript',
+    )
+    response['Cache-Control'] = 'no-cache'
+    response['Service-Worker-Allowed'] = '/'
+    return response
+
 
 # =========================================================================
 # SYSTEM SECURITY & AUDIT LOG HELPERS
