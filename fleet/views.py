@@ -322,10 +322,17 @@ def vehicle_type_matches_operator(vehicle, driver):
     return is_seacraft == is_seacraft_operator
 
 
-def assign_vehicle_operator(vehicle, driver):
+def assign_vehicle_operator(vehicle, driver, allow_seacraft_reassignment=False):
     previous_vehicle = Vehicle.objects.filter(assigned_driver=driver).exclude(pk=vehicle.pk).first()
     if previous_vehicle:
-        if previous_vehicle.status not in {'MAINTENANCE', 'PENDING_DISPOSAL'}:
+        is_operational_seacraft = (
+            previous_vehicle.status == 'OPERATIONAL'
+            and previous_vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
+        )
+        if (
+            previous_vehicle.status not in {'MAINTENANCE', 'PENDING_DISPOSAL'}
+            and not (allow_seacraft_reassignment and is_operational_seacraft)
+        ):
             return previous_vehicle
         previous_vehicle.assigned_driver = None
         previous_vehicle.save(update_fields=['assigned_driver'])
@@ -1761,6 +1768,7 @@ def seacraft_dispatch_view(request):
                 messages.error(request, f"Operator assignments cannot be changed while '{vehicle.model_name}' is {vehicle.get_status_display().lower()}.")
                 return redirect("dashboard_portal:seacraft_dispatch")
             driver_id = request.POST.get("driver_id", "").strip()
+            previous_vehicle = None
             if driver_id:
                 driver = Driver.objects.filter(
                     pk=driver_id,
@@ -1769,14 +1777,30 @@ def seacraft_dispatch_view(request):
                 if driver is None:
                     messages.error(request, "Select an active, qualified seacraft operator.")
                     return redirect("dashboard_portal:seacraft_dispatch")
-                msg = f"Operator assignment updated for {vehicle.model_name} to {driver.name}."
+                previous_vehicle = (
+                    Vehicle.objects.filter(assigned_driver=driver)
+                    .exclude(pk=vehicle.pk)
+                    .select_related("vehicle_type")
+                    .first()
+                )
+                if previous_vehicle:
+                    msg = (
+                        f"Operator {driver.name} reassigned from {previous_vehicle.model_name} "
+                        f"to {vehicle.model_name}."
+                    )
+                else:
+                    msg = f"Operator assignment updated for {vehicle.model_name} to {driver.name}."
             else:
                 vehicle.assigned_driver = None
                 msg = f"Removed operator assignment from asset {vehicle.model_name}."
 
             with transaction.atomic():
                 if driver_id:
-                    conflicting_vehicle = assign_vehicle_operator(vehicle, driver)
+                    conflicting_vehicle = assign_vehicle_operator(
+                        vehicle,
+                        driver,
+                        allow_seacraft_reassignment=True,
+                    )
                     if conflicting_vehicle:
                         messages.error(
                             request,
@@ -1839,6 +1863,22 @@ def seacraft_dispatch_view(request):
 
     all_drivers = Driver.objects.filter(is_active=True)
     sea_drivers = all_drivers.filter(seacraft_operator_filter())
+
+    assigned_vehicles = (
+        Vehicle.objects.filter(assigned_driver__in=sea_drivers)
+        .select_related("vehicle_type")
+    )
+    assigned_vehicle_by_driver = {
+        assigned_vehicle.assigned_driver_id: assigned_vehicle
+        for assigned_vehicle in assigned_vehicles
+    }
+    for driver in sea_drivers:
+        driver.reassignment_source_vehicle = assigned_vehicle_by_driver.get(driver.pk)
+        if driver.reassignment_source_vehicle:
+            driver.reassignment_source_vehicle.is_seacraft = (
+                driver.reassignment_source_vehicle.vehicle_type.name.strip().casefold()
+                in {"marine", "maritime"}
+            )
 
     assigned_driver_ids = set(
         Vehicle.objects.filter(assigned_driver__isnull=False).values_list('assigned_driver_id', flat=True)

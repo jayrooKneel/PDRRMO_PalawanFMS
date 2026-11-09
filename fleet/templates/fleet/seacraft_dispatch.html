@@ -218,11 +218,13 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="set_driver">
                                     <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
-                                    <select name="driver_id" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Assign operator to {{ craft.model_name }}" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
+                                    <select name="driver_id" class="form-select form-select-sm" data-craft-name="{{ craft.model_name }}" aria-label="Assign operator to {{ craft.model_name }}" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in drivers %}
                                             {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}
                                                 <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
+                                            {% elif driver.reassignment_source_vehicle and driver.reassignment_source_vehicle.is_seacraft and driver.reassignment_source_vehicle.status == 'OPERATIONAL' %}
+                                                <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Reassign from {{ driver.reassignment_source_vehicle.model_name }}]</option>
                                             {% elif driver.id not in assigned_driver_ids %}
                                                 <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
                                             {% else %}
@@ -930,6 +932,27 @@
                     });
                 });
             }
+
+            document.querySelectorAll('#seacraftOperatorAssignmentDrawer select[name="driver_id"]').forEach(select => {
+                select.dataset.previousValue = select.value;
+                select.addEventListener('change', function () {
+                    const previousOption = Array.from(this.options).find(option => option.value === this.dataset.previousValue);
+                    const nextOption = this.options[this.selectedIndex];
+                    const craftName = this.dataset.craftName;
+                    const confirmed = window.confirm(
+                        `Confirm operator assignment change for ${craftName}?\n\n` +
+                        `From: ${previousOption ? previousOption.textContent.trim() : 'Unassigned'}\n` +
+                        `To: ${nextOption ? nextOption.textContent.trim() : 'Unassigned'}`
+                    );
+
+                    if (!confirmed) {
+                        this.value = this.dataset.previousValue;
+                        return;
+                    }
+
+                    this.form.submit();
+                });
+            });
 
             document.querySelectorAll('form').forEach(form => {
                 form.addEventListener('submit', function () {

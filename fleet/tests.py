@@ -1616,13 +1616,80 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, 'data-menu-action="add-operator"')
         self.assertContains(response, 'id="seacraftOperatorAssignmentDrawer"')
         self.assertContains(response, 'name="action" value="set_driver"')
-        self.assertEqual(response.content.count(b'onchange="this.form.submit()"'), 1)
+        self.assertContains(response, 'Confirm operator assignment change')
         self.assertNotContains(response, 'RESET</button>')
         self.assertContains(response, 'Connected to Dispatch Server')
         self.assertContains(response, 'Log Out')
         self.assertContains(response, 'aria-label="Open seacraft dispatch menu"')
         self.assertContains(response, 'data-menu-action="generate-report"')
         self.assertContains(response, 'Generate Fleet Report')
+
+    def test_seacraft_dispatch_can_reassign_operator_between_operational_vessels(self):
+        source_craft = self.create_vehicle(
+            model_name='Current Operator Vessel',
+            plate_number='SEA-REASSIGN-01',
+            vehicle_type=self.marine_type,
+            assigned_driver=self.operator,
+        )
+        target_craft = self.create_vehicle(
+            model_name='New Operator Vessel',
+            plate_number='SEA-REASSIGN-02',
+            vehicle_type=self.maritime_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        assignment_response = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+        self.assertContains(
+            assignment_response,
+            '[Reassign from Current Operator Vessel]',
+        )
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            {
+                'action': 'set_driver',
+                'vehicle_id': target_craft.pk,
+                'driver_id': self.operator.pk,
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, 'Operator reassigned from Current Operator Vessel to New Operator Vessel')
+        source_craft.refresh_from_db()
+        target_craft.refresh_from_db()
+        self.assertIsNone(source_craft.assigned_driver)
+        self.assertEqual(target_craft.assigned_driver, self.operator)
+
+    def test_seacraft_dispatch_does_not_reassign_operator_from_deployed_vessel(self):
+        source_craft = self.create_vehicle(
+            model_name='Deployed Operator Vessel',
+            plate_number='SEA-DEPLOYED-OP-01',
+            vehicle_type=self.marine_type,
+            assigned_driver=self.operator,
+            status='DEPLOYED',
+        )
+        target_craft = self.create_vehicle(
+            model_name='Requested Operator Vessel',
+            plate_number='SEA-DEPLOYED-OP-02',
+            vehicle_type=self.maritime_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            {
+                'action': 'set_driver',
+                'vehicle_id': target_craft.pk,
+                'driver_id': self.operator.pk,
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, 'is assigned to active fleet asset')
+        source_craft.refresh_from_db()
+        target_craft.refresh_from_db()
+        self.assertEqual(source_craft.assigned_driver, self.operator)
+        self.assertIsNone(target_craft.assigned_driver)
 
     def test_unauthorized_seacraft_dispatch_user_redirects_to_homepage(self):
         unauthorized_user = User.objects.create_user(username='unauthorized_dispatch')
@@ -2439,6 +2506,36 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertContains(response, f'Driver: {driver.name}')
                 self.assertContains(response, f'href="tel:{phone_number}"')
                 self.assertContains(response, phone_number)
+
+    def test_seacraft_operational_fleet_shows_assigned_operator(self):
+        operator = Driver.objects.create(
+            name='Operational Seacraft Operator',
+            license_number='MAR-OP-100',
+        )
+        self.seacraft.assigned_driver = operator
+        self.seacraft.save(update_fields=['assigned_driver'])
+        self.client.force_login(self.sea_mechanic)
+
+        response = self.client.get(reverse('dashboard_portal:seacraft_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Assigned operator:')
+        self.assertContains(response, 'Operational Seacraft Operator')
+
+    def test_land_operational_fleet_shows_assigned_operator(self):
+        operator = Driver.objects.create(
+            name='Operational Land Operator',
+            license_number='LAND-OP-100',
+        )
+        self.land_vehicle.assigned_driver = operator
+        self.land_vehicle.save(update_fields=['assigned_driver'])
+        self.client.force_login(self.land_mechanic)
+
+        response = self.client.get(reverse('dashboard_portal:repairman_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Assigned operator:')
+        self.assertContains(response, 'Operational Land Operator')
 
     def test_reporting_a_deployed_fault_clears_dispatch_assignment(self):
         driver = Driver.objects.create(name='Assigned Land Operator')
