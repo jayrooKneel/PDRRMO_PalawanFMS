@@ -84,24 +84,26 @@ document.addEventListener("DOMContentLoaded", function () {
                 throw new Error(result.error || "Could not read the uploaded OR/CR.");
             }
 
+            const suggestions = Object.entries(result.fields || {}).filter(([, value]) => value);
             let filledCount = 0;
-            Object.entries(result.fields || {}).forEach(([name, value]) => {
-                const field = Array.from(entry.querySelectorAll("[data-ocr-field]"))
-                    .find((candidate) => candidate.dataset.ocrField === name);
-                if (!field || !value || field.disabled || field.value) return;
+            suggestions.forEach(([name, value]) => {
+                const matchingFields = Array.from(entry.querySelectorAll("[data-ocr-field]"))
+                    .filter((candidate) => candidate.dataset.ocrField === name);
+                const field = matchingFields.find((candidate) => !candidate.disabled);
+                if (!field || field.value) return;
                 field.value = value;
                 field.dispatchEvent(new Event("input", { bubbles: true }));
                 field.dispatchEvent(new Event("change", { bubbles: true }));
                 filledCount += 1;
             });
 
-            setOcrStatus(
-                entry,
-                filledCount
-                    ? `${filledCount} suggested field(s) filled. Check and correct them before saving.`
-                    : result.message,
-                false
-            );
+            let status = result.message;
+            if (filledCount) {
+                status = `${filledCount} suggested field(s) filled. Check and correct them before saving.`;
+            } else if (suggestions.length) {
+                status = "Details were recognized, but existing values were kept. Clear a field to use its suggestion.";
+            }
+            setOcrStatus(entry, status, false);
         } catch (error) {
             if (entry.dataset.ocrRequestId === requestId) {
                 setOcrStatus(entry, error.message, true);

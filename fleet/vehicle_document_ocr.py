@@ -33,8 +33,10 @@ LAND_FIELDS = {
     'chassis_number',
     'engine_number',
     'mv_file_number',
+    'vehicle_category',
     'body_type',
     'vehicle_classification',
+    'aircon_type',
     'engine_displacement_cc',
     'model_year',
     'color',
@@ -73,13 +75,16 @@ SEA_FIELDS = {
 FIELD_LABELS = {
     'plate_number': (
         r'plate\s*(?:no\.?|number|#)',
+        r'plate',
         r'official\s*(?:no\.?|number)',
+        r'official\s*(?:registration\s*)?(?:no\.?|number)',
         r'registration\s*(?:no\.?|number)',
     ),
     'model_name': (
         r'vessel\s*name',
         r'name\s*of\s*vessel',
         r'vehicle\s*series',
+        r'vehicle\s*model',
         r'series',
         r'model(?!\s*year)',
     ),
@@ -87,14 +92,21 @@ FIELD_LABELS = {
     'chassis_number': (
         r'chassis\s*(?:no\.?|number)',
         r'hull\s*(?:no\.?|number|id)',
+        r'serial\s*(?:no\.?|number)',
     ),
     'engine_number': (r'engine\s*(?:no\.?|number)',),
-    'mv_file_number': (r'm\.?\s*v\.?\s*file\s*(?:no\.?|number)',),
-    'body_type': (r'body\s*type',),
+    'mv_file_number': (
+        r'm\.?\s*v\.?\s*file\s*(?:no\.?|number)?',
+        r'motor\s*vehicle\s*file\s*(?:no\.?|number)',
+    ),
+    'vehicle_category': (r'vehicle\s*category',),
+    'body_type': (r'body\s*(?:type|style)',),
     'vehicle_classification': (r'(?:vehicle\s*)?classification',),
+    'aircon_type': (r'air\s*con(?:dition(?:er|ing)?)?\s*type', r'a\s*/\s*c\s*type'),
     'home_port': (r'port\s*of\s*registry', r'home\s*port', r'port\s*of\s*registration'),
     'model_year': (
         r'year\s*(?:model|built|of\s*construction)',
+        r'year\s*of\s*manufacture',
         r'model\s*year',
         r'year\s*built',
     ),
@@ -116,14 +128,16 @@ FIELD_LABELS = {
     'fuel_type': (r'fuel(?:\s*type)?',),
     'passenger_capacity': (
         r'(?:passenger|seating)\s*capacity',
+        r'pax\s*capacity',
         r'no\.?\s*of\s*passengers',
         r'authorized\s*persons',
     ),
     'gross_vehicle_weight': (r'gross\s*(?:vehicle\s*)?weight',),
-    'net_capacity': (r'net\s*capacity',),
+    'net_capacity': (r'net\s*(?:vehicle\s*)?(?:weight|capacity)',),
     'registration_date': (
         r'date\s*of\s*initial\s*registration',
         r'initial\s*registration\s*date',
+        r'date\s*of\s*registration',
         r'date\s*registered',
     ),
     'registration_expiry': (
@@ -142,6 +156,15 @@ FIELD_LABELS = {
     'net_tonnage': (r'net\s*tonnage',),
 }
 
+NON_TECHNICAL_LABELS = (
+    r'registered\s*(?:owner|proprietor)',
+    r'(?:name|signature)\s*of\s*(?:the\s*)?(?:registered\s*)?owner',
+    r'owner(?:\'s)?\s*(?:name|address)',
+    r'address(?:\s*of\s*(?:the\s*)?(?:registered\s*)?owner)?',
+    r'residing\s*(?:at|address)',
+    r'date\s*of\s*birth',
+)
+
 COMMON_MAKES = (
     'Mitsubishi', 'Mercedes-Benz', 'Land Rover', 'Volkswagen', 'Chevrolet',
     'Hyundai', 'Kawasaki', 'Isuzu', 'Nissan', 'Suzuki', 'Toyota', 'Honda',
@@ -150,28 +173,49 @@ COMMON_MAKES = (
 )
 
 
-def _read_label_value(lines, patterns):
-    for index, line in enumerate(lines):
+def _find_line_labels(line):
+    candidates = []
+    for field_name, patterns in FIELD_LABELS.items():
         for pattern in patterns:
-            match = re.match(
-                rf'^\s*{pattern}\s*(?:[:#.-]\s*)?(.*?)\s*$',
+            for match in re.finditer(
+                rf'(?<![A-Z0-9])(?:{pattern})(?![A-Z0-9])',
                 line,
                 re.IGNORECASE,
-            )
-            if not match:
+            ):
+                candidates.append((match.start(), match.end(), field_name))
+    for pattern in NON_TECHNICAL_LABELS:
+        for match in re.finditer(
+            rf'(?<![A-Z0-9])(?:{pattern})(?![A-Z0-9])',
+            line,
+            re.IGNORECASE,
+        ):
+            candidates.append((match.start(), match.end(), None))
+
+    labels = []
+    for candidate in sorted(candidates, key=lambda item: (item[0], -(item[1] - item[0]))):
+        if labels and candidate[0] < labels[-1][1]:
+            continue
+        labels.append(candidate)
+    return labels
+
+
+def _read_label_values(lines):
+    values = {}
+    for line_index, line in enumerate(lines):
+        labels = _find_line_labels(line)
+        for label_index, (start, end, field_name) in enumerate(labels):
+            if field_name is None:
                 continue
-            value = match.group(1).strip(' \t:;#.-_')
+            next_start = labels[label_index + 1][0] if label_index + 1 < len(labels) else len(line)
+            value = line[end:next_start].strip(' \t:;#.-_/')
+            if not value and line_index + 1 < len(lines):
+                next_line = lines[line_index + 1]
+                next_labels = _find_line_labels(next_line)
+                continuation_end = next_labels[0][0] if next_labels else len(next_line)
+                value = next_line[:continuation_end].strip(' \t:;#.-_/')
             if value:
-                return value
-            if index + 1 < len(lines):
-                next_line = lines[index + 1].strip()
-                if next_line and not any(
-                    re.match(rf'^\s*{label}\b', next_line, re.IGNORECASE)
-                    for aliases in FIELD_LABELS.values()
-                    for label in aliases
-                ):
-                    return next_line.strip(' \t:;#.-_')
-    return ''
+                values.setdefault(field_name, value)
+    return values
 
 
 def _split_make_series(value):
@@ -228,9 +272,8 @@ def _date(value):
 
 def extract_fields_from_text(text, is_seacraft=False):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    values = {}
-    for field_name, patterns in FIELD_LABELS.items():
-        value = _read_label_value(lines, patterns)
+    values = _read_label_values(lines)
+    for field_name, value in tuple(values.items()):
         if not value:
             continue
         if field_name in {'registration_date', 'registration_expiry', 'inspection_expiry'}:
@@ -252,15 +295,14 @@ def extract_fields_from_text(text, is_seacraft=False):
             value = re.sub(r'\s+', ' ', value).strip(' \t:;#.-_')
         if value:
             values[field_name] = value
+        else:
+            values.pop(field_name)
 
-    combined_make = _read_label_value(lines, (r'make\s*/\s*series',))
-    if combined_make:
-        make, series = _split_make_series(combined_make)
-        values['make'] = make
+    if values.get('make'):
+        make, series = _split_make_series(values['make'])
+        values['make'] = make[:100]
         if series and not values.get('model_name'):
             values['model_name'] = series
-    elif values.get('make'):
-        values['make'] = values['make'][:100]
 
     allowed_fields = SEA_FIELDS if is_seacraft else LAND_FIELDS
     return {

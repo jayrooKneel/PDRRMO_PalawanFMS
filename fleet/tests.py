@@ -77,7 +77,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v3')
+        self.assertContains(response, 'pdrrmo-fms-shell-v4')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -186,11 +186,38 @@ class SystemConsoleTests(TestCase):
         self.assertEqual(drawer_positions, sorted(drawer_positions))
         self.assertEqual(response.content.count(b'class="asset-grid logistics-asset-grid"'), 6)
         self.assertContains(response, 'Add a fleet asset')
-        self.assertContains(response, 'Plate number or vessel official number')
+        self.assertContains(response, 'Plate No. / Official No.')
         self.assertContains(response, 'Choose an asset type')
         self.assertContains(response, 'name="asset-0-registration_documents"')
+        self.assertContains(response, 'Land Asset Details — LTO Form 3')
         self.assertContains(response, 'data-ocr-field="engine_number"')
+        self.assertContains(response, 'data-ocr-field="vehicle_category"')
+        self.assertContains(response, 'data-ocr-field="aircon_type"')
         self.assertContains(response, 'fleet/js/fleet_asset_registration.js')
+        lto_field_order = (
+            'plate_number',
+            'engine_number',
+            'chassis_number',
+            'mv_file_number',
+            'vehicle_category',
+            'passenger_capacity',
+            'color',
+            'fuel_type',
+            'vehicle_classification',
+            'make',
+            'model_name',
+            'gross_vehicle_weight',
+            'net_capacity',
+            'body_type',
+            'model_year',
+            'engine_displacement_cc',
+            'aircon_type',
+        )
+        field_positions = [
+            response.content.index(f'name="asset-0-{field}"'.encode())
+            for field in lto_field_order
+        ]
+        self.assertEqual(field_positions, sorted(field_positions))
         for field_name in (
             'make',
             'model_year',
@@ -383,13 +410,15 @@ YEAR MODEL: 2020
 ENGINE NO: 2GD-12345
 CHASSIS NO: MHF-98765
 MV FILE NO: 1234-567890
+VEHICLE CATEGORY: PASSENGER CAR M1
 BODY TYPE: WAGON
 CLASSIFICATION: GOVERNMENT
 FUEL TYPE: DIESEL
+AIRCON TYPE: R134A
 COLOR: WHITE
 PASSENGER CAPACITY: 8
 GROSS VEHICLE WEIGHT: 2500
-NET CAPACITY: 1000
+NET WEIGHT: 1000
 PISTON DISPLACEMENT: 2755 CC
 DATE OF INITIAL REGISTRATION: 2020-05-10
 REGISTRATION EXPIRY: 2026-03-22
@@ -436,7 +465,11 @@ HORSEPOWER: 90 HP
         self.assertEqual(fields['engine_number'], '2GD-12345')
         self.assertEqual(fields['chassis_number'], 'MHF-98765')
         self.assertEqual(fields['mv_file_number'], '1234-567890')
+        self.assertEqual(fields['vehicle_category'], 'PASSENGER CAR M1')
+        self.assertEqual(fields['vehicle_classification'], 'GOVERNMENT')
+        self.assertEqual(fields['aircon_type'], 'R134A')
         self.assertEqual(fields['gross_vehicle_weight'], '2500')
+        self.assertEqual(fields['net_capacity'], '1000')
         self.assertEqual(fields['engine_displacement_cc'], '2755')
         self.assertEqual(fields['registration_date'], '2020-05-10')
         self.assertEqual(fields['registration_expiry'], '2026-03-22')
@@ -446,6 +479,30 @@ HORSEPOWER: 90 HP
             'DATE OF INITIAL REGISTRATION: 01/02/2020'
         )
         self.assertNotIn('registration_date', ambiguous_date_fields)
+
+    def test_extracts_adjacent_and_multiline_orcr_labels(self):
+        text = """\
+PLATE NO. ABC 1234 MAKE / SERIES TOYOTA INNOVA
+YEAR MODEL 2020 COLOR WHITE
+ENGINE NO.
+2GD-12345 CHASSIS NO. MHF-98765
+PAX CAPACITY 8 GROSS VEHICLE WEIGHT 2500 KG
+REGISTERED OWNER
+Maria Example
+"""
+
+        fields = extract_fields_from_text(text)
+
+        self.assertEqual(fields['plate_number'], 'ABC 1234')
+        self.assertEqual(fields['make'], 'Toyota')
+        self.assertEqual(fields['model_name'], 'INNOVA')
+        self.assertEqual(fields['model_year'], '2020')
+        self.assertEqual(fields['color'], 'WHITE')
+        self.assertEqual(fields['engine_number'], '2GD-12345')
+        self.assertEqual(fields['chassis_number'], 'MHF-98765')
+        self.assertEqual(fields['passenger_capacity'], '8')
+        self.assertEqual(fields['gross_vehicle_weight'], '2500')
+        self.assertNotIn('Maria Example', fields.values())
 
     def test_extracts_marina_vessel_fields(self):
         fields = extract_fields_from_text(self.SEA_TEXT, is_seacraft=True)
@@ -532,6 +589,8 @@ HORSEPOWER: 90 HP
                 'asset-0-engine_number': 'ENGINE-123',
                 'asset-0-chassis_number': 'CHASSIS-123',
                 'asset-0-mv_file_number': 'MV-123',
+                'asset-0-vehicle_category': 'PASSENGER CAR M1',
+                'asset-0-aircon_type': 'R134A',
                 'asset-0-registration_documents': self.uploaded_image('lto-cr.png'),
             },
             follow=True,
@@ -541,6 +600,8 @@ HORSEPOWER: 90 HP
         vehicle = Vehicle.objects.get(plate_number='OCR-123')
         self.assertEqual(vehicle.engine_number, 'ENGINE-123')
         self.assertEqual(vehicle.chassis_number, 'CHASSIS-123')
+        self.assertEqual(vehicle.vehicle_category, 'PASSENGER CAR M1')
+        self.assertEqual(vehicle.aircon_type, 'R134A')
         document = VehicleRegistrationDocument.objects.get(vehicle=vehicle)
         self.assertTrue(document.file.storage.exists(document.file.name))
         self.assertContains(response, 'OR/CR attachments:')

@@ -831,16 +831,47 @@
                             <div class="col-12">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.registration_documents.id_for_label }}">{{ asset_registration_form.registration_documents.label }}</label>
                                 {{ asset_registration_form.registration_documents }}
-                                <div class="form-text">Upload LTO OR/CR photos for land assets or MARINA documents for seacraft. Up to 5 clear JPEG, PNG, or WebP images (10 MB each). Local OCR suggests values; verify them before saving. Images remain private attachments.</div>
+                                <div class="form-text">Upload LTO Form 3 / OR-CR photos for land assets or MARINA documents for seacraft. Up to 5 clear JPEG, PNG, or WebP images (10 MB each). Local OCR suggests values; verify them before saving. Images remain private attachments.</div>
                                 <div class="small mt-1" data-ocr-status role="status" aria-live="polite"></div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.model_name.id_for_label }}">{{ asset_registration_form.model_name.label }}</label>
-                                {{ asset_registration_form.model_name }}
+                            <div class="col-12" data-asset-fields="land">
+                                <h6 class="mb-0 text-primary">Land Asset Details — LTO Form 3</h6>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.plate_number.id_for_label }}" data-identifier-label>{{ asset_registration_form.plate_number.label }}</label>
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.plate_number.id_for_label }}" data-identifier-label>Plate No. / Official No.</label>
                                 {{ asset_registration_form.plate_number }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.engine_number.id_for_label }}">{{ asset_registration_form.engine_number.label }}</label>
+                                {{ asset_registration_form.engine_number }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.chassis_number.id_for_label }}">{{ asset_registration_form.chassis_number.label }}</label>
+                                {{ asset_registration_form.chassis_number }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.mv_file_number.id_for_label }}">{{ asset_registration_form.mv_file_number.label }}</label>
+                                {{ asset_registration_form.mv_file_number }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.vehicle_category.id_for_label }}">{{ asset_registration_form.vehicle_category.label }}</label>
+                                {{ asset_registration_form.vehicle_category }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.passenger_capacity.id_for_label }}">{{ asset_registration_form.passenger_capacity.label }}</label>
+                                {{ asset_registration_form.passenger_capacity }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.color.id_for_label }}">{{ asset_registration_form.color.label }}</label>
+                                {{ asset_registration_form.color }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.fuel_type.id_for_label }}">{{ asset_registration_form.fuel_type.label }}</label>
+                                {{ asset_registration_form.fuel_type }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.vehicle_classification.id_for_label }}">{{ asset_registration_form.vehicle_classification.label }}</label>
+                                {{ asset_registration_form.vehicle_classification }}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.make.id_for_label }}">{{ asset_registration_form.make.label }}</label>
@@ -848,56 +879,57 @@
                                 <datalist id="{{ asset_registration_form.make.id_for_label }}-suggestions"></datalist>
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.model_name.id_for_label }}">{{ asset_registration_form.model_name.label }}</label>
+                                {{ asset_registration_form.model_name }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.gross_vehicle_weight.id_for_label }}">{{ asset_registration_form.gross_vehicle_weight.label }}</label>
+                                {{ asset_registration_form.gross_vehicle_weight }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.net_capacity.id_for_label }}">{{ asset_registration_form.net_capacity.label }}</label>
+                                {{ asset_registration_form.net_capacity }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.body_type.id_for_label }}">{{ asset_registration_form.body_type.label }}</label>
+                                {{ asset_registration_form.body_type }}
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.model_year.id_for_label }}">{{ asset_registration_form.model_year.label }}</label>
                                 {{ asset_registration_form.model_year }}
                             </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.engine_displacement_cc.id_for_label }}">{{ asset_registration_form.engine_displacement_cc.label }}</label>
+                                {{ asset_registration_form.engine_displacement_cc }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.aircon_type.id_for_label }}">{{ asset_registration_form.aircon_type.label }}</label>
+                                {{ asset_registration_form.aircon_type }}
+                            </div>
+                            <div class="col-md-6" data-asset-fields="land">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.odometer_km.id_for_label }}">{{ asset_registration_form.odometer_km.label }}</label>
+                                {{ asset_registration_form.odometer_km }}
+                            </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.color.id_for_label }}">{{ asset_registration_form.color.label }}</label>
-                                {{ asset_registration_form.color }}
-                            </div>
-                            <div class="col-12" data-asset-fields="land">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold" for="{{ asset_registration_form.odometer_km.id_for_label }}">{{ asset_registration_form.odometer_km.label }}</label>
-                                        {{ asset_registration_form.odometer_km }}
-                                    </div>
-                                    {% for field in asset_registration_form %}
-                                        {% if field.name == 'chassis_number' or field.name == 'engine_number' or field.name == 'mv_file_number' or field.name == 'body_type' or field.name == 'vehicle_classification' or field.name == 'gross_vehicle_weight' or field.name == 'net_capacity' or field.name == 'engine_displacement_cc' or field.name == 'engine_power_hp' %}
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                                            {{ field }}
-                                        </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div class="col-12" data-asset-fields="sea" hidden>
-                                <div class="row g-3">
-                                    {% for field in asset_registration_form %}
-                                        {% if field.name == 'chassis_number' or field.name == 'engine_number' or field.name == 'hull_type' or field.name == 'home_port' or field.name == 'gross_tonnage' or field.name == 'net_tonnage' or field.name == 'engine_power_hp' %}
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                                            {{ field }}
-                                        </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold" for="{{ asset_registration_form.length_m.id_for_label }}">{{ asset_registration_form.length_m.label }}</label>
-                                        {{ asset_registration_form.length_m }}
-                                    </div>
-                                </div>
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.engine_power_hp.id_for_label }}">{{ asset_registration_form.engine_power_hp.label }}</label>
+                                {{ asset_registration_form.engine_power_hp }}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.engine_details.id_for_label }}">{{ asset_registration_form.engine_details.label }}</label>
                                 {{ asset_registration_form.engine_details }}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.fuel_type.id_for_label }}">{{ asset_registration_form.fuel_type.label }}</label>
-                                {{ asset_registration_form.fuel_type }}
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.passenger_capacity.id_for_label }}">Seating / passenger capacity</label>
-                                {{ asset_registration_form.passenger_capacity }}
+                            <div class="col-12" data-asset-fields="sea" hidden>
+                                <h6 class="mb-3 text-info">Seacraft Registration Details</h6>
+                                <div class="row g-3">
+                                    {% for field in asset_registration_form %}
+                                        {% if field.name == 'hull_type' or field.name == 'home_port' or field.name == 'gross_tonnage' or field.name == 'net_tonnage' or field.name == 'length_m' %}
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                            {{ field }}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.registration_expiry.id_for_label }}">{{ asset_registration_form.registration_expiry.label }}</label>
