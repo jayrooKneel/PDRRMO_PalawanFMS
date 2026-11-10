@@ -165,6 +165,60 @@ NON_TECHNICAL_LABELS = (
     r'date\s*of\s*birth',
 )
 
+DRIVER_FIELD_LABELS = {
+    'last_name': (r'last\s*name', r'surname'),
+    'first_name': (r'first\s*name', r'given\s*name'),
+    'middle_name': (r'middle\s*name', r'middle\s*initial'),
+    'name_suffix': (r'name\s*suffix', r'suffix'),
+    'name': (
+        r'full\s*name',
+        r'name\s*of\s*(?:licensee|holder|driver)',
+        r'name',
+    ),
+    'license_number': (
+        r'driver(?:\'?s)?\s*license\s*(?:no\.?|number|#)',
+        r'license\s*(?:no\.?|number|#)',
+        r'licence\s*(?:no\.?|number|#)',
+        r'dl\s*(?:no\.?|number|#)',
+        r'(?:certificate|cert\.?)\s*(?:no\.?|number|#)',
+        r'permit\s*(?:no\.?|number|#)',
+    ),
+    'license_class': (
+        r'dl\s*codes?',
+        r'license\s*class(?:ification)?',
+        r'licence\s*class(?:ification)?',
+        r'restriction\s*codes?',
+        r'restrictions?',
+        r'seafarer\s*rank',
+        r'rank',
+        r'position',
+    ),
+    'license_expiry': (
+        r'date\s*of\s*expiry',
+        r'expiration\s*date',
+        r'expiry\s*date',
+        r'expiration',
+        r'expiry',
+        r'expires?',
+        r'valid\s*(?:until|thru|through)',
+    ),
+}
+
+NON_DRIVER_LABELS = (
+    r'date\s*of\s*birth',
+    r'birth\s*date',
+    r'dob',
+    r'address',
+    r'nationality',
+    r'sex',
+    r'height',
+    r'weight',
+    r'eye\s*color',
+    r'issued?\s*(?:at|on|by)',
+    r'issue\s*date',
+    r'signature',
+)
+
 COMMON_MAKES = (
     'Mitsubishi', 'Mercedes-Benz', 'Land Rover', 'Volkswagen', 'Chevrolet',
     'Hyundai', 'Kawasaki', 'Isuzu', 'Nissan', 'Suzuki', 'Toyota', 'Honda',
@@ -173,9 +227,9 @@ COMMON_MAKES = (
 )
 
 
-def _find_line_labels(line):
+def _find_line_labels(line, field_labels=FIELD_LABELS, nontechnical_labels=NON_TECHNICAL_LABELS):
     candidates = []
-    for field_name, patterns in FIELD_LABELS.items():
+    for field_name, patterns in field_labels.items():
         for pattern in patterns:
             for match in re.finditer(
                 rf'(?<![A-Z0-9])(?:{pattern})(?![A-Z0-9])',
@@ -183,7 +237,7 @@ def _find_line_labels(line):
                 re.IGNORECASE,
             ):
                 candidates.append((match.start(), match.end(), field_name))
-    for pattern in NON_TECHNICAL_LABELS:
+    for pattern in nontechnical_labels:
         for match in re.finditer(
             rf'(?<![A-Z0-9])(?:{pattern})(?![A-Z0-9])',
             line,
@@ -199,10 +253,14 @@ def _find_line_labels(line):
     return labels
 
 
-def _read_label_values(lines):
+def _read_label_values(
+    lines,
+    field_labels=FIELD_LABELS,
+    nontechnical_labels=NON_TECHNICAL_LABELS,
+):
     values = {}
     for line_index, line in enumerate(lines):
-        labels = _find_line_labels(line)
+        labels = _find_line_labels(line, field_labels, nontechnical_labels)
         for label_index, (start, end, field_name) in enumerate(labels):
             if field_name is None:
                 continue
@@ -210,7 +268,7 @@ def _read_label_values(lines):
             value = line[end:next_start].strip(' \t:;#.-_/')
             if not value and line_index + 1 < len(lines):
                 next_line = lines[line_index + 1]
-                next_labels = _find_line_labels(next_line)
+                next_labels = _find_line_labels(next_line, field_labels, nontechnical_labels)
                 continuation_end = next_labels[0][0] if next_labels else len(next_line)
                 value = next_line[:continuation_end].strip(' \t:;#.-_/')
             if value:
@@ -312,6 +370,38 @@ def extract_fields_from_text(text, is_seacraft=False):
     }
 
 
+def extract_driver_fields_from_text(text):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    values = _read_label_values(lines, DRIVER_FIELD_LABELS, NON_DRIVER_LABELS)
+
+    name_parts = [
+        values.get('first_name', ''),
+        values.get('middle_name', ''),
+        values.get('last_name', ''),
+        values.get('name_suffix', ''),
+    ]
+    full_name = ' '.join(part for part in name_parts if part).strip()
+    if not full_name:
+        full_name = values.get('name', '').strip()
+    full_name = re.sub(r'\s+', ' ', full_name).strip(' ,;:-_')
+
+    expiry = _date(values.get('license_expiry', ''))
+    extracted = {}
+    if full_name:
+        extracted['name'] = full_name[:100]
+    if values.get('license_number'):
+        extracted['license_number'] = values['license_number'].strip(' \t:;#.-_')[:50]
+    if values.get('license_class'):
+        extracted['license_class'] = re.sub(
+            r'\s+',
+            ' ',
+            values['license_class'],
+        ).strip(' \t:;#.-_')[:100]
+    if expiry:
+        extracted['license_expiry'] = expiry
+    return extracted
+
+
 def _read_image(uploaded_file):
     if uploaded_file.size > MAX_IMAGE_SIZE:
         raise RegistrationImageError('Each OR/CR image must be 10 MB or smaller.')
@@ -319,7 +409,7 @@ def _read_image(uploaded_file):
         uploaded_file.seek(0)
         image = Image.open(uploaded_file)
         if image.format not in {'JPEG', 'PNG', 'WEBP'}:
-            raise RegistrationImageError('Upload OR/CR images as JPEG, PNG, or WebP.')
+            raise RegistrationImageError('Upload JPEG, PNG, or WebP document images.')
         if image.width * image.height > MAX_IMAGE_PIXELS:
             raise RegistrationImageError('The OR/CR image dimensions are too large to process.')
         image = ImageOps.exif_transpose(image).convert('L')
@@ -369,5 +459,40 @@ def extract_registration_document_fields(uploaded_files, is_seacraft=False):
             ) from error
 
         for field, value in extract_fields_from_text(text, is_seacraft).items():
+            extracted.setdefault(field, value)
+    return extracted
+
+
+def extract_operator_document_fields(uploaded_files):
+    files = list(uploaded_files)
+    if not files:
+        raise RegistrationImageError('Choose at least one driver license or MARINA document image.')
+    if len(files) > MAX_IMAGE_COUNT:
+        raise RegistrationImageError('Upload no more than five driver document images at once.')
+
+    configured_command = getattr(settings, 'TESSERACT_CMD', '')
+    if configured_command:
+        pytesseract.pytesseract.tesseract_cmd = configured_command
+
+    extracted = {}
+    for uploaded_file in files:
+        image = _read_image(uploaded_file)
+        try:
+            text = pytesseract.image_to_string(
+                image,
+                lang='eng',
+                config='--oem 3 --psm 6',
+                timeout=OCR_TIMEOUT_SECONDS,
+            )
+        except TesseractNotFoundError as error:
+            raise RegistrationOcrUnavailable(
+                'Local Tesseract OCR is not installed or configured on the application server.'
+            ) from error
+        except (TesseractError, RuntimeError) as error:
+            raise RegistrationOcrError(
+                'Tesseract could not read this image. Try a sharper, well-lit photo.'
+            ) from error
+
+        for field, value in extract_driver_fields_from_text(text).items():
             extracted.setdefault(field, value)
     return extracted

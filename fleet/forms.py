@@ -337,21 +337,31 @@ class MultipleFileInput(forms.ClearableFileInput):
 class MultipleImageField(forms.ImageField):
     widget = MultipleFileInput
 
+    def __init__(self, *args, document_label='OR/CR', **kwargs):
+        self.document_label = document_label
+        super().__init__(*args, **kwargs)
+
     def clean(self, data, initial=None):
         if not data:
             return []
         files = data if isinstance(data, (list, tuple)) else [data]
         if len(files) > 5:
-            raise ValidationError('Upload no more than five OR/CR images per asset.')
+            raise ValidationError(
+                f'Upload no more than five {self.document_label} images per entry.'
+            )
 
         cleaned_files = []
         for uploaded_file in files:
             cleaned_file = super().clean(uploaded_file, initial)
             image_format = getattr(cleaned_file.image, 'format', '')
             if image_format not in {'JPEG', 'PNG', 'WEBP'}:
-                raise ValidationError('Upload OR/CR images as JPEG, PNG, or WebP.')
+                raise ValidationError(
+                    f'Upload {self.document_label} images as JPEG, PNG, or WebP.'
+                )
             if cleaned_file.size > 10 * 1024 * 1024:
-                raise ValidationError('Each OR/CR image must be 10 MB or smaller.')
+                raise ValidationError(
+                    f'Each {self.document_label} image must be 10 MB or smaller.'
+                )
             cleaned_files.append(cleaned_file)
         return cleaned_files
 
@@ -594,15 +604,34 @@ class OperatorDetailsForm(forms.ModelForm):
         choices=OPERATOR_TYPES,
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
+    license_document_images = MultipleImageField(
+        required=False,
+        label='Driver license / MARINA document image(s)',
+        document_label='driver license / MARINA document',
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/jpeg,image/png,image/webp',
+            'data-operator-documents': '',
+            'multiple': True,
+        }),
+    )
 
     class Meta:
         model = Driver
-        fields = ('name', 'license_number', 'phone_number')
+        fields = ('name', 'license_number', 'license_class', 'license_expiry', 'phone_number')
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'license_number': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter license number',
+            }),
+            'license_class': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'DL codes / restrictions or seafarer rank',
+            }),
+            'license_expiry': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
             }),
             'phone_number': forms.TelInput(attrs={'class': 'form-control'}),
         }
@@ -614,6 +643,8 @@ class OperatorDetailsForm(forms.ModelForm):
             self.fields.pop('operator_type')
         self.fields['name'].label = 'Full name'
         self.fields['license_number'].label = 'License number'
+        self.fields['license_class'].label = 'License class / seafarer rank'
+        self.fields['license_expiry'].label = 'License expiry date'
         self.fields['phone_number'].label = 'Phone number'
 
     def clean_name(self):

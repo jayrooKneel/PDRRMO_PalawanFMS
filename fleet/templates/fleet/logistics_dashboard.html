@@ -609,16 +609,22 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="post" action="{% url 'dashboard_portal:logistics_dashboard' %}">
+                <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_operator">
-                    <div class="modal-body">
-                        <p class="text-muted small">Enter the license as shown.</p>
+                    <div class="modal-body" id="operatorRegistrationForm" data-ocr-url="{% url 'dashboard_portal:logistics_operator_document_ocr' %}">
+                        <p class="text-muted small">Scan an LTO driver's license or MARINA license/certificate to suggest driver details. Images are processed locally and discarded after scanning; they are not saved.</p>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.operator_type.id_for_label }}">{{ operator_form.operator_type.label }}</label>
                             {{ operator_form.operator_type }}
                         </div>
                         <div class="form-text mb-3" id="operator-authority-hint">Land vehicle driver license authority: LTO (automatic).</div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="{{ operator_form.license_document_images.id_for_label }}" data-operator-document-label>LTO driver's license image(s)</label>
+                            {{ operator_form.license_document_images }}
+                            <div class="form-text">Upload up to 5 clear JPEG, PNG, or WebP images (10 MB each). Date of birth and address are not extracted.</div>
+                            <div class="small mt-1" data-operator-ocr-status role="status" aria-live="polite"></div>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.name.id_for_label }}">{{ operator_form.name.label }}</label>
                             {{ operator_form.name }}
@@ -626,6 +632,14 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.license_number.id_for_label }}">{{ operator_form.license_number.label }}</label>
                             {{ operator_form.license_number }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="{{ operator_form.license_class.id_for_label }}">{{ operator_form.license_class.label }}</label>
+                            {{ operator_form.license_class }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="{{ operator_form.license_expiry.id_for_label }}">{{ operator_form.license_expiry.label }}</label>
+                            {{ operator_form.license_expiry }}
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.phone_number.id_for_label }}">{{ operator_form.phone_number.label }}</label>
@@ -1016,6 +1030,7 @@
     <script src="{% static 'fleet/js/deployment_location_search.js' %}"></script>
     <script src="{% static 'fleet/js/dashboard_auto_refresh.js' %}"></script>
     <script src="{% static 'fleet/js/fleet_asset_registration.js' %}"></script>
+    <script src="{% static 'fleet/js/operator_document_ocr.js' %}"></script>
     <script src="{% static 'fleet/js/logistics_menu.js' %}"></script>
 
     <script>

@@ -21,7 +21,10 @@ from .models import (
     VehicleRegistrationDocument,
     VehicleType,
 )
-from .vehicle_document_ocr import extract_fields_from_text
+from .vehicle_document_ocr import (
+    extract_driver_fields_from_text,
+    extract_fields_from_text,
+)
 
 
 class LoginViewTests(TestCase):
@@ -77,7 +80,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v4')
+        self.assertContains(response, 'pdrrmo-fms-shell-v5')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -167,7 +170,11 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-menu-action="print"')
         self.assertContains(response, 'data-menu-action="view-incidents"')
         self.assertNotContains(response, 'id_license_authority')
-        self.assertContains(response, 'Enter the license as shown.')
+        self.assertContains(response, 'Images are processed locally and discarded after scanning')
+        self.assertContains(response, 'data-operator-documents')
+        self.assertContains(response, 'License class / seafarer rank')
+        self.assertContains(response, 'License expiry date')
+        self.assertContains(response, 'fleet/js/operator_document_ocr.js')
         self.assertContains(response, 'license authority: ${authority} (automatic).')
         self.assertContains(response, 'data-menu-action="generate-report"')
         self.assertContains(response, 'Generate Fleet Report')
@@ -437,6 +444,24 @@ GROSS TONNAGE: 8.25
 NET TONNAGE: 4.10
 HORSEPOWER: 90 HP
 """
+    DRIVER_TEXT = """\
+LAST NAME: DELA CRUZ
+FIRST NAME: JUAN
+MIDDLE NAME: SANTOS
+LICENSE NO: N01-23-456789
+DL CODES: A, B, B1
+DATE OF BIRTH: 01/02/1990
+ADDRESS: PUERTO PRINCESA, PALAWAN
+EXPIRY DATE: 2030/06/19
+"""
+    MARINA_OPERATOR_TEXT = """\
+NAME OF LICENSEE: MARIA SANTOS
+CERTIFICATE NO: MRA-9876
+SEAFARER RANK: DECK OFFICER
+DATE OF BIRTH: 01/02/1990
+ADDRESS: PUERTO PRINCESA PALAWAN
+VALID UNTIL: 2028-04-30
+"""
 
     def setUp(self):
         import tempfile
@@ -517,6 +542,59 @@ Maria Example
         self.assertEqual(fields['net_tonnage'], '4.10')
         self.assertEqual(fields['engine_power_hp'], '90')
         self.assertNotIn('mv_file_number', fields)
+
+    def test_extracts_driver_license_fields_without_birth_date_or_address(self):
+        fields = extract_driver_fields_from_text(self.DRIVER_TEXT)
+
+        self.assertEqual(fields, {
+            'name': 'JUAN SANTOS DELA CRUZ',
+            'license_number': 'N01-23-456789',
+            'license_class': 'A, B, B1',
+            'license_expiry': '2030-06-19',
+        })
+
+    def test_extracts_marina_operator_certificate_and_expiry(self):
+        fields = extract_driver_fields_from_text(self.MARINA_OPERATOR_TEXT)
+
+        self.assertEqual(fields, {
+            'name': 'MARIA SANTOS',
+            'license_number': 'MRA-9876',
+            'license_class': 'DECK OFFICER',
+            'license_expiry': '2028-04-30',
+        })
+
+    def test_driver_document_ocr_endpoint_returns_only_suggested_fields(self):
+        self.client.force_login(self.user)
+        with patch(
+            'fleet.vehicle_document_ocr.pytesseract.image_to_string',
+            return_value=self.DRIVER_TEXT,
+        ):
+            response = self.client.post(
+                reverse('dashboard_portal:logistics_operator_document_ocr'),
+                {
+                    'operator_type': 'LAND',
+                    'documents': self.uploaded_image('license.png'),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Cache-Control'], 'private, no-store')
+        self.assertEqual(response.json()['fields']['name'], 'JUAN SANTOS DELA CRUZ')
+        self.assertEqual(response.json()['fields']['license_expiry'], '2030-06-19')
+        self.assertEqual(
+            set(response.json()['fields']),
+            {'name', 'license_number', 'license_class', 'license_expiry'},
+        )
+        self.assertIn('image was not saved', response.json()['message'])
+        self.assertFalse(Driver.objects.exists())
+
+        unrelated_user = User.objects.create_user(username='other_operator_ocr_user')
+        self.client.force_login(unrelated_user)
+        denied = self.client.post(
+            reverse('dashboard_portal:logistics_operator_document_ocr'),
+            {'operator_type': 'SEA', 'documents': self.uploaded_image()},
+        )
+        self.assertEqual(denied.status_code, 403)
 
     def test_ocr_endpoint_returns_lto_suggestions_and_requires_logistics_access(self):
         self.client.force_login(self.user)
@@ -1372,6 +1450,8 @@ class DispatchDashboardAlignmentTests(TestCase):
                         'operator_type': operator_type,
                         'name': name,
                         'license_number': license_number,
+                        'license_class': 'A, B',
+                        'license_expiry': '2030-06-19',
                         'phone_number': '555-0100',
                     },
                 )
@@ -1379,7 +1459,31 @@ class DispatchDashboardAlignmentTests(TestCase):
                 operator = Driver.objects.get(name=name)
                 self.assertEqual(operator.license_authority, expected_authority)
                 self.assertEqual(operator.license_number, license_number)
+                self.assertEqual(operator.license_class, 'A, B')
+                self.assertEqual(operator.license_expiry.isoformat(), '2030-06-19')
                 self.assertEqual(operator.phone_number, '555-0100')
+
+    def test_driver_scan_image_must_be_processed_before_submitting_and_is_not_saved(self):
+        self.client.force_login(self.logistics_user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_type': 'LAND',
+                'name': 'Unscanned License Operator',
+                'license_number': 'ABC-12345',
+                'license_document_images': SimpleUploadedFile(
+                    'license.png',
+                    b'not persisted',
+                    content_type='image/png',
+                ),
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        self.assertFalse(Driver.objects.filter(name='Unscanned License Operator').exists())
+        self.assertContains(response, 'Scan the license image first and wait for suggestions.')
 
     def test_logistics_sets_authority_from_operator_type_without_user_input(self):
         self.client.force_login(self.logistics_user)

@@ -87,6 +87,8 @@ The logistics asset form uses local Tesseract OCR to read LTO OR/CR and MARINA d
 
 Land asset details follow the LTO Form 3 registration fields, including vehicle category, engine and chassis numbers, MV file number, passenger capacity, color, fuel, classification, make/series, gross and net weight, body style, model year, piston displacement, and air-conditioning type. The fleet asset type is selected first, separately from the LTO vehicle category.
 
+The logistics driver form can also scan LTO driver-license or MARINA license/certificate images. It suggests only the driver's name, license/certificate number, license codes or seafarer rank, and expiry date. Date of birth and address are not extracted, phone number remains manual, and uploaded images are discarded after OCR instead of being stored.
+
 4. Apply database migrations
 
 Run the following commands to prepare the database schema:

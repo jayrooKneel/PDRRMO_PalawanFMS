@@ -52,6 +52,7 @@ from .vehicle_document_ocr import (
     RegistrationImageError,
     RegistrationOcrError,
     RegistrationOcrUnavailable,
+    extract_operator_document_fields,
     extract_registration_document_fields,
 )
 
@@ -1327,6 +1328,13 @@ def logistics_dashboard(request):
         vehicle_id = request.POST.get('vehicle_id')
 
         if action == 'add_operator':
+            if request.FILES.getlist('license_document_images'):
+                messages.error(
+                    request,
+                    'Scan the license image first and wait for suggestions. '
+                    'Driver document images are not stored.',
+                )
+                return redirect('dashboard_portal:logistics_dashboard')
             form = OperatorDetailsForm(request.POST)
             if form.is_valid():
                 operator = form.save()
@@ -1690,6 +1698,42 @@ def logistics_registration_ocr(request):
             'Review the extracted values before registering the asset.'
             if fields
             else 'No supported details were recognized. Enter the details manually.'
+        ),
+    })
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@login_required
+def logistics_operator_document_ocr(request):
+    if not check_user_role(
+        request.user,
+        'Logistics Officers',
+        ['logistics', 'log', 'depot', 'fleet'],
+    ):
+        return HttpResponseForbidden('Access restricted to Logistics Depot management accounts.')
+    if request.method != 'POST':
+        return HttpResponse('OCR requests must use POST.', status=405)
+
+    operator_type = request.POST.get('operator_type')
+    if operator_type not in {'LAND', 'SEA'}:
+        return JsonResponse({'error': 'Choose the operator type before scanning the document.'}, status=400)
+
+    try:
+        fields = extract_operator_document_fields(request.FILES.getlist('documents'))
+    except RegistrationImageError as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    except RegistrationOcrUnavailable as error:
+        return JsonResponse({'error': str(error)}, status=503)
+    except RegistrationOcrError as error:
+        return JsonResponse({'error': str(error)}, status=422)
+
+    response = JsonResponse({
+        'fields': fields,
+        'message': (
+            'Review the suggested driver details. The uploaded image was not saved.'
+            if fields
+            else 'No supported license details were recognized. Enter the details manually.'
         ),
     })
     response['Cache-Control'] = 'private, no-store'

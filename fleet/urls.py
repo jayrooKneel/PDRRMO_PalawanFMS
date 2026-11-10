@@ -15,6 +15,11 @@ urlpatterns = [
     path('logistics/reports/deployments/', views.logistics_generate_report, name='logistics_generate_report'),
     path('logistics/registration-ocr/', views.logistics_registration_ocr, name='logistics_registration_ocr'),
     path(
+        'logistics/operator-document-ocr/',
+        views.logistics_operator_document_ocr,
+        name='logistics_operator_document_ocr',
+    ),
+    path(
         'logistics/registration-documents/<int:document_id>/',
         views.logistics_registration_document,
         name='logistics_registration_document',
