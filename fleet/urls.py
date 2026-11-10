@@ -13,6 +13,12 @@ urlpatterns = [
     path('home/', views.homepage, name='homepage'),
     path('home/deployments/', views.deployment_activity_log, name='deployment_activity_log'),
     path('logistics/reports/deployments/', views.logistics_generate_report, name='logistics_generate_report'),
+    path('logistics/registration-ocr/', views.logistics_registration_ocr, name='logistics_registration_ocr'),
+    path(
+        'logistics/registration-documents/<int:document_id>/',
+        views.logistics_registration_document,
+        name='logistics_registration_document',
+    ),
     path('fleet/reports/activity/', views.logistics_generate_report, name='fleet_activity_report'),
     path('fleet/reports/incidents/', views.fleet_report_incident, name='fleet_report_incident'),
     path('fleet/reports/incidents/<int:incident_id>/edit/', views.fleet_edit_incident, name='fleet_edit_incident'),

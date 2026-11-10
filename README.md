@@ -83,6 +83,8 @@ Install the packages listed in requirements.txt:
 
 python -m pip install -r requirements.txt
 
+The logistics asset form uses local Tesseract OCR to read LTO OR/CR and MARINA document images. On Windows, install Tesseract with the English language data from the [UB Mannheim Windows installer](https://github.com/UB-Mannheim/tesseract/wiki). Django auto-detects `tesseract` on `PATH` or the default `C:\Program Files\Tesseract-OCR\tesseract.exe` location; set `TESSERACT_CMD` if installed elsewhere. Restart the Django server after installation. Confirm the installation with `tesseract --version` and `tesseract --list-langs` (which should include `eng`). Images are processed by the application server and are not sent to a cloud OCR provider. OCR suggestions exclude registered-owner names and addresses; review every suggested field before saving.
+
 4. Apply database migrations
 
 Run the following commands to prepare the database schema:

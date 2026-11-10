@@ -2,15 +2,26 @@ import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.auth.models import Group, User
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
+import pytesseract
 
-from .models import Driver, FleetIncident, Vehicle, VehicleType
+from .models import (
+    Driver,
+    FleetIncident,
+    Vehicle,
+    VehicleRegistrationDocument,
+    VehicleType,
+)
+from .vehicle_document_ocr import extract_fields_from_text
 
 
 class LoginViewTests(TestCase):
@@ -66,7 +77,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v1')
+        self.assertContains(response, 'pdrrmo-fms-shell-v3')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -160,6 +171,8 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'license authority: ${authority} (automatic).')
         self.assertContains(response, 'data-menu-action="generate-report"')
         self.assertContains(response, 'Generate Fleet Report')
+        self.assertContains(response, 'src="/static/fleet/js/logistics_menu.js"')
+        self.assertContains(response, 'id="fleetIncidentModal"')
         drawer_order = (
             'data-menu-action="add-asset"',
             'data-menu-action="add-operator"',
@@ -173,10 +186,32 @@ class SystemConsoleTests(TestCase):
         self.assertEqual(drawer_positions, sorted(drawer_positions))
         self.assertEqual(response.content.count(b'class="asset-grid logistics-asset-grid"'), 6)
         self.assertContains(response, 'Add a fleet asset')
-        self.assertContains(response, 'Plate number or hull ID')
+        self.assertContains(response, 'Plate number or vessel official number')
         self.assertContains(response, 'Choose an asset type')
-        for field_name in ('make', 'model_year', 'color', 'engine_details', 'fuel_type', 'passenger_capacity', 'odometer_km'):
+        self.assertContains(response, 'name="asset-0-registration_documents"')
+        self.assertContains(response, 'data-ocr-field="engine_number"')
+        self.assertContains(response, 'fleet/js/fleet_asset_registration.js')
+        for field_name in (
+            'make',
+            'model_year',
+            'color',
+            'engine_details',
+            'engine_number',
+            'chassis_number',
+            'mv_file_number',
+            'body_type',
+            'gross_vehicle_weight',
+            'net_capacity',
+            'fuel_type',
+            'passenger_capacity',
+            'odometer_km',
+        ):
             self.assertContains(response, f'name="asset-0-{field_name}"')
+        type_position = response.content.index(b'name="asset-0-vehicle_type"')
+        document_position = response.content.index(b'name="asset-0-registration_documents"')
+        details_position = response.content.index(b'name="asset-0-model_name"')
+        self.assertLess(type_position, document_position)
+        self.assertLess(document_position, details_position)
         self.assertContains(response, 'Add another asset')
         self.assertContains(response, 'Register assets')
 
@@ -338,6 +373,220 @@ class SystemConsoleTests(TestCase):
             duplicate_identifier_response,
             "An asset with plate number or hull ID &#x27;PDR-ALS-02&#x27; is already registered.",
         )
+
+
+class RegistrationOcrTests(TestCase):
+    LAND_TEXT = """\
+PLATE NO: ABC1234
+MAKE/SERIES: TOYOTA INNOVA
+YEAR MODEL: 2020
+ENGINE NO: 2GD-12345
+CHASSIS NO: MHF-98765
+MV FILE NO: 1234-567890
+BODY TYPE: WAGON
+CLASSIFICATION: GOVERNMENT
+FUEL TYPE: DIESEL
+COLOR: WHITE
+PASSENGER CAPACITY: 8
+GROSS VEHICLE WEIGHT: 2500
+NET CAPACITY: 1000
+PISTON DISPLACEMENT: 2755 CC
+DATE OF INITIAL REGISTRATION: 2020-05-10
+REGISTRATION EXPIRY: 2026-03-22
+"""
+    SEA_TEXT = """\
+VESSEL NAME: M/B RESCUE
+OFFICIAL NO: MAR-12345
+MAKE: YAMAHA
+YEAR BUILT: 2019
+ENGINE NO: YAM-987
+HULL NO: H-456
+VESSEL TYPE: RESCUE BOAT
+PORT OF REGISTRY: PUERTO PRINCESA
+LENGTH: 12.5 M
+GROSS TONNAGE: 8.25
+NET TONNAGE: 4.10
+HORSEPOWER: 90 HP
+"""
+
+    def setUp(self):
+        import tempfile
+
+        self.media_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media_directory.cleanup)
+        self.enterContext(override_settings(MEDIA_ROOT=self.media_directory.name))
+        group = Group.objects.create(name='Logistics Officers')
+        self.user = User.objects.create_user(username='ocr_logistics')
+        self.user.groups.add(group)
+        self.land_type = VehicleType.objects.create(name='LAND')
+
+    @staticmethod
+    def uploaded_image(name='orcr.png'):
+        image_buffer = BytesIO()
+        Image.new('RGB', (160, 80), 'white').save(image_buffer, format='PNG')
+        return SimpleUploadedFile(name, image_buffer.getvalue(), content_type='image/png')
+
+    def test_extracts_lto_vehicle_technical_fields_without_owner_data(self):
+        fields = extract_fields_from_text(self.LAND_TEXT)
+
+        self.assertEqual(fields['plate_number'], 'ABC1234')
+        self.assertEqual(fields['make'], 'Toyota')
+        self.assertEqual(fields['model_name'], 'INNOVA')
+        self.assertEqual(fields['model_year'], '2020')
+        self.assertEqual(fields['engine_number'], '2GD-12345')
+        self.assertEqual(fields['chassis_number'], 'MHF-98765')
+        self.assertEqual(fields['mv_file_number'], '1234-567890')
+        self.assertEqual(fields['gross_vehicle_weight'], '2500')
+        self.assertEqual(fields['engine_displacement_cc'], '2755')
+        self.assertEqual(fields['registration_date'], '2020-05-10')
+        self.assertEqual(fields['registration_expiry'], '2026-03-22')
+        self.assertNotIn('registered_owner', fields)
+        self.assertNotIn('address', fields)
+        ambiguous_date_fields = extract_fields_from_text(
+            'DATE OF INITIAL REGISTRATION: 01/02/2020'
+        )
+        self.assertNotIn('registration_date', ambiguous_date_fields)
+
+    def test_extracts_marina_vessel_fields(self):
+        fields = extract_fields_from_text(self.SEA_TEXT, is_seacraft=True)
+
+        self.assertEqual(fields['model_name'], 'M/B RESCUE')
+        self.assertEqual(fields['plate_number'], 'MAR-12345')
+        self.assertEqual(fields['chassis_number'], 'H-456')
+        self.assertEqual(fields['hull_type'], 'RESCUE BOAT')
+        self.assertEqual(fields['home_port'], 'PUERTO PRINCESA')
+        self.assertEqual(fields['length_m'], '12.5')
+        self.assertEqual(fields['gross_tonnage'], '8.25')
+        self.assertEqual(fields['net_tonnage'], '4.10')
+        self.assertEqual(fields['engine_power_hp'], '90')
+        self.assertNotIn('mv_file_number', fields)
+
+    def test_ocr_endpoint_returns_lto_suggestions_and_requires_logistics_access(self):
+        self.client.force_login(self.user)
+        with patch(
+            'fleet.vehicle_document_ocr.pytesseract.image_to_string',
+            return_value=self.LAND_TEXT,
+        ):
+            response = self.client.post(
+                reverse('dashboard_portal:logistics_registration_ocr'),
+                {
+                    'vehicle_type': self.land_type.pk,
+                    'documents': self.uploaded_image(),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Cache-Control'], 'private, no-store')
+        self.assertEqual(response.json()['fields']['plate_number'], 'ABC1234')
+        self.assertEqual(response.json()['fields']['make'], 'Toyota')
+        self.assertNotIn('registered_owner', response.json()['fields'])
+
+        unrelated_user = User.objects.create_user(username='other_ocr_user')
+        self.client.force_login(unrelated_user)
+        denied = self.client.post(
+            reverse('dashboard_portal:logistics_registration_ocr'),
+            {'vehicle_type': self.land_type.pk},
+        )
+        self.assertEqual(denied.status_code, 403)
+
+    def test_ocr_endpoint_reports_missing_tesseract_and_rejects_invalid_images(self):
+        self.client.force_login(self.user)
+        with patch(
+            'fleet.vehicle_document_ocr.pytesseract.image_to_string',
+            side_effect=pytesseract.TesseractNotFoundError(),
+        ):
+            unavailable = self.client.post(
+                reverse('dashboard_portal:logistics_registration_ocr'),
+                {
+                    'vehicle_type': self.land_type.pk,
+                    'documents': self.uploaded_image(),
+                },
+            )
+        invalid = self.client.post(
+            reverse('dashboard_portal:logistics_registration_ocr'),
+            {
+                'vehicle_type': self.land_type.pk,
+                'documents': SimpleUploadedFile('not-image.png', b'not an image'),
+            },
+        )
+
+        self.assertEqual(unavailable.status_code, 503)
+        self.assertContains(
+            unavailable,
+            'Local Tesseract OCR is not installed or configured',
+            status_code=503,
+        )
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_asset_registration_saves_orcr_image_as_private_attachment(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_vehicle',
+                'asset_count': '1',
+                'asset-0-model_name': 'OCR Rescue Unit',
+                'asset-0-plate_number': 'OCR-123',
+                'asset-0-vehicle_type': self.land_type.pk,
+                'asset-0-make': 'Toyota',
+                'asset-0-engine_number': 'ENGINE-123',
+                'asset-0-chassis_number': 'CHASSIS-123',
+                'asset-0-mv_file_number': 'MV-123',
+                'asset-0-registration_documents': self.uploaded_image('lto-cr.png'),
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        vehicle = Vehicle.objects.get(plate_number='OCR-123')
+        self.assertEqual(vehicle.engine_number, 'ENGINE-123')
+        self.assertEqual(vehicle.chassis_number, 'CHASSIS-123')
+        document = VehicleRegistrationDocument.objects.get(vehicle=vehicle)
+        self.assertTrue(document.file.storage.exists(document.file.name))
+        self.assertContains(response, 'OR/CR attachments:')
+
+        download = self.client.get(
+            reverse('dashboard_portal:logistics_registration_document', args=[document.pk])
+        )
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download['Cache-Control'], 'private, no-store')
+        self.assertEqual(download['X-Content-Type-Options'], 'nosniff')
+        download.close()
+
+    def test_asset_registration_preserves_marina_fields(self):
+        self.client.force_login(self.user)
+        sea_type = VehicleType.objects.create(name='MARINE')
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_vehicle',
+                'asset_count': '1',
+                'asset-0-model_name': 'M/B Rescue',
+                'asset-0-plate_number': 'MAR-456',
+                'asset-0-vehicle_type': sea_type.pk,
+                'asset-0-make': 'Yamaha',
+                'asset-0-model_year': '2019',
+                'asset-0-color': 'White',
+                'asset-0-engine_number': 'ENG-456',
+                'asset-0-chassis_number': 'HULL-456',
+                'asset-0-home_port': 'Puerto Princesa',
+                'asset-0-hull_type': 'Rescue boat',
+                'asset-0-length_m': '12.5',
+                'asset-0-gross_tonnage': '8.25',
+                'asset-0-net_tonnage': '4.10',
+                'asset-0-engine_power_hp': '90',
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        vessel = Vehicle.objects.get(plate_number='MAR-456')
+        self.assertEqual(vessel.make, 'Yamaha')
+        self.assertEqual(vessel.model_year, 2019)
+        self.assertEqual(vessel.color, 'White')
+        self.assertEqual(vessel.engine_power_hp, Decimal('90'))
+        self.assertEqual(vessel.home_port, 'Puerto Princesa')
+        self.assertContains(response, 'Gross tonnage: 8.25')
 
 
 class LogisticsReportExportTests(TestCase):

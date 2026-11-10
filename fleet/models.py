@@ -101,14 +101,27 @@ class Vehicle(models.Model):
     hull_type = models.CharField(max_length=100, blank=True)
     length_m = models.DecimalField(max_digits=7, decimal_places=2, blank=True, null=True)
     make = models.CharField(max_length=100, blank=True)
+    chassis_number = models.CharField(max_length=100, blank=True)
+    engine_number = models.CharField(max_length=100, blank=True)
+    mv_file_number = models.CharField(max_length=50, blank=True)
+    body_type = models.CharField(max_length=100, blank=True)
+    vehicle_classification = models.CharField(max_length=100, blank=True)
+    home_port = models.CharField(max_length=100, blank=True)
     model_year = models.PositiveSmallIntegerField(blank=True, null=True)
     color = models.CharField(max_length=50, blank=True)
     odometer_km = models.DecimalField(max_digits=10, decimal_places=1, blank=True, null=True)
+    gross_vehicle_weight = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    net_capacity = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    engine_displacement_cc = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    engine_power_hp = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
     passenger_capacity = models.PositiveIntegerField(blank=True, null=True)
     engine_details = models.CharField(max_length=200, blank=True)
     fuel_type = models.CharField(max_length=50, blank=True)
+    registration_date = models.DateField(blank=True, null=True)
     registration_expiry = models.DateField(blank=True, null=True)
     inspection_expiry = models.DateField(blank=True, null=True)
+    gross_tonnage = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    net_tonnage = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
 
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='OPERATIONAL')
 
@@ -192,6 +205,19 @@ class Vehicle(models.Model):
 
     def __str__(self):
         return f"{self.model_name} ({self.plate_number})"
+
+
+class VehicleRegistrationDocument(models.Model):
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.CASCADE,
+        related_name='registration_documents',
+    )
+    file = models.FileField(upload_to='fleet/vehicle_registration/%Y/%m/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"OR/CR attachment for {self.vehicle}"
 
 
 class FleetIncident(models.Model):

@@ -23,7 +23,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Case, When, Value, IntegerField, Q, Count
 from django.core.paginator import Paginator
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.template.loader import render_to_string
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
@@ -38,8 +38,22 @@ from .forms import (
     SeacraftRegistrationForm,
     ScheduledMaintenanceForm,
 )
-from .models import FleetIncident, Vehicle, VehicleType, Driver, VehicleAsset, OperatorProfile
+from .models import (
+    FleetIncident,
+    Vehicle,
+    VehicleRegistrationDocument,
+    VehicleType,
+    Driver,
+    VehicleAsset,
+    OperatorProfile,
+)
 from .deployment_locations import get_deployment_location_labels
+from .vehicle_document_ocr import (
+    RegistrationImageError,
+    RegistrationOcrError,
+    RegistrationOcrUnavailable,
+    extract_registration_document_fields,
+)
 
 
 def pwa_manifest(request):
@@ -1414,7 +1428,11 @@ def logistics_dashboard(request):
                     messages.error(request, "Add between 1 and 20 fleet assets at a time.")
                     return redirect('dashboard_portal:logistics_dashboard')
                 registration_forms = [
-                    FleetAssetRegistrationForm(request.POST, prefix=f'asset-{index}')
+                    FleetAssetRegistrationForm(
+                        request.POST,
+                        request.FILES,
+                        prefix=f'asset-{index}',
+                    )
                     for index in range(asset_count)
                 ]
             else:
@@ -1427,7 +1445,7 @@ def logistics_dashboard(request):
                 if Vehicle.objects.filter(plate_number=plate_number).exists():
                     messages.error(request, f"An asset with plate number or hull ID '{plate_number}' is already registered.")
                     return redirect('dashboard_portal:logistics_dashboard')
-                registration_forms = [FleetAssetRegistrationForm(request.POST)]
+                registration_forms = [FleetAssetRegistrationForm(request.POST, request.FILES)]
 
             valid_forms = [form.is_valid() for form in registration_forms]
             forms_valid = all(valid_forms)
@@ -1478,14 +1496,16 @@ def logistics_dashboard(request):
                     new_asset.status = 'OPERATIONAL'
                     is_seacraft = v_type.name.strip().casefold() in {'marine', 'maritime'}
                     if is_seacraft:
-                        new_asset.make = ''
-                        new_asset.model_year = None
-                        new_asset.color = ''
                         new_asset.odometer_km = None
                     else:
                         new_asset.hull_type = ''
                         new_asset.length_m = None
                     new_asset.save()
+                    for uploaded_file in form.cleaned_data['registration_documents']:
+                        VehicleRegistrationDocument.objects.create(
+                            vehicle=new_asset,
+                            file=uploaded_file,
+                        )
                     log_action_to_admin(request, new_asset, ADDITION, f"Registered new asset unit '{new_asset.model_name}' into inventory records.")
                     registered_assets.append(new_asset)
             if len(registered_assets) == 1:
@@ -1557,7 +1577,10 @@ def logistics_dashboard(request):
         else:
             messages.error(request, "Unsupported logistics dashboard action.")
             return redirect('dashboard_portal:logistics_dashboard')
-    all_vehicles = Vehicle.objects.all().select_related('vehicle_type', 'assigned_driver')
+    all_vehicles = Vehicle.objects.all().select_related(
+        'vehicle_type',
+        'assigned_driver',
+    ).prefetch_related('registration_documents')
     
     status_order = Case(
         When(status='OPERATIONAL', then=Value(1)),
@@ -1630,6 +1653,76 @@ def logistics_dashboard(request):
         ).order_by('-occurred_at', '-pk'),
     }
     return render(request, 'fleet/logistics_dashboard.html', context)
+
+
+@login_required
+def logistics_registration_ocr(request):
+    if not check_user_role(
+        request.user,
+        'Logistics Officers',
+        ['logistics', 'log', 'depot', 'fleet'],
+    ):
+        return HttpResponseForbidden('Access restricted to Logistics Depot management accounts.')
+    if request.method != 'POST':
+        return HttpResponse('OCR requests must use POST.', status=405)
+
+    vehicle_type_id = request.POST.get('vehicle_type')
+    vehicle_type = VehicleType.objects.filter(pk=vehicle_type_id).first()
+    if vehicle_type is None:
+        return JsonResponse({'error': 'Choose the vehicle or vessel type first.'}, status=400)
+
+    is_seacraft = vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
+    try:
+        fields = extract_registration_document_fields(
+            request.FILES.getlist('documents'),
+            is_seacraft=is_seacraft,
+        )
+    except RegistrationImageError as error:
+        return JsonResponse({'error': str(error)}, status=400)
+    except RegistrationOcrUnavailable as error:
+        return JsonResponse({'error': str(error)}, status=503)
+    except RegistrationOcrError as error:
+        return JsonResponse({'error': str(error)}, status=422)
+
+    response = JsonResponse({
+        'fields': fields,
+        'message': (
+            'Review the extracted values before registering the asset.'
+            if fields
+            else 'No supported details were recognized. Enter the details manually.'
+        ),
+    })
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@login_required
+def logistics_registration_document(request, document_id):
+    if not check_user_role(
+        request.user,
+        'Logistics Officers',
+        ['logistics', 'log', 'depot', 'fleet'],
+    ):
+        raise Http404
+
+    document = get_object_or_404(VehicleRegistrationDocument, pk=document_id)
+    if not document.file:
+        raise Http404
+    try:
+        file_handle = document.file.open('rb')
+    except FileNotFoundError as error:
+        raise Http404 from error
+
+    filename = Path(document.file.name).name
+    response = FileResponse(
+        file_handle,
+        as_attachment=True,
+        filename=filename,
+        content_type='application/octet-stream',
+    )
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 # =========================================================================

@@ -330,7 +330,44 @@ class SeacraftRegistrationForm(forms.ModelForm):
         return capacity
 
 
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.ImageField):
+    widget = MultipleFileInput
+
+    def clean(self, data, initial=None):
+        if not data:
+            return []
+        files = data if isinstance(data, (list, tuple)) else [data]
+        if len(files) > 5:
+            raise ValidationError('Upload no more than five OR/CR images per asset.')
+
+        cleaned_files = []
+        for uploaded_file in files:
+            cleaned_file = super().clean(uploaded_file, initial)
+            image_format = getattr(cleaned_file.image, 'format', '')
+            if image_format not in {'JPEG', 'PNG', 'WEBP'}:
+                raise ValidationError('Upload OR/CR images as JPEG, PNG, or WebP.')
+            if cleaned_file.size > 10 * 1024 * 1024:
+                raise ValidationError('Each OR/CR image must be 10 MB or smaller.')
+            cleaned_files.append(cleaned_file)
+        return cleaned_files
+
+
 class FleetAssetRegistrationForm(forms.ModelForm):
+    registration_documents = MultipleImageField(
+        required=False,
+        label='LTO / MARINA OR/CR image(s)',
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/jpeg,image/png,image/webp',
+            'data-registration-documents': '',
+            'multiple': True,
+        }),
+    )
+
     class Meta:
         model = Vehicle
         fields = (
@@ -338,22 +375,49 @@ class FleetAssetRegistrationForm(forms.ModelForm):
             'plate_number',
             'vehicle_type',
             'make',
+            'chassis_number',
+            'engine_number',
+            'mv_file_number',
+            'body_type',
+            'vehicle_classification',
+            'home_port',
             'model_year',
             'color',
             'engine_details',
             'fuel_type',
             'passenger_capacity',
             'odometer_km',
+            'gross_vehicle_weight',
+            'net_capacity',
+            'engine_displacement_cc',
+            'engine_power_hp',
+            'registration_date',
             'registration_expiry',
             'inspection_expiry',
             'hull_type',
             'length_m',
+            'gross_tonnage',
+            'net_tonnage',
         )
         widgets = {
             'model_name': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'plate_number': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50}),
-            'vehicle_type': forms.Select(attrs={'class': 'form-select'}),
-            'make': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
+            'vehicle_type': forms.Select(attrs={
+                'class': 'form-select',
+                'data-vehicle-type': '',
+            }),
+            'make': forms.TextInput(attrs={
+                'class': 'form-control',
+                'maxlength': 100,
+                'autocomplete': 'off',
+                'data-make-input': '',
+            }),
+            'chassis_number': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
+            'engine_number': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
+            'mv_file_number': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 50}),
+            'body_type': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
+            'vehicle_classification': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
+            'home_port': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'model_year': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': 1900,
@@ -381,6 +445,30 @@ class FleetAssetRegistrationForm(forms.ModelForm):
                 'min': 0,
                 'step': '0.1',
             }),
+            'gross_vehicle_weight': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'step': '0.01',
+            }),
+            'net_capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'step': '0.01',
+            }),
+            'engine_displacement_cc': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'step': '0.01',
+            }),
+            'engine_power_hp': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'step': '0.01',
+            }),
+            'registration_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+            }),
             'registration_expiry': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date',
@@ -395,27 +483,54 @@ class FleetAssetRegistrationForm(forms.ModelForm):
                 'min': '0.01',
                 'step': '0.01',
             }),
+            'gross_tonnage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'step': '0.01',
+            }),
+            'net_tonnage': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'step': '0.01',
+            }),
         }
         labels = {
-            'model_name': 'Asset name',
-            'plate_number': 'Plate number or hull ID',
+            'model_name': 'Fleet asset name / vehicle series / vessel name',
+            'plate_number': 'Plate number or vessel official number',
             'vehicle_type': 'Asset type',
             'make': 'Make',
-            'model_year': 'Year',
+            'chassis_number': 'Chassis / hull number',
+            'engine_number': 'Engine number',
+            'mv_file_number': 'MV file number',
+            'body_type': 'Body type',
+            'vehicle_classification': 'Vehicle classification',
+            'home_port': 'Port of registry / home port',
+            'model_year': 'Year model / year built',
             'color': 'Color',
             'engine_details': 'Engine',
             'fuel_type': 'Fuel type',
             'passenger_capacity': 'Seating / passenger capacity',
             'odometer_km': 'Odometer (km)',
+            'gross_vehicle_weight': 'Gross vehicle weight (kg)',
+            'net_capacity': 'Net capacity (kg)',
+            'engine_displacement_cc': 'Engine displacement (cc)',
+            'engine_power_hp': 'Engine power (hp)',
+            'registration_date': 'Date of registration',
             'registration_expiry': 'Registration expiry',
             'inspection_expiry': 'Inspection expiry',
             'hull_type': 'Hull type',
             'length_m': 'Length (m)',
+            'gross_tonnage': 'Gross tonnage (GT)',
+            'net_tonnage': 'Net tonnage (NT)',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['vehicle_type'].empty_label = 'Choose an asset type'
+        self.fields['make'].widget.attrs['list'] = f'{self["make"].auto_id}-suggestions'
+        for field_name in self.Meta.fields:
+            if field_name in self.fields:
+                self.fields[field_name].widget.attrs['data-ocr-field'] = field_name
         for name in ('model_name', 'plate_number', 'vehicle_type'):
             self.fields[name].required = True
         self.fields['plate_number'].error_messages['unique'] = (
@@ -445,6 +560,21 @@ class FleetAssetRegistrationForm(forms.ModelForm):
         if length is not None and length <= 0:
             raise ValidationError('Length must be greater than zero.')
         return length
+
+    def clean(self):
+        cleaned_data = super().clean()
+        for field_name in (
+            'gross_vehicle_weight',
+            'net_capacity',
+            'engine_displacement_cc',
+            'engine_power_hp',
+            'gross_tonnage',
+            'net_tonnage',
+        ):
+            value = cleaned_data.get(field_name)
+            if value is not None and value < 0:
+                self.add_error(field_name, 'Enter a value greater than or equal to zero.')
+        return cleaned_data
 
 
 class OperatorDetailsForm(forms.ModelForm):

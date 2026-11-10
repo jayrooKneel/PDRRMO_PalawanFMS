@@ -1,14 +1,24 @@
-{% if vehicle.make or vehicle.model_year or vehicle.color or vehicle.engine_details or vehicle.fuel_type or vehicle.passenger_capacity or vehicle.odometer_km or vehicle.registration_expiry or vehicle.inspection_expiry %}
+{% if vehicle.make or vehicle.model_year or vehicle.color or vehicle.engine_details or vehicle.engine_number or vehicle.chassis_number or vehicle.mv_file_number or vehicle.body_type or vehicle.vehicle_classification or vehicle.gross_vehicle_weight or vehicle.net_capacity or vehicle.engine_displacement_cc or vehicle.engine_power_hp or vehicle.fuel_type or vehicle.passenger_capacity or vehicle.odometer_km or vehicle.registration_date or vehicle.registration_expiry or vehicle.inspection_expiry %}
 <div class="small text-muted mt-1">
     {% if vehicle.make or vehicle.model_year or vehicle.color %}
         {% if vehicle.make %}{{ vehicle.make }}{% endif %}
         {% if vehicle.model_year %}{% if vehicle.make %} · {% endif %}{{ vehicle.model_year }}{% endif %}
         {% if vehicle.color %}{% if vehicle.make or vehicle.model_year %} · {% endif %}{{ vehicle.color }}{% endif %}
     {% endif %}
+    {% if vehicle.chassis_number %}<br>Chassis: {{ vehicle.chassis_number }}{% endif %}
+    {% if vehicle.engine_number %}{% if vehicle.chassis_number %} · {% else %}<br>{% endif %}Engine no.: {{ vehicle.engine_number }}{% endif %}
+    {% if vehicle.mv_file_number %}<br>MV file no.: {{ vehicle.mv_file_number }}{% endif %}
+    {% if vehicle.body_type %}<br>Body type: {{ vehicle.body_type }}{% endif %}
+    {% if vehicle.vehicle_classification %}{% if vehicle.body_type %} · {% else %}<br>{% endif %}{{ vehicle.vehicle_classification }}{% endif %}
     {% if vehicle.engine_details %}<br>Engine: {{ vehicle.engine_details }}{% endif %}
     {% if vehicle.fuel_type %}{% if vehicle.engine_details %} · {% else %}<br>{% endif %}{{ vehicle.fuel_type }}{% endif %}
     {% if vehicle.passenger_capacity %}<br>Seats: {{ vehicle.passenger_capacity }}{% endif %}
     {% if vehicle.odometer_km is not None %}{% if vehicle.passenger_capacity %} · {% else %}<br>{% endif %}{{ vehicle.odometer_km }} km{% endif %}
+    {% if vehicle.gross_vehicle_weight is not None %}<br>Gross weight: {{ vehicle.gross_vehicle_weight }}{% endif %}
+    {% if vehicle.net_capacity is not None %}{% if vehicle.gross_vehicle_weight is not None %} · {% else %}<br>{% endif %}Net capacity: {{ vehicle.net_capacity }}{% endif %}
+    {% if vehicle.engine_displacement_cc is not None %}<br>Displacement: {{ vehicle.engine_displacement_cc }} cc{% endif %}
+    {% if vehicle.engine_power_hp is not None %}{% if vehicle.engine_displacement_cc is not None %} · {% else %}<br>{% endif %}{{ vehicle.engine_power_hp }} hp{% endif %}
+    {% if vehicle.registration_date %}<br>Registered {{ vehicle.registration_date|date:"M Y" }}{% endif %}
     {% if vehicle.registration_expiry %}<br>Registration due {{ vehicle.registration_expiry|date:"M Y" }}{% endif %}
     {% if vehicle.inspection_expiry %}{% if vehicle.registration_expiry %} · {% else %}<br>{% endif %}Inspection due {{ vehicle.inspection_expiry|date:"M Y" }}{% endif %}
 </div>

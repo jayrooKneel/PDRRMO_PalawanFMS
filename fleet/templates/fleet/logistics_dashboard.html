@@ -149,29 +149,29 @@
         <div class="card shadow-sm border-0 mb-5">
             <div class="panel-header-custom d-flex justify-content-between align-items-center">
                 <span><i class="fa-solid fa-truck-monster me-2 text-warning"></i>LAND OPERATIONS DIVISION</span>
-                <span class="badge bg-light text-dark font-monospace">TOTAL REGISTRY: {{ land_vehicles|length }}</span>
+                <span class="badge bg-light text-dark font-monospace">TOTAL REGISTRY: <span data-dashboard-refresh-text="logistics-land-total">{{ land_vehicles|length }}</span></span>
             </div>
             
             <div class="card-body bg-light border rounded-bottom">
                 <ul class="nav nav-tabs custom-tabs border-0 mb-3" id="landTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="land-standby-tab" data-bs-toggle="tab" data-bs-target="#land-standby-pane" type="button" role="tab">
-                            <i class="fa-solid fa-warehouse me-1"></i> Standby & Operational ({{ land_standby|length }})
+                            <i class="fa-solid fa-warehouse me-1"></i> Standby & Operational (<span data-dashboard-refresh-text="logistics-land-standby-count">{{ land_standby|length }}</span>)
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="land-deployed-tab" data-bs-toggle="tab" data-bs-target="#land-deployed-pane" type="button" role="tab">
-                            <i class="fa-solid fa-location-dot me-1"></i> Active Deployments ({{ land_deployed|length }})
+                            <i class="fa-solid fa-location-dot me-1"></i> Active Deployments (<span data-dashboard-refresh-text="logistics-land-deployed-count">{{ land_deployed|length }}</span>)
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="land-maint-tab" data-bs-toggle="tab" data-bs-target="#land-maint-pane" type="button" role="tab">
-                            <i class="fa-solid fa-screwdriver-wrench me-1"></i> Maintenance & Disposal ({{ land_maintenance|length }})
+                            <i class="fa-solid fa-screwdriver-wrench me-1"></i> Maintenance & Disposal (<span data-dashboard-refresh-text="logistics-land-maintenance-count">{{ land_maintenance|length }}</span>)
                         </button>
                     </li>
                 </ul>
 
-                <div class="tab-content" id="landTabsContent">
+                <div class="tab-content" id="landTabsContent" data-dashboard-refresh-content="logistics-land-tabs" data-dashboard-refresh-tab-group="landTabs">
                     <!-- STANDBY TAB -->
                     <div class="tab-pane fade show active" id="land-standby-pane" role="tabpanel">
                         <div class="asset-grid logistics-asset-grid">
@@ -184,6 +184,7 @@
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ vehicle.model_name }}</h5>
                                             <div class="text-muted small">{{ vehicle.vehicle_type.name }}</div>
                                             {% include "fleet/_land_vehicle_specs.html" with vehicle=vehicle %}
+                                            {% include "fleet/_vehicle_registration_documents.html" with asset=vehicle %}
                                         </div>
                                         <span class="badge bg-success">OPERATIONAL</span>
                                     </div>
@@ -228,6 +229,7 @@
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ vehicle.model_name }}</h5>
                                             <div class="text-muted small">{{ vehicle.vehicle_type.name }}</div>
                                             {% include "fleet/_land_vehicle_specs.html" with vehicle=vehicle %}
+                                            {% include "fleet/_vehicle_registration_documents.html" with asset=vehicle %}
                                         </div>
                                         <span class="badge bg-primary">DEPLOYED</span>
                                     </div>
@@ -270,6 +272,7 @@
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ vehicle.model_name }}</h5>
                                             <div class="text-muted small">{{ vehicle.vehicle_type.name }}</div>
                                             {% include "fleet/_land_vehicle_specs.html" with vehicle=vehicle %}
+                                            {% include "fleet/_vehicle_registration_documents.html" with asset=vehicle %}
                                         </div>
                                         {% if vehicle.status == 'PENDING_DISPOSAL' %}
                                             <span class="badge bg-dark border border-warning text-warning">PENDING DISPOSAL</span>
@@ -331,29 +334,29 @@
         <div class="card shadow-sm border-0 mb-5">
             <div class="panel-header-custom d-flex justify-content-between align-items-center" style="background-color: #0284C7;">
                 <span><i class="fa-solid fa-ship me-2 text-warning"></i>MARITIME DIVISION (SEACRAFTS)</span>
-                <span class="badge bg-light text-dark font-monospace">TOTAL REGISTRY: {{ sea_crafts|length }}</span>
+                <span class="badge bg-light text-dark font-monospace">TOTAL REGISTRY: <span data-dashboard-refresh-text="logistics-sea-total">{{ sea_crafts|length }}</span></span>
             </div>
             
             <div class="card-body bg-light border rounded-bottom">
                 <ul class="nav nav-tabs custom-tabs custom-tabs-sea border-0 mb-3" id="seaTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="sea-standby-tab" data-bs-toggle="tab" data-bs-target="#sea-standby-pane" type="button" role="tab">
-                            <i class="fa-solid fa-warehouse me-1"></i> Standby & Operational ({{ sea_standby|length }})
+                            <i class="fa-solid fa-warehouse me-1"></i> Standby & Operational (<span data-dashboard-refresh-text="logistics-sea-standby-count">{{ sea_standby|length }}</span>)
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="sea-deployed-tab" data-bs-toggle="tab" data-bs-target="#sea-deployed-pane" type="button" role="tab">
-                            <i class="fa-solid fa-location-dot me-1"></i> Active Deployments ({{ sea_deployed|length }})
+                            <i class="fa-solid fa-location-dot me-1"></i> Active Deployments (<span data-dashboard-refresh-text="logistics-sea-deployed-count">{{ sea_deployed|length }}</span>)
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="sea-maint-tab" data-bs-toggle="tab" data-bs-target="#sea-maint-pane" type="button" role="tab">
-                            <i class="fa-solid fa-screwdriver-wrench me-1"></i> Maintenance & Disposal ({{ sea_maintenance|length }})
+                            <i class="fa-solid fa-screwdriver-wrench me-1"></i> Maintenance & Disposal (<span data-dashboard-refresh-text="logistics-sea-maintenance-count">{{ sea_maintenance|length }}</span>)
                         </button>
                     </li>
                 </ul>
 
-                <div class="tab-content" id="seaTabsContent">
+                <div class="tab-content" id="seaTabsContent" data-dashboard-refresh-content="logistics-sea-tabs" data-dashboard-refresh-tab-group="seaTabs">
                     <!-- STANDBY TAB -->
                     <div class="tab-pane fade show active" id="sea-standby-pane" role="tabpanel">
                         <div class="asset-grid logistics-asset-grid">
@@ -366,6 +369,7 @@
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ craft.model_name }}</h5>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
                                             {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                            {% include "fleet/_vehicle_registration_documents.html" with asset=craft %}
                                         </div>
                                         <span class="badge bg-success">OPERATIONAL</span>
                                     </div>
@@ -410,6 +414,7 @@
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ craft.model_name }}</h5>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
                                             {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                            {% include "fleet/_vehicle_registration_documents.html" with asset=craft %}
                                         </div>
                                         <span class="badge bg-primary">DEPLOYED</span>
                                     </div>
@@ -452,6 +457,7 @@
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ craft.model_name }}</h5>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
                                             {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                            {% include "fleet/_vehicle_registration_documents.html" with asset=craft %}
                                         </div>
                                         {% if craft.status == 'PENDING_DISPOSAL' %}
                                             <span class="badge bg-dark border border-warning text-warning">PENDING DISPOSAL</span>
@@ -534,7 +540,7 @@
                                 <th scope="col">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody data-dashboard-refresh-content="logistics-incident-rows">
                             {% for incident in incident_records %}
                             <tr>
                                 <td class="font-monospace">IR-{{ incident.occurred_at|date:"Y" }}-{{ incident.pk|stringformat:"06d" }}</td>
@@ -657,7 +663,7 @@
                         </button>
                     </h2>
                     <div id="collapseLand" class="accordion-collapse collapse show" data-bs-parent="#drawerAccordion">
-                        <div class="accordion-body bg-white p-3">
+                        <div class="accordion-body bg-white p-3" data-dashboard-refresh-content="logistics-land-assignments">
                             {% for vehicle in land_vehicles %}
                             <div class="border-bottom pb-3 mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -696,7 +702,7 @@
                         </button>
                     </h2>
                     <div id="collapseSea" class="accordion-collapse collapse" data-bs-parent="#drawerAccordion">
-                        <div class="accordion-body bg-white p-3">
+                        <div class="accordion-body bg-white p-3" data-dashboard-refresh-content="logistics-sea-assignments">
                             {% for craft in sea_crafts %}
                             <div class="border-bottom pb-3 mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -805,57 +811,76 @@
                     <h5 class="modal-title fw-bold" id="addVehicleModalLabel"><i class="fa-solid fa-plus-circle text-info me-2"></i>Add a fleet asset</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" action="{% url 'dashboard_portal:logistics_dashboard' %}">
+                <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_vehicle">
                     <input type="hidden" id="assetCount" name="asset_count" value="1">
                     <div class="modal-body bg-white">
                         <div id="assetRegistrationEntries">
                         {% for asset_registration_form in asset_registration_forms %}
-                        <section class="asset-registration-entry border rounded p-3 mb-3" data-asset-entry>
+                        <section class="asset-registration-entry border rounded p-3 mb-3" data-asset-entry data-ocr-url="{% url 'dashboard_portal:logistics_registration_ocr' %}">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <strong data-entry-title>Asset {{ forloop.counter }}</strong>
                                 <button type="button" class="btn btn-sm btn-outline-danger" data-remove-asset hidden>Remove</button>
                             </div>
                             <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.vehicle_type.id_for_label }}">{{ asset_registration_form.vehicle_type.label }}</label>
+                                {{ asset_registration_form.vehicle_type }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.registration_documents.id_for_label }}">{{ asset_registration_form.registration_documents.label }}</label>
+                                {{ asset_registration_form.registration_documents }}
+                                <div class="form-text">Upload LTO OR/CR photos for land assets or MARINA documents for seacraft. Up to 5 clear JPEG, PNG, or WebP images (10 MB each). Local OCR suggests values; verify them before saving. Images remain private attachments.</div>
+                                <div class="small mt-1" data-ocr-status role="status" aria-live="polite"></div>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.model_name.id_for_label }}">{{ asset_registration_form.model_name.label }}</label>
                                 {{ asset_registration_form.model_name }}
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.plate_number.id_for_label }}">{{ asset_registration_form.plate_number.label }}</label>
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.plate_number.id_for_label }}" data-identifier-label>{{ asset_registration_form.plate_number.label }}</label>
                                 {{ asset_registration_form.plate_number }}
                             </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold" for="{{ asset_registration_form.vehicle_type.id_for_label }}">{{ asset_registration_form.vehicle_type.label }}</label>
-                                {{ asset_registration_form.vehicle_type }}
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.make.id_for_label }}">{{ asset_registration_form.make.label }}</label>
+                                {{ asset_registration_form.make }}
+                                <datalist id="{{ asset_registration_form.make.id_for_label }}-suggestions"></datalist>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.model_year.id_for_label }}">{{ asset_registration_form.model_year.label }}</label>
+                                {{ asset_registration_form.model_year }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.color.id_for_label }}">{{ asset_registration_form.color.label }}</label>
+                                {{ asset_registration_form.color }}
                             </div>
                             <div class="col-12" data-asset-fields="land">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label class="form-label fw-semibold" for="{{ asset_registration_form.make.id_for_label }}">{{ asset_registration_form.make.label }}</label>
-                                        {{ asset_registration_form.make }}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold" for="{{ asset_registration_form.model_year.id_for_label }}">{{ asset_registration_form.model_year.label }}</label>
-                                        {{ asset_registration_form.model_year }}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold" for="{{ asset_registration_form.color.id_for_label }}">{{ asset_registration_form.color.label }}</label>
-                                        {{ asset_registration_form.color }}
-                                    </div>
-                                    <div class="col-md-6">
                                         <label class="form-label fw-semibold" for="{{ asset_registration_form.odometer_km.id_for_label }}">{{ asset_registration_form.odometer_km.label }}</label>
                                         {{ asset_registration_form.odometer_km }}
                                     </div>
+                                    {% for field in asset_registration_form %}
+                                        {% if field.name == 'chassis_number' or field.name == 'engine_number' or field.name == 'mv_file_number' or field.name == 'body_type' or field.name == 'vehicle_classification' or field.name == 'gross_vehicle_weight' or field.name == 'net_capacity' or field.name == 'engine_displacement_cc' or field.name == 'engine_power_hp' %}
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                            {{ field }}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
                                 </div>
                             </div>
                             <div class="col-12" data-asset-fields="sea" hidden>
                                 <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold" for="{{ asset_registration_form.hull_type.id_for_label }}">{{ asset_registration_form.hull_type.label }}</label>
-                                        {{ asset_registration_form.hull_type }}
-                                    </div>
+                                    {% for field in asset_registration_form %}
+                                        {% if field.name == 'chassis_number' or field.name == 'engine_number' or field.name == 'hull_type' or field.name == 'home_port' or field.name == 'gross_tonnage' or field.name == 'net_tonnage' or field.name == 'engine_power_hp' %}
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                            {{ field }}
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold" for="{{ asset_registration_form.length_m.id_for_label }}">{{ asset_registration_form.length_m.label }}</label>
                                         {{ asset_registration_form.length_m }}
@@ -877,6 +902,10 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.registration_expiry.id_for_label }}">{{ asset_registration_form.registration_expiry.label }}</label>
                                 {{ asset_registration_form.registration_expiry }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="{{ asset_registration_form.registration_date.id_for_label }}">{{ asset_registration_form.registration_date.label }}</label>
+                                {{ asset_registration_form.registration_date }}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.inspection_expiry.id_for_label }}">{{ asset_registration_form.inspection_expiry.label }}</label>
@@ -901,7 +930,7 @@
     </div>
 
     <!-- HIDDEN JSON DATA RESERVOIR -->
-    <script id="land-drivers-json" type="application/json">
+    <script id="land-drivers-json" type="application/json" data-dashboard-refresh-text="logistics-land-drivers-json">
         [
             {% for driver in land_drivers %}
             {
@@ -912,7 +941,7 @@
             {% endfor %}
         ]
     </script>
-    <script id="sea-drivers-json" type="application/json">
+    <script id="sea-drivers-json" type="application/json" data-dashboard-refresh-text="logistics-sea-drivers-json">
         [
             {% for driver in sea_drivers %}
             {
@@ -923,7 +952,7 @@
             {% endfor %}
         ]
     </script>
-    <script id="land-vehicles-json" type="application/json">
+    <script id="land-vehicles-json" type="application/json" data-dashboard-refresh-text="logistics-land-vehicles-json">
         [
             {% for vehicle in land_vehicles %}
             {
@@ -935,7 +964,7 @@
             {% endfor %}
         ]
     </script>
-    <script id="sea-vehicles-json" type="application/json">
+    <script id="sea-vehicles-json" type="application/json" data-dashboard-refresh-text="logistics-sea-vehicles-json">
         [
             {% for craft in sea_crafts %}
             {
@@ -953,66 +982,12 @@
     <script src="{% static 'fleet/js/dashboard_print.js' %}"></script>
     <script src="{% static 'fleet/js/activity_report.js' %}"></script>
     <script src="{% static 'fleet/js/deployment_location_search.js' %}"></script>
+    <script src="{% static 'fleet/js/dashboard_auto_refresh.js' %}"></script>
+    <script src="{% static 'fleet/js/fleet_asset_registration.js' %}"></script>
+    <script src="{% static 'fleet/js/logistics_menu.js' %}"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const assetEntries = document.getElementById('assetRegistrationEntries');
-            const assetCount = document.getElementById('assetCount');
-            const updateAssetFields = function (entry) {
-                const assetType = entry.querySelector('select[name$="-vehicle_type"]');
-                if (!assetType) return;
-                const seaAsset = ['marine', 'maritime'].includes(
-                    assetType.options[assetType.selectedIndex]?.text.trim().toLowerCase()
-                );
-                entry.querySelectorAll('[data-asset-fields]').forEach(function (group) {
-                    const active = group.dataset.assetFields === (seaAsset ? 'sea' : 'land');
-                    group.hidden = !active;
-                    group.querySelectorAll('input, select, textarea').forEach(function (field) {
-                        field.disabled = !active;
-                    });
-                });
-            };
-            const renumberAssetEntries = function () {
-                const entries = assetEntries.querySelectorAll('[data-asset-entry]');
-                entries.forEach(function (entry, index) {
-                    entry.querySelectorAll('[name], [id], label[for]').forEach(function (element) {
-                        ['name', 'id', 'for'].forEach(function (attribute) {
-                            const value = element.getAttribute(attribute);
-                            if (value) element.setAttribute(attribute, value.replace(/asset-\d+/, 'asset-' + index));
-                        });
-                    });
-                    entry.querySelector('[data-entry-title]').textContent = 'Asset ' + (index + 1);
-                    const removeButton = entry.querySelector('[data-remove-asset]');
-                    removeButton.hidden = entries.length === 1;
-                    updateAssetFields(entry);
-                });
-                assetCount.value = entries.length;
-            };
-            assetEntries.addEventListener('change', function (event) {
-                if (event.target.matches('select[name$="-vehicle_type"]')) {
-                    updateAssetFields(event.target.closest('[data-asset-entry]'));
-                }
-            });
-            document.getElementById('addAssetEntry').addEventListener('click', function () {
-                const entries = assetEntries.querySelectorAll('[data-asset-entry]');
-                if (entries.length >= 20) return;
-                const clone = entries[entries.length - 1].cloneNode(true);
-                clone.querySelectorAll('input, select, textarea').forEach(function (field) {
-                    if (field.type === 'checkbox' || field.type === 'radio') field.checked = false;
-                    else field.value = '';
-                });
-                assetEntries.appendChild(clone);
-                renumberAssetEntries();
-            });
-            assetEntries.addEventListener('click', function (event) {
-                const button = event.target.closest('[data-remove-asset]');
-                if (button) {
-                    button.closest('[data-asset-entry]').remove();
-                    renumberAssetEntries();
-                }
-            });
-            renumberAssetEntries();
-
             const savedScroll = localStorage.getItem('logistics_dashboard_scroll');
             if (savedScroll !== null) {
                 window.scrollTo(0, parseInt(savedScroll, 10));
@@ -1030,15 +1005,6 @@
                 }
             });
 
-            document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabButton => {
-                tabButton.addEventListener('shown.bs.tab', function (e) {
-                    const tabGroup = e.target.closest('ul').id;
-                    if (tabGroup) {
-                        localStorage.setItem('logistics_active_tab_' + tabGroup, e.target.id);
-                    }
-                });
-            });
-
             const operatorType = document.getElementById('id_operator_type');
             const authorityHint = document.getElementById('operator-authority-hint');
             if (operatorType && authorityHint) {
@@ -1049,62 +1015,6 @@
                 };
                 operatorType.addEventListener('change', updateAuthorityHint);
                 updateAuthorityHint();
-            }
-
-            const logisticsMenuDrawer = document.getElementById('logisticsMenuDrawer');
-            if (logisticsMenuDrawer) {
-                logisticsMenuDrawer.querySelectorAll('[data-menu-action]').forEach(button => {
-                    button.addEventListener('click', function () {
-                        logisticsMenuDrawer.dataset.pendingAction = this.dataset.menuAction;
-                        bootstrap.Offcanvas.getOrCreateInstance(logisticsMenuDrawer).hide();
-                    });
-                });
-
-                logisticsMenuDrawer.addEventListener('hidden.bs.offcanvas', function () {
-                    const action = logisticsMenuDrawer.dataset.pendingAction;
-                    delete logisticsMenuDrawer.dataset.pendingAction;
-
-                    if (action === 'print') {
-                        window.print();
-                        return;
-                    }
-
-                    if (action === 'view-incidents') {
-                        document.getElementById('filedIncidentReports').scrollIntoView({ behavior: 'smooth' });
-                        return;
-                    }
-
-                    const modalTargets = {
-                        'add-operator': '#addOperatorModal',
-                        'add-asset': '#addVehicleModal',
-                        'generate-report': '#generateReportModal',
-                        'file-incident': '#fleetIncidentModal'
-                    };
-                    if (modalTargets[action]) {
-                        const modalElement = document.querySelector(modalTargets[action]);
-                        bootstrap.Modal.getOrCreateInstance(modalElement).show();
-                        return;
-                    }
-
-                    if (action === 'print-incident') {
-                        openIncidentExports();
-                        return;
-                    }
-
-                    if (action === 'operators') {
-                        const assignmentDrawer = document.getElementById('operatorAssignmentDrawer');
-                        bootstrap.Offcanvas.getOrCreateInstance(assignmentDrawer).show();
-                    }
-                });
-            }
-
-            function openIncidentExports() {
-                const reportKind = document.getElementById('report-kind');
-                reportKind.value = 'incident';
-                reportKind.dispatchEvent(new Event('change'));
-                bootstrap.Modal.getOrCreateInstance(
-                    document.getElementById('generateReportModal')
-                ).show();
             }
 
             document.querySelectorAll('form').forEach(form => {
@@ -1123,17 +1033,17 @@
                 }, 3000);
             }
 
-            const landDrivers = JSON.parse(document.getElementById('land-drivers-json').textContent || '[]');
-            const seaDrivers = JSON.parse(document.getElementById('sea-drivers-json').textContent || '[]');
-            const landVehicles = JSON.parse(document.getElementById('land-vehicles-json').textContent || '[]');
-            const seaVehicles = JSON.parse(document.getElementById('sea-vehicles-json').textContent || '[]');
-
-            document.querySelectorAll('.btn-deploy-trigger').forEach(button => {
-                button.addEventListener('click', function() {
-                    const vehicleId = this.getAttribute('data-vehicle-id');
-                    const modelName = this.getAttribute('data-model-name');
-                    const category = this.getAttribute('data-vehicle-category');
-                    const currentDriverId = this.getAttribute('data-assigned-driver-id');
+            document.addEventListener('click', function(event) {
+                const button = event.target.closest('.btn-deploy-trigger');
+                if (button) {
+                    const vehicleId = button.getAttribute('data-vehicle-id');
+                    const modelName = button.getAttribute('data-model-name');
+                    const category = button.getAttribute('data-vehicle-category');
+                    const currentDriverId = button.getAttribute('data-assigned-driver-id');
+                    const landDrivers = JSON.parse(document.getElementById('land-drivers-json').textContent || '[]');
+                    const seaDrivers = JSON.parse(document.getElementById('sea-drivers-json').textContent || '[]');
+                    const landVehicles = JSON.parse(document.getElementById('land-vehicles-json').textContent || '[]');
+                    const seaVehicles = JSON.parse(document.getElementById('sea-vehicles-json').textContent || '[]');
 
                     document.getElementById('deploy_vehicle_id_input').value = vehicleId;
                     

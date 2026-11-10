@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+import shutil
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -137,6 +139,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = '/static/'
+MEDIA_ROOT = BASE_DIR / 'media'
+TESSERACT_DEFAULT_PATH = Path(r'C:\Program Files\Tesseract-OCR\tesseract.exe')
+TESSERACT_CMD = (
+    os.environ.get('TESSERACT_CMD')
+    or shutil.which('tesseract')
+    or (str(TESSERACT_DEFAULT_PATH) if TESSERACT_DEFAULT_PATH.is_file() else '')
+)
 
 LOGIN_URL = 'dashboard_portal:login'
 LOGOUT_REDIRECT_URL = 'dashboard_portal:login'

@@ -1,10 +1,20 @@
-{% if craft.hull_type or craft.length_m or craft.passenger_capacity or craft.engine_details or craft.fuel_type or craft.registration_expiry or craft.inspection_expiry %}
+{% if craft.make or craft.model_year or craft.color or craft.hull_type or craft.chassis_number or craft.engine_number or craft.home_port or craft.length_m or craft.gross_tonnage or craft.net_tonnage or craft.engine_power_hp or craft.passenger_capacity or craft.engine_details or craft.fuel_type or craft.registration_date or craft.registration_expiry or craft.inspection_expiry %}
 <div class="small text-muted mt-1">
+    {% if craft.make %}{{ craft.make }}{% endif %}
+    {% if craft.model_year %}{% if craft.make %} · {% endif %}{{ craft.model_year }}{% endif %}
+    {% if craft.color %}{% if craft.make or craft.model_year %} · {% endif %}{{ craft.color }}{% endif %}
     {% if craft.hull_type %}{{ craft.hull_type }}{% endif %}
+    {% if craft.chassis_number %}<br>Hull no.: {{ craft.chassis_number }}{% endif %}
+    {% if craft.engine_number %}{% if craft.chassis_number %} · {% else %}<br>{% endif %}Engine no.: {{ craft.engine_number }}{% endif %}
+    {% if craft.home_port %}<br>Port of registry: {{ craft.home_port }}{% endif %}
     {% if craft.length_m %}{% if craft.hull_type %} · {% endif %}{{ craft.length_m }} m{% endif %}
+    {% if craft.gross_tonnage is not None %}<br>Gross tonnage: {{ craft.gross_tonnage }}{% endif %}
+    {% if craft.net_tonnage is not None %}{% if craft.gross_tonnage is not None %} · {% else %}<br>{% endif %}Net tonnage: {{ craft.net_tonnage }}{% endif %}
+    {% if craft.engine_power_hp is not None %}<br>Engine power: {{ craft.engine_power_hp }} hp{% endif %}
     {% if craft.passenger_capacity %} · {{ craft.passenger_capacity }} passengers{% endif %}
     {% if craft.engine_details %}<br>Engine: {{ craft.engine_details }}{% endif %}
     {% if craft.fuel_type %}{% if craft.engine_details %} · {% else %}<br>{% endif %}{{ craft.fuel_type }}{% endif %}
+    {% if craft.registration_date %}<br>Registered {{ craft.registration_date|date:"M Y" }}{% endif %}
     {% if craft.registration_expiry %}<br>Registration due {{ craft.registration_expiry|date:"M Y" }}{% endif %}
     {% if craft.inspection_expiry %}{% if craft.registration_expiry %} · {% else %}<br>{% endif %}Inspection due {{ craft.inspection_expiry|date:"M Y" }}{% endif %}
 </div>
