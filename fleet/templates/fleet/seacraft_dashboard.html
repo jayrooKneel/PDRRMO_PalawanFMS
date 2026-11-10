@@ -41,6 +41,26 @@
     {% include "fleet/_activity_report_modal.html" %}
 
     <main class="flex-grow p-6 max-w-7xl w-full mx-auto space-y-4">
+        {% if upcoming_scheduled_maintenance_vehicles %}
+        <div class="alert alert-info border-info-subtle mb-3" role="status" aria-live="polite">
+            <div class="fw-bold"><i class="fa-solid fa-calendar-day me-2"></i>Regular maintenance due within 7 days</div>
+            <ul class="mb-0 mt-2">
+                {% for craft in upcoming_scheduled_maintenance_vehicles %}
+                <li>
+                    <strong>{{ craft.model_name }}</strong> —
+                    {{ craft.get_scheduled_maintenance_type_display }} on {{ craft.scheduled_maintenance_date|date:"M j, Y" }}
+                    {% if craft.scheduled_maintenance_days_remaining == 0 %}
+                        <span class="fw-semibold">(due today)</span>
+                    {% elif craft.scheduled_maintenance_days_remaining == 1 %}
+                        <span class="fw-semibold">(due tomorrow)</span>
+                    {% else %}
+                        <span class="fw-semibold">(in {{ craft.scheduled_maintenance_days_remaining }} days)</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
         <ul class="nav nav-tabs mb-3" role="tablist" aria-label="Seacraft fleet status">
             <li class="nav-item" role="presentation">
                 <button type="button" class="nav-link active" id="sea-maintenance-tab" role="tab" aria-controls="sea-fleet-table" aria-selected="true" data-sea-fleet-tab="maintenance">
@@ -54,9 +74,15 @@
                     <span class="badge bg-primary ms-1">{{ operational_count }}</span>
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link" id="sea-regular-maintenance-tab" role="tab" aria-controls="sea-regular-maintenance-panel" aria-selected="false" data-sea-fleet-tab="regular-maintenance">
+                    <i class="fa-solid fa-calendar-check me-1"></i> Regular Maintenance
+                    <span class="badge bg-info text-dark ms-1">{{ scheduled_maintenance_vehicles|length }}</span>
+                </button>
+            </li>
         </ul>
 
-        <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+        <div id="sea-fleet-list-panel" class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
             <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                 <h2 class="font-bold text-gray-800 uppercase tracking-wider text-sm">Seacraft Mechanical Workbench</h2>
                 <span class="bg-sky-100 text-sky-800 text-xs font-bold px-2.5 py-1 rounded-full uppercase">
@@ -151,6 +177,42 @@
                             </tr>
                         {% empty %}
                             <tr><td colspan="4" class="px-6 py-12 text-center text-gray-400 italic">No maritime vessels registered.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div id="sea-regular-maintenance-panel" class="card shadow-sm border-0" hidden>
+            <div class="card-header bg-info-subtle text-info-emphasis fw-bold">
+                <i class="fa-solid fa-calendar-check me-2"></i>Scheduled Regular Maintenance
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Vessel model</th>
+                            <th>Registry / Hull ID</th>
+                            <th>Maintenance type</th>
+                            <th>Scheduled date</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for craft in scheduled_maintenance_vehicles %}
+                        <tr>
+                            <td class="fw-semibold">{{ craft.model_name }}</td>
+                            <td><code>{{ craft.plate_number }}</code></td>
+                            <td>{{ craft.get_scheduled_maintenance_type_display }}</td>
+                            <td>
+                                {{ craft.scheduled_maintenance_date|date:"M j, Y" }}
+                                {% if craft.scheduled_maintenance_days_remaining <= 7 %}
+                                <span class="badge bg-info-subtle text-info-emphasis">Due soon</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ craft.scheduled_maintenance_description|default:"No additional details." }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">No regular maintenance is currently scheduled.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -310,9 +372,12 @@
 <script src="{% static 'fleet/js/dashboard_print.js' %}"></script>
 <script src="{% static 'fleet/js/activity_report.js' %}"></script>
 <script src="{% static 'fleet/js/mechanic_menu.js' %}"></script>
+<script src="{% static 'fleet/js/deployment_location_search.js' %}"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const fleetTabs = document.querySelectorAll('[data-sea-fleet-tab]');
+        const fleetListPanel = document.getElementById('sea-fleet-list-panel');
+        const regularMaintenancePanel = document.getElementById('sea-regular-maintenance-panel');
         function selectFleetTab(selectedTab) {
             const selectedGroup = selectedTab.dataset.seaFleetTab;
             fleetTabs.forEach(function(tab) {
@@ -320,9 +385,14 @@
                 tab.classList.toggle('active', isSelected);
                 tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
             });
-            document.querySelectorAll('[data-sea-fleet-group]').forEach(function(row) {
-                row.hidden = row.dataset.seaFleetGroup !== selectedGroup;
-            });
+            const showSchedule = selectedGroup === 'regular-maintenance';
+            fleetListPanel.hidden = showSchedule;
+            regularMaintenancePanel.hidden = !showSchedule;
+            if (!showSchedule) {
+                document.querySelectorAll('[data-sea-fleet-group]').forEach(function(row) {
+                    row.hidden = row.dataset.seaFleetGroup !== selectedGroup;
+                });
+            }
         }
         fleetTabs.forEach(function(tab) {
             tab.addEventListener('click', function() {

@@ -251,6 +251,16 @@
                             <div>Sea:  <span class="fw-bold">{{ sea_operational_count }}</span></div>
                         </div>
                     </div>
+                    <div class="border-top mt-3 pt-2 small font-monospace">
+                        <div class="text-muted fw-semibold mb-1">BY VEHICLE TYPE</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for item in operational_type_breakdown %}
+                                <span>{{ item.name }}: <strong>{{ item.count }}</strong></span>
+                            {% empty %}
+                                <span class="text-secondary">No operational vehicles</span>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -264,6 +274,16 @@
                         <div class="text-end text-secondary small font-monospace">
                             <div>Land: <span class="fw-bold">{{ land_deployed_count }}</span></div>
                             <div>Sea:  <span class="fw-bold">{{ sea_deployed_count }}</span></div>
+                        </div>
+                    </div>
+                    <div class="border-top mt-3 pt-2 small font-monospace">
+                        <div class="text-muted fw-semibold mb-1">BY VEHICLE TYPE</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for item in deployed_type_breakdown %}
+                                <span>{{ item.name }}: <strong>{{ item.count }}</strong></span>
+                            {% empty %}
+                                <span class="text-secondary">No deployed vehicles</span>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -281,6 +301,16 @@
                             <div>Sea:  <span class="fw-bold">{{ sea_maintenance_count }}</span></div>
                         </div>
                     </div>
+                    <div class="border-top mt-3 pt-2 small font-monospace">
+                        <div class="text-muted fw-semibold mb-1">BY VEHICLE TYPE</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for item in maintenance_type_breakdown %}
+                                <span>{{ item.name }}: <strong>{{ item.count }}</strong></span>
+                            {% empty %}
+                                <span class="text-secondary">No vehicles under maintenance</span>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -296,9 +326,47 @@
                             <div>Sea:  <span class="fw-bold text-white">{{ sea_crafts.count }}</span></div>
                         </div>
                     </div>
+                    <div class="border-top mt-3 pt-2 small font-monospace" style="border-color: #334155 !important;">
+                        <div class="text-white-50 fw-semibold mb-1">BY VEHICLE TYPE</div>
+                        <div class="d-flex flex-wrap gap-2 text-white-50">
+                            {% for item in total_type_breakdown %}
+                                <span>{{ item.name }}: <strong class="text-white">{{ item.count }}</strong></span>
+                            {% empty %}
+                                <span>No registered vehicles</span>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="panel-container">
+                    <div class="panel-heading-blue">
+                        <i class="fa-solid fa-users me-2"></i>AVAILABLE PERSONNEL
+                    </div>
+                    <div class="row g-3 p-3">
+                        <div class="col-md-6">
+                            <div class="stat-box-outline h-100">
+                                <div class="stat-title text-muted">
+                                    <i class="fa-solid fa-id-card me-2 text-primary"></i>Land Drivers
+                                </div>
+                                <div class="stat-massive-num font-monospace">{{ available_land_driver_count }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="stat-box-outline h-100">
+                                <div class="stat-title text-muted">
+                                    <i class="fa-solid fa-ship me-2 text-info"></i>Seacraft Operators
+                                </div>
+                                <div class="stat-massive-num font-monospace">{{ available_seacraft_operator_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="row mb-4">

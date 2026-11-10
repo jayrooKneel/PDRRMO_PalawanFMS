@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.templatetags.static import static
 from django.utils import timezone
 from .models import Driver, FleetIncident, Vehicle, VehicleType
 
@@ -139,6 +140,11 @@ class FleetIncidentForm(forms.ModelForm):
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Where did the incident happen?',
+                'autocomplete': 'off',
+                'role': 'combobox',
+                'aria-autocomplete': 'list',
+                'aria-expanded': 'false',
+                'aria-controls': 'incident-location-suggestions',
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -191,6 +197,9 @@ class FleetIncidentForm(forms.ModelForm):
 
     def __init__(self, *args, vehicle_queryset=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['location'].widget.attrs['data-locations-url'] = static(
+            'fleet/data/palawan_deployment_locations.json'
+        )
         if vehicle_queryset is not None:
             self.fields['vehicle'].queryset = vehicle_queryset
         self.fields['vehicle'].label_from_instance = (

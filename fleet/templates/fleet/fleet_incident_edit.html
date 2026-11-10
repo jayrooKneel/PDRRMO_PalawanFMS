@@ -29,7 +29,14 @@
                         {% for field in form %}
                         <div class="{% if field.name == 'description' or field.name == 'damage_details' or field.name == 'witnesses' or field.name == 'actions_taken' or field.name == 'follow_up_recommendations' %}col-12{% else %}col-md-6{% endif %}">
                             <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% if field.name == 'location' %}
+                            <div class="position-relative">
+                                {{ field }}
+                                <div id="incident-location-suggestions" class="list-group position-absolute top-100 start-0 w-100 shadow d-none" role="listbox" style="z-index: 1060; max-height: 16rem; overflow-y: auto;"></div>
+                            </div>
+                            {% else %}
                             {{ field }}
+                            {% endif %}
                             {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
                             {% for error in field.errors %}<div class="small text-danger">{{ error }}</div>{% endfor %}
                         </div>
@@ -47,6 +54,7 @@
             </form>
         </div>
     </main>
+    <script src="{% static 'fleet/js/deployment_location_search.js' %}"></script>
     {% include "fleet/_pwa_scripts.html" %}
 </body>
 </html>

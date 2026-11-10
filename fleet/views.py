@@ -21,7 +21,7 @@ from django.contrib.auth import logout, authenticate, login
 from django.contrib.admin.models import LogEntry, CHANGE, ADDITION 
 from django.contrib.contenttypes.models import ContentType          
 from django.db import transaction
-from django.db.models import Case, When, Value, IntegerField, Q
+from django.db.models import Case, When, Value, IntegerField, Q, Count
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
@@ -206,6 +206,29 @@ def move_overdue_vehicles_to_maintenance(request):
         )
 
 
+def regular_maintenance_schedule_context(vehicles):
+    today = timezone.localdate()
+    scheduled_vehicles = sorted(
+        (vehicle for vehicle in vehicles if vehicle.scheduled_maintenance_date),
+        key=lambda vehicle: (
+            vehicle.scheduled_maintenance_date,
+            vehicle.model_name.casefold(),
+        ),
+    )
+    for vehicle in scheduled_vehicles:
+        vehicle.scheduled_maintenance_days_remaining = (
+            vehicle.scheduled_maintenance_date - today
+        ).days
+
+    return {
+        'scheduled_maintenance_vehicles': scheduled_vehicles,
+        'upcoming_scheduled_maintenance_vehicles': [
+            vehicle for vehicle in scheduled_vehicles
+            if 0 <= vehicle.scheduled_maintenance_days_remaining <= 7
+        ],
+    }
+
+
 def handle_mechanic_maintenance_action(request, vehicle):
     action_type = request.POST.get('action_type')
 
@@ -348,6 +371,14 @@ def homepage(request):
     all_vehicles = Vehicle.objects.all().select_related('vehicle_type', 'assigned_driver')
     sea_crafts = all_vehicles.filter(seacraft_vehicle_type_filter())
     land_vehicles = all_vehicles.exclude(seacraft_vehicle_type_filter())
+    fleet_type_counts = list(
+        all_vehicles.values('vehicle_type__name').annotate(
+            total=Count('pk'),
+            operational=Count('pk', filter=Q(status='OPERATIONAL')),
+            maintenance=Count('pk', filter=Q(status='MAINTENANCE')),
+            deployed=Count('pk', filter=Q(status='DEPLOYED')),
+        ).order_by('vehicle_type__name')
+    )
     deployed_vehicles = list(all_vehicles.filter(status='DEPLOYED'))
     for vehicle in deployed_vehicles:
         vehicle.is_seacraft = (
@@ -368,6 +399,7 @@ def homepage(request):
     sea_deployed_count = sea_crafts.filter(status='DEPLOYED').count()
     land_maintenance_count = land_vehicles.filter(status='MAINTENANCE').count()
     sea_maintenance_count = sea_crafts.filter(status='MAINTENANCE').count()
+    active_drivers = Driver.objects.filter(is_active=True)
 
     context = {
         'total_fleet': total_fleet,
@@ -380,6 +412,28 @@ def homepage(request):
         'sea_deployed_count': sea_deployed_count,
         'land_maintenance_count': land_maintenance_count,
         'sea_maintenance_count': sea_maintenance_count,
+        'total_type_breakdown': [
+            {'name': item['vehicle_type__name'], 'count': item['total']}
+            for item in fleet_type_counts
+        ],
+        'operational_type_breakdown': [
+            {'name': item['vehicle_type__name'], 'count': item['operational']}
+            for item in fleet_type_counts if item['operational']
+        ],
+        'maintenance_type_breakdown': [
+            {'name': item['vehicle_type__name'], 'count': item['maintenance']}
+            for item in fleet_type_counts if item['maintenance']
+        ],
+        'deployed_type_breakdown': [
+            {'name': item['vehicle_type__name'], 'count': item['deployed']}
+            for item in fleet_type_counts if item['deployed']
+        ],
+        'available_land_driver_count': active_drivers.exclude(
+            seacraft_operator_filter()
+        ).count(),
+        'available_seacraft_operator_count': active_drivers.filter(
+            seacraft_operator_filter()
+        ).count(),
         'total_count': all_vehicles.count(),
         'operational_count': all_vehicles.filter(status='OPERATIONAL').count(),
         'maintenance_count': all_vehicles.filter(status='MAINTENANCE').count(),
@@ -1090,6 +1144,7 @@ def repairman_dashboard(request):
         vehicle.schedule_form = ScheduledMaintenanceForm(prefix=f'schedule-{vehicle.pk}')
 
     return render(request, 'fleet/repairman_dashboard.html', {
+        **regular_maintenance_schedule_context(vehicles),
         'vehicles': vehicles,
         'incident_form': FleetIncidentForm(
             vehicle_queryset=Vehicle.objects.exclude(seacraft_vehicle_type_filter()).select_related('vehicle_type'),
@@ -1216,6 +1271,7 @@ def seacraft_dashboard(request):
         vehicle.schedule_form = ScheduledMaintenanceForm(prefix=f'schedule-{vehicle.pk}')
 
     return render(request, 'fleet/seacraft_dashboard.html', {
+        **regular_maintenance_schedule_context(vehicles),
         'vehicles': vehicles,
         'incident_form': FleetIncidentForm(
             vehicle_queryset=Vehicle.objects.filter(seacraft_vehicle_type_filter()).select_related('vehicle_type'),

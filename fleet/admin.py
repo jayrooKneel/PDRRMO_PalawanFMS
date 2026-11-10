@@ -10,6 +10,7 @@ from django.http import HttpResponseRedirect
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.templatetags.static import static
 from .models import FleetIncident, Vehicle, VehicleType, Driver
 
 # =========================================================================
@@ -120,8 +121,26 @@ class FleetIncidentAdmin(admin.ModelAdmin):
 # =========================================================================
 # 5. VEHICLE CONFIGURATION WITH STYLING INJECTIONS (CLEANED)
 # =========================================================================
+class LocationAutocompleteAdminMixin:
+    class Media:
+        js = ('fleet/js/deployment_location_search.js',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        locations_url = static('fleet/data/palawan_deployment_locations.json')
+        for field_name in ('deployment_location', 'deployment_destination'):
+            if field_name in form.base_fields:
+                form.base_fields[field_name].widget.attrs.update({
+                    'autocomplete': 'off',
+                    'role': 'combobox',
+                    'aria-autocomplete': 'list',
+                    'data-locations-url': locations_url,
+                })
+        return form
+
+
 @admin.register(Vehicle)
-class VehicleAdmin(admin.ModelAdmin):
+class VehicleAdmin(LocationAutocompleteAdminMixin, admin.ModelAdmin):
     list_display = [
         'id', 
         'model_name', 
@@ -174,7 +193,7 @@ class ArchivedVehicle(Vehicle):
         verbose_name_plural = "Archived / Disposed Assets"
 
 @admin.register(ArchivedVehicle)
-class ArchivedVehicleAdmin(admin.ModelAdmin):
+class ArchivedVehicleAdmin(LocationAutocompleteAdminMixin, admin.ModelAdmin):
     list_display = ['id', 'model_name', 'plate_number', 'vehicle_type', 'status', 'driver_phone']
     list_filter = ('status', 'vehicle_type')
     search_fields = ('model_name', 'plate_number', 'assigned_driver__name')

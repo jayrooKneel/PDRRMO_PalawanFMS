@@ -71,6 +71,30 @@ class ProgressiveWebAppTests(TestCase):
 
 
 class SystemConsoleTests(TestCase):
+    def test_vehicle_admin_location_fields_load_palawan_autocomplete(self):
+        admin_user = User.objects.create_superuser(
+            username='location_admin',
+            email='location-admin@example.com',
+            password='SecurePass123!',
+        )
+        vehicle_type = VehicleType.objects.create(name='LAND')
+        vehicle = Vehicle.objects.create(
+            model_name='Admin Location Vehicle',
+            plate_number='ADMIN-LOCATION-01',
+            vehicle_type=vehicle_type,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(
+            reverse('admin:fleet_vehicle_change', args=[vehicle.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="deployment_location"')
+        self.assertContains(response, 'name="deployment_destination"')
+        self.assertContains(response, 'data-locations-url="/static/fleet/data/palawan_deployment_locations.json"')
+        self.assertContains(response, 'src="/static/fleet/js/deployment_location_search.js"')
+
     def test_console_shows_actions_from_multiple_users(self):
         admin_user = User.objects.create_superuser(
             username='console_admin', email='console@example.com', password='SecurePass123!'
@@ -464,6 +488,11 @@ class LogisticsReportExportTests(TestCase):
                 self.assertContains(response, 'action="/fleet/reports/incidents/"')
                 self.assertContains(response, 'data-menu-action="file-incident"')
                 self.assertContains(response, 'data-menu-action="print-incident"')
+                self.assertContains(response, 'name="location"')
+                self.assertContains(response, 'palawan_deployment_locations.json')
+                self.assertContains(response, 'src="/static/fleet/js/deployment_location_search.js"')
+                self.assertContains(response, 'aria-controls="incident-location-suggestions"')
+                self.assertContains(response, 'id="incident-location-suggestions"')
 
         self.client.force_login(self.user)
 
@@ -968,6 +997,56 @@ class DispatchDashboardAlignmentTests(TestCase):
         undated_position = active_deployments.index(undated_land.plate_number)
         self.assertLess(newest_position, older_position)
         self.assertLess(older_position, undated_position)
+
+    def test_public_homepage_shows_vehicle_type_and_available_operator_totals(self):
+        truck_type = VehicleType.objects.create(name='Truck')
+        equipment_type = VehicleType.objects.create(name='Heavy Equipment')
+        self.create_vehicle(
+            model_name='Public Dashboard Truck',
+            plate_number='PUBLIC-TRUCK-01',
+            vehicle_type=truck_type,
+            status='OPERATIONAL',
+        )
+        self.create_vehicle(
+            model_name='Public Dashboard Equipment',
+            plate_number='PUBLIC-EQUIPMENT-01',
+            vehicle_type=equipment_type,
+            status='DEPLOYED',
+        )
+        self.create_vehicle(
+            model_name='Public Dashboard Seacraft',
+            plate_number='PUBLIC-SEACRAFT-01',
+            vehicle_type=self.marine_type,
+            status='MAINTENANCE',
+        )
+        Driver.objects.create(name='Available Land Driver')
+        Driver.objects.create(name='Inactive Land Driver', is_active=False)
+        Driver.objects.create(
+            name='Inactive Seacraft Operator',
+            license_number='MAR-002',
+            is_active=False,
+        )
+
+        response = self.client.get(reverse('dashboard_portal:homepage'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['available_land_driver_count'], 1)
+        self.assertEqual(response.context['available_seacraft_operator_count'], 1)
+        self.assertEqual(
+            response.context['operational_type_breakdown'],
+            [{'name': 'Truck', 'count': 1}],
+        )
+        self.assertEqual(
+            response.context['deployed_type_breakdown'],
+            [{'name': 'Heavy Equipment', 'count': 1}],
+        )
+        self.assertEqual(
+            response.context['maintenance_type_breakdown'],
+            [{'name': 'MARINE', 'count': 1}],
+        )
+        self.assertContains(response, 'Land Drivers')
+        self.assertContains(response, 'Seacraft Operators')
+        self.assertContains(response, 'Heavy Equipment:')
 
     def test_logistics_can_add_land_drivers_and_seacraft_operators(self):
         self.client.force_login(self.logistics_user)
@@ -1975,6 +2054,10 @@ class MechanicMaintenanceWorkflowTests(TestCase):
         edit_page = self.client.get(edit_url)
         self.assertEqual(edit_page.status_code, 200)
         self.assertContains(edit_page, 'Original incident description.')
+        self.assertContains(edit_page, 'palawan_deployment_locations.json')
+        self.assertContains(edit_page, 'src="/static/fleet/js/deployment_location_search.js"')
+        self.assertContains(edit_page, 'aria-controls="incident-location-suggestions"')
+        self.assertContains(edit_page, 'id="incident-location-suggestions"')
 
         response = self.client.post(
             edit_url,
@@ -2362,6 +2445,67 @@ class MechanicMaintenanceWorkflowTests(TestCase):
         self.land_vehicle.refresh_from_db()
         self.assertEqual(self.land_vehicle.status, 'OPERATIONAL')
         self.assertEqual(self.land_vehicle.maintenance_problem, '')
+
+    def test_mechanic_dashboards_show_seven_day_schedule_reminders_and_regular_maintenance_tabs(self):
+        today = timezone.localdate()
+        scheduled_assets = (
+            (
+                self.land_vehicle,
+                self.land_mechanic,
+                'dashboard_portal:repairman_dashboard',
+                'data-land-fleet-tab="regular-maintenance"',
+            ),
+            (
+                self.seacraft,
+                self.sea_mechanic,
+                'dashboard_portal:seacraft_dashboard',
+                'data-sea-fleet-tab="regular-maintenance"',
+            ),
+        )
+        for asset, _, _, _ in scheduled_assets:
+            asset.scheduled_maintenance_type = 'OIL'
+            asset.scheduled_maintenance_date = today + timedelta(days=7)
+            asset.scheduled_maintenance_description = 'Scheduled service details.'
+            asset.save(update_fields=[
+                'scheduled_maintenance_type',
+                'scheduled_maintenance_date',
+                'scheduled_maintenance_description',
+            ])
+
+        beyond_window = Vehicle.objects.create(
+            model_name='Land Service Beyond Reminder Window',
+            plate_number='LAND-SCHEDULE-08',
+            vehicle_type=self.land_type,
+            scheduled_maintenance_type='TIRES',
+            scheduled_maintenance_date=today + timedelta(days=8),
+        )
+        beyond_sea_window = Vehicle.objects.create(
+            model_name='Sea Service Beyond Reminder Window',
+            plate_number='SEA-SCHEDULE-08',
+            vehicle_type=self.marine_type,
+            scheduled_maintenance_type='TIRES',
+            scheduled_maintenance_date=today + timedelta(days=8),
+        )
+
+        for asset, user, dashboard, schedule_tab in scheduled_assets:
+            with self.subTest(dashboard=dashboard):
+                self.client.force_login(user)
+                response = self.client.get(reverse(dashboard))
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, schedule_tab)
+                self.assertContains(response, 'Regular maintenance due within 7 days')
+                self.assertContains(response, asset.model_name)
+                self.assertContains(response, 'alert alert-info')
+                self.assertContains(response, 'Scheduled Regular Maintenance')
+                self.assertEqual(
+                    [vehicle.pk for vehicle in response.context['scheduled_maintenance_vehicles']],
+                    [asset.pk, beyond_window.pk if asset == self.land_vehicle else beyond_sea_window.pk],
+                )
+                self.assertEqual(
+                    [vehicle.pk for vehicle in response.context['upcoming_scheduled_maintenance_vehicles']],
+                    [asset.pk],
+                )
 
     def test_mechanic_can_schedule_future_preventive_maintenance(self):
         due_date = timezone.localdate() + timedelta(days=30)

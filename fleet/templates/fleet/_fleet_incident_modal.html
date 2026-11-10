@@ -29,7 +29,10 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" for="{{ incident_form.location.id_for_label }}">{{ incident_form.location.label }}</label>
-                            {{ incident_form.location }}
+                            <div class="position-relative">
+                                {{ incident_form.location }}
+                                <div id="incident-location-suggestions" class="list-group position-absolute top-100 start-0 w-100 shadow d-none" role="listbox" style="z-index: 1060; max-height: 16rem; overflow-y: auto;"></div>
+                            </div>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold" for="{{ incident_form.description.id_for_label }}">{{ incident_form.description.label }}</label>
