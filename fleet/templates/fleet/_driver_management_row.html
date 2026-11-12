@@ -1,0 +1,29 @@
+<tr>
+    <td>{{ driver.name }}</td>
+    <td>{% if operator_type == "SEA" or operator_type == "MARINA" %}Seacraft operator{% else %}Land driver{% endif %}</td>
+    <td>{{ driver.license_number|default:"Not recorded" }}</td>
+    <td class="{% if driver.license_expired %}text-danger fw-bold{% endif %}">
+        {{ driver.license_expiry|date:"M j, Y"|default:"Not recorded" }}
+        {% if driver.license_expired %}(Expired){% endif %}
+    </td>
+    <td>
+        {% if driver.license_document %}
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard_portal:logistics_driver_license_document' driver.pk %}" target="_blank" rel="noopener">View license</a>
+        {% else %}<span class="text-muted">No image</span>{% endif %}
+    </td>
+    <td class="text-nowrap">
+        {% if not archived %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-edit-operator
+                data-driver-id="{{ driver.pk }}" data-driver-type="{{ operator_type }}"
+                data-driver-name="{{ driver.name }}" data-driver-license="{{ driver.license_number|default:'' }}"
+                data-driver-class="{{ driver.license_class }}" data-driver-expiry="{{ driver.license_expiry|date:'Y-m-d' }}"
+                data-driver-phone="{{ driver.phone_number|default:'' }}">Edit</button>
+        <form method="post" class="d-inline" action="{% url 'dashboard_portal:logistics_dashboard' %}" onsubmit="return confirm('Archive {{ driver.name|escapejs }}?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="archive_operator">
+            <input type="hidden" name="driver_id" value="{{ driver.pk }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Archive</button>
+        </form>
+        {% else %}<span class="badge text-bg-secondary">Archived</span>{% endif %}
+    </td>
+</tr>

@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const operatorType = formBody.querySelector("[name='operator_type']");
     const documentInput = formBody.querySelector("[data-operator-documents]");
     const documentLabel = formBody.querySelector("[data-operator-document-label]");
+    const scanComplete = formBody.closest("form").querySelector("[data-license-scan-complete]");
 
     formBody.querySelectorAll("[data-operator-document-action]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -36,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     documentInput.addEventListener("change", async () => {
         const files = Array.from(documentInput.files || []);
         if (!files.length) return;
+        scanComplete.value = "false";
         if (files.length > 5) {
             documentInput.value = "";
             setStatus("Select no more than five document images.", true);
@@ -70,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) {
                 throw new Error(result.error || "Could not read the document.");
             }
+            scanComplete.value = "true";
 
             const fields = result.fields || {};
             const suggestions = Object.entries(fields).filter(([, value]) => value);
@@ -85,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let message = result.message;
             if (filledCount) {
-                message = `${filledCount} suggested field(s) filled. Review them before saving. The uploaded image was discarded.`;
+                message = `${filledCount} suggested field(s) filled. Review them before saving. The first selected image will be stored with this operator record.`;
             } else if (suggestions.length) {
                 message = "License details were recognized, but existing values were kept. Clear a field to use its suggestion.";
             }
@@ -96,7 +99,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } finally {
             if (formBody.dataset.ocrRequestId === requestId) {
-                documentInput.value = "";
                 delete formBody.dataset.ocrInProgress;
             }
         }

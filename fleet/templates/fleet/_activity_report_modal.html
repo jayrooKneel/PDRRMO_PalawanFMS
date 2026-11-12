@@ -26,6 +26,16 @@
                             <option value="other">Other maintenance and repairs</option>
                         </select>
                     </div>
+                    <div class="mb-3 d-none" id="report-vehicle-field">
+                        <label for="report-vehicle" class="form-label fw-semibold">Fleet asset</label>
+                        <select id="report-vehicle" name="vehicle_id" class="form-select" disabled>
+                            <option value="">All vehicles and seacraft</option>
+                            {% for vehicle in fleet_assets %}
+                            <option value="{{ vehicle.pk }}">{{ vehicle.model_name }} — {{ vehicle.plate_number }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Choose one asset for its maintenance history, or leave all assets selected.</div>
+                    </div>
                     <div class="mb-3">
                         <label for="report-period" class="form-label fw-semibold">Reporting period</label>
                         <select id="report-period" name="period" class="form-select" required>

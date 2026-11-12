@@ -1,9 +1,13 @@
 document.addEventListener('DOMContentLoaded', function () {
     const reportKind = document.getElementById('report-kind');
     const maintenanceCategoryField = document.getElementById('maintenance-category-field');
-    if (reportKind && maintenanceCategoryField) {
+    const reportVehicleField = document.getElementById('report-vehicle-field');
+    const reportVehicle = document.getElementById('report-vehicle');
+    if (reportKind && maintenanceCategoryField && reportVehicleField && reportVehicle) {
         const updateMaintenanceCategory = () => {
             maintenanceCategoryField.classList.toggle('d-none', reportKind.value !== 'maintenance');
+            reportVehicleField.classList.toggle('d-none', reportKind.value !== 'maintenance');
+            reportVehicle.disabled = reportKind.value !== 'maintenance';
         };
         reportKind.addEventListener('change', updateMaintenanceCategory);
         updateMaintenanceCategory();

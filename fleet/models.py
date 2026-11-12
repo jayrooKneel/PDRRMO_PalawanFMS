@@ -25,6 +25,11 @@ class Driver(models.Model):
     license_number = models.CharField(max_length=50, blank=True, null=True)
     license_class = models.CharField(max_length=100, blank=True)
     license_expiry = models.DateField(blank=True, null=True)
+    license_document = models.ImageField(
+        upload_to='driver_licenses/',
+        blank=True,
+        null=True,
+    )
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     is_active = models.BooleanField(default=True)
 

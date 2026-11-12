@@ -2,17 +2,20 @@ import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 from io import BytesIO
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.auth.models import Group, User
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command, CommandError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 import pytesseract
+from io import StringIO
 
 from .models import (
     Driver,
@@ -25,6 +28,56 @@ from .vehicle_document_ocr import (
     extract_driver_fields_from_text,
     extract_fields_from_text,
 )
+
+
+class SeedDriverDemoDataTests(TestCase):
+    def test_seed_replaces_drivers_and_clears_vehicle_assignments(self):
+        vehicle_type = VehicleType.objects.create(name='TRUCK')
+        old_driver = Driver.objects.create(
+            name='Old Demo Driver',
+            license_number='OLD-001',
+        )
+        vehicle = Vehicle.objects.create(
+            model_name='Assigned Demo Truck',
+            plate_number='DEMO-TRUCK-01',
+            vehicle_type=vehicle_type,
+            assigned_driver=old_driver,
+        )
+
+        call_command(
+            'seed_driver_demo_data',
+            replace=True,
+            stdout=StringIO(),
+        )
+
+        today = timezone.localdate()
+        self.assertEqual(Driver.objects.count(), 100)
+        self.assertEqual(Driver.objects.filter(license_authority='LTO').count(), 50)
+        self.assertEqual(Driver.objects.filter(license_authority='MARINA').count(), 50)
+        self.assertEqual(Driver.objects.filter(license_expiry__lt=today).count(), 50)
+        self.assertEqual(Driver.objects.filter(license_expiry__gte=today).count(), 50)
+        self.assertEqual(
+            Driver.objects.filter(
+                license_expiry__gte=today,
+                license_expiry__lte=today + timedelta(days=30),
+            ).count(),
+            20,
+        )
+        vehicle.refresh_from_db()
+        self.assertIsNone(vehicle.assigned_driver)
+
+    def test_seed_requires_confirmation_and_dry_run_does_not_replace_data(self):
+        old_driver = Driver.objects.create(
+            name='Preserved Demo Driver',
+            license_number='KEEP-001',
+        )
+
+        with self.assertRaises(CommandError):
+            call_command('seed_driver_demo_data', stdout=StringIO())
+
+        call_command('seed_driver_demo_data', dry_run=True, stdout=StringIO())
+
+        self.assertEqual(list(Driver.objects.all()), [old_driver])
 
 
 class LoginViewTests(TestCase):
@@ -80,7 +133,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v5')
+        self.assertContains(response, 'pdrrmo-fms-shell-v6')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -156,6 +209,10 @@ class SystemConsoleTests(TestCase):
         group = Group.objects.create(name='Logistics Officers')
         user = User.objects.create_user(username='logistics_user', password='SecurePass123!')
         user.groups.add(group)
+        Driver.objects.create(
+            name='Management Page Operator',
+            license_number='MANAGEMENT-001',
+        )
         user.is_staff = False
         user.save()
 
@@ -166,11 +223,17 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'id="logisticsMenuDrawer"')
         self.assertContains(response, 'data-menu-action="operators"')
         self.assertContains(response, 'data-menu-action="add-operator"')
+        self.assertContains(response, 'data-menu-action="manage-operators"')
+        self.assertContains(response, 'id="manageOperatorsModal"')
+        self.assertContains(response, 'data-edit-operator')
+        self.assertContains(response, 'value="archive_operator"')
         self.assertContains(response, 'data-menu-action="add-asset"')
+        self.assertContains(response, 'data-menu-action="manage-assets"')
+        self.assertContains(response, 'id="manageAssetsModal"')
         self.assertContains(response, 'data-menu-action="print"')
         self.assertContains(response, 'data-menu-action="view-incidents"')
         self.assertNotContains(response, 'id_license_authority')
-        self.assertContains(response, 'Images are processed locally and discarded after scanning')
+        self.assertContains(response, 'first selected image is saved to the operator record')
         self.assertContains(response, 'data-operator-documents')
         self.assertContains(response, 'data-operator-document-action="camera"')
         self.assertContains(response, 'data-operator-document-action="upload"')
@@ -185,8 +248,9 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'id="fleetIncidentModal"')
         drawer_order = (
             'data-menu-action="add-asset"',
-            'data-menu-action="add-operator"',
+            'data-menu-action="manage-assets"',
             'data-menu-action="operators"',
+            'data-menu-action="add-operator"',
             'data-menu-action="file-incident"',
             'data-menu-action="print-incident"',
             'data-menu-action="generate-report"',
@@ -759,6 +823,87 @@ class LogisticsReportExportTests(TestCase):
                 timezone.get_current_timezone(),
             )
         )
+
+    def test_dashboard_exposes_asset_edit_and_selected_maintenance_controls(self):
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="editFleetAssetForm"')
+        self.assertContains(response, 'name="edit-asset-model_name"')
+        self.assertContains(response, 'data-edit-asset')
+        self.assertContains(response, 'data-open-maintenance-report=')
+        self.assertContains(response, 'id="report-vehicle"')
+        self.assertContains(response, 'All vehicles and seacraft')
+
+    def test_update_vehicle_action_modifies_existing_asset(self):
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'update_vehicle',
+                'vehicle_id': self.vehicle.pk,
+                'edit-asset-model_name': 'Updated Report Vehicle',
+                'edit-asset-plate_number': self.vehicle.plate_number,
+                'edit-asset-vehicle_type': self.land_type.pk,
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.model_name, 'Updated Report Vehicle')
+
+    def test_selected_maintenance_report_only_includes_selected_asset(self):
+        other_vehicle = Vehicle.objects.create(
+            model_name='Other Report Vehicle',
+            plate_number='LAND-REPORT-02',
+            vehicle_type=self.land_type,
+        )
+        content_type = ContentType.objects.get_for_model(Vehicle)
+        for vehicle, description in (
+            (self.vehicle, 'Selected asset maintenance record.'),
+            (other_vehicle, 'Other asset maintenance record.'),
+        ):
+            LogEntry.objects.create(
+                user=self.user,
+                content_type=content_type,
+                object_id=str(vehicle.pk),
+                object_repr=str(vehicle),
+                action_flag=CHANGE,
+                change_message=f'Reported maintenance fault for {vehicle.model_name}: {description}',
+            )
+
+        response = self.client.get(
+            reverse('dashboard_portal:fleet_activity_report'),
+            {
+                'report_kind': 'maintenance',
+                'format': 'csv',
+                'period': 'day',
+                'day': timezone.localdate().isoformat(),
+                'vehicle_id': self.vehicle.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Selected asset maintenance record.', response.content)
+        self.assertNotIn(b'Other asset maintenance record.', response.content)
+
+    def test_logistics_can_edit_incident_report_filed_by_another_user(self):
+        reporter = User.objects.create_user(username='other_incident_reporter')
+        incident = FleetIncident.objects.create(
+            vehicle=self.vehicle,
+            incident_type='DAMAGE',
+            occurred_at=timezone.now(),
+            location='Puerto Princesa',
+            description='Reported by another user.',
+            reported_by=reporter,
+        )
+
+        response = self.client.get(
+            reverse('dashboard_portal:fleet_edit_incident', args=[incident.pk]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Reported by another user.')
 
     def test_menu_report_form_offers_periods_and_export_formats(self):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
@@ -1466,6 +1611,115 @@ class DispatchDashboardAlignmentTests(TestCase):
                 self.assertEqual(operator.license_expiry.isoformat(), '2030-06-19')
                 self.assertEqual(operator.phone_number, '555-0100')
 
+    def test_driver_license_image_is_saved_viewable_editable_and_archivable(self):
+        image_bytes = BytesIO()
+        Image.new('RGB', (12, 12), color='blue').save(image_bytes, format='PNG')
+        image_file = SimpleUploadedFile(
+            'license.png',
+            image_bytes.getvalue(),
+            content_type='image/png',
+        )
+        self.client.force_login(self.logistics_user)
+        dashboard_url = reverse('dashboard_portal:logistics_dashboard')
+
+        with TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                create_response = self.client.post(
+                    dashboard_url,
+                    {
+                        'action': 'add_operator',
+                        'operator_type': 'LAND',
+                        'name': 'Stored License Operator',
+                        'license_number': 'LTO-STORE-001',
+                        'license_class': 'A, B',
+                        'license_expiry': '2032-05-01',
+                        'phone_number': '09170000000',
+                        'license_scan_complete': 'true',
+                        'license_document_images': image_file,
+                    },
+                )
+                self.assertRedirects(create_response, dashboard_url)
+                operator = Driver.objects.get(name='Stored License Operator')
+                self.assertTrue(operator.license_document.name.startswith('driver_licenses/'))
+                license_response = self.client.get(
+                    reverse(
+                        'dashboard_portal:logistics_driver_license_document',
+                        args=[operator.pk],
+                    )
+                )
+                self.assertEqual(license_response.status_code, 200)
+                self.assertEqual(license_response['Content-Type'], 'image/png')
+                self.assertEqual(license_response['Cache-Control'], 'private, no-store')
+                license_response.close()
+
+                update_response = self.client.post(
+                    dashboard_url,
+                    {
+                        'action': 'update_operator',
+                        'driver_id': operator.pk,
+                        'operator_type': 'LAND',
+                        'name': 'Updated License Operator',
+                        'license_number': 'LTO-STORE-002',
+                        'license_class': 'A, B, C',
+                        'license_expiry': '2033-05-01',
+                        'phone_number': '09170000001',
+                    },
+                )
+                self.assertRedirects(update_response, dashboard_url)
+                operator.refresh_from_db()
+                self.assertEqual(operator.name, 'Updated License Operator')
+                self.assertTrue(operator.license_document)
+
+                vehicle = self.create_vehicle(
+                    model_name='Operator Archive Test Vehicle',
+                    plate_number='LAND-ARCHIVE-01',
+                    vehicle_type=self.land_type,
+                    assigned_driver=operator,
+                )
+                archive_response = self.client.post(
+                    dashboard_url,
+                    {
+                        'action': 'archive_operator',
+                        'driver_id': operator.pk,
+                    },
+                    follow=True,
+                )
+                self.assertRedirects(archive_response, dashboard_url)
+                operator.refresh_from_db()
+                vehicle.refresh_from_db()
+                self.assertFalse(operator.is_active)
+                self.assertIsNone(vehicle.assigned_driver)
+                self.assertTrue(operator.license_document)
+
+    def test_driver_license_view_requires_logistics_access(self):
+        image_bytes = BytesIO()
+        Image.new('RGB', (12, 12), color='blue').save(image_bytes, format='PNG')
+        with TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                driver = Driver.objects.create(
+                    name='Private License Operator',
+                    license_number='LTO-PRIVATE-001',
+                )
+                driver.license_document.save(
+                    'private-license.png',
+                    SimpleUploadedFile(
+                        'private-license.png',
+                        image_bytes.getvalue(),
+                        content_type='image/png',
+                    ),
+                )
+                self.client.force_login(
+                    User.objects.create_user(username='unauthorized_license_viewer')
+                )
+                response = self.client.get(
+                    reverse(
+                        'dashboard_portal:logistics_driver_license_document',
+                        args=[driver.pk],
+                    )
+                )
+
+        self.assertEqual(response.status_code, 403)
+
     def test_driver_scan_image_must_be_processed_before_submitting_and_is_not_saved(self):
         self.client.force_login(self.logistics_user)
         response = self.client.post(
@@ -1486,7 +1740,7 @@ class DispatchDashboardAlignmentTests(TestCase):
 
         self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
         self.assertFalse(Driver.objects.filter(name='Unscanned License Operator').exists())
-        self.assertContains(response, 'Scan the license image first and wait for suggestions.')
+        self.assertContains(response, 'Scan the selected license image and wait for OCR to finish before saving.')
 
     def test_logistics_sets_authority_from_operator_type_without_user_input(self):
         self.client.force_login(self.logistics_user)

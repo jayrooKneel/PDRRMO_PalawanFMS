@@ -20,6 +20,11 @@ urlpatterns = [
         name='logistics_operator_document_ocr',
     ),
     path(
+        'logistics/drivers/<int:driver_id>/license/',
+        views.logistics_driver_license_document,
+        name='logistics_driver_license_document',
+    ),
+    path(
         'logistics/registration-documents/<int:document_id>/',
         views.logistics_registration_document,
         name='logistics_registration_document',

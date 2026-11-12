@@ -19,6 +19,16 @@
             reports.scrollIntoView({ behavior: "smooth" });
         } else if (action === "add-operator") {
             showModal("addOperatorModal");
+        } else if (action === "manage-operators") {
+            showModal("manageOperatorsModal");
+        } else if (action === "manage-assets") {
+            showModal("manageAssetsModal");
+        } else if (action === "maintenance-report") {
+            const reportKind = document.getElementById("report-kind");
+            if (!reportKind) throw new Error("Report selection was not found.");
+            reportKind.value = "maintenance";
+            reportKind.dispatchEvent(new Event("change", { bubbles: true }));
+            showModal("generateReportModal");
         } else if (action === "add-asset") {
             showModal("addVehicleModal");
         } else if (action === "generate-report") {
@@ -59,6 +69,46 @@
         } catch (error) {
             console.error(`Could not run logistics menu action "${action}".`, error);
             window.alert("This menu action could not be opened. Please refresh the page and try again.");
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) return;
+        const maintenanceButton = event.target.closest("[data-open-maintenance-report]");
+        if (maintenanceButton) {
+            const reportKind = document.getElementById("report-kind");
+            const reportVehicle = document.getElementById("report-vehicle");
+            if (!reportKind || !reportVehicle) {
+                throw new Error("Maintenance report selection was not found.");
+            }
+            reportKind.value = "maintenance";
+            reportKind.dispatchEvent(new Event("change", { bubbles: true }));
+            reportVehicle.value = maintenanceButton.dataset.openMaintenanceReport;
+            const parentModal = maintenanceButton.closest(".modal");
+            if (parentModal && parentModal.classList.contains("show")) {
+                parentModal.addEventListener("hidden.bs.modal", () => showModal("generateReportModal"), { once: true });
+                window.bootstrap.Modal.getOrCreateInstance(parentModal).hide();
+            } else {
+                showModal("generateReportModal");
+            }
+            return;
+        }
+        const button = event.target.closest("[data-dashboard-action]");
+        if (!button) return;
+        const action = button.dataset.dashboardAction;
+        if (action === "maintenance-report") {
+            const reportKind = document.getElementById("report-kind");
+            if (!reportKind) throw new Error("Report selection was not found.");
+            reportKind.value = "maintenance";
+            reportKind.dispatchEvent(new Event("change", { bubbles: true }));
+            showModal("generateReportModal");
+            return;
+        }
+        try {
+            runAction(action);
+        } catch (error) {
+            console.error(`Could not run dashboard action "${action}".`, error);
+            window.alert("This dashboard action could not be opened. Please refresh the page and try again.");
         }
     });
 })();

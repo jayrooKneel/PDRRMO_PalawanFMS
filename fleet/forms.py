@@ -614,7 +614,7 @@ class OperatorDetailsForm(forms.ModelForm):
             'data-operator-documents': '',
             'multiple': True,
             'capture': 'environment',
-            'hidden': True,
+            'class': 'form-control visually-hidden',
         }),
     )
 
@@ -651,7 +651,10 @@ class OperatorDetailsForm(forms.ModelForm):
 
     def clean_name(self):
         name = self.cleaned_data['name'].strip()
-        if Driver.objects.filter(name__iexact=name).exists():
+        existing_names = Driver.objects.filter(name__iexact=name)
+        if self.instance.pk:
+            existing_names = existing_names.exclude(pk=self.instance.pk)
+        if existing_names.exists():
             raise ValidationError('An operator with this name already exists.')
         return name
 

@@ -1,5 +1,6 @@
 import csv
 import io
+import mimetypes
 from pathlib import Path
 from datetime import date, datetime, time, timedelta
 from xml.sax.saxutils import escape
@@ -645,10 +646,10 @@ def fleet_edit_incident(request, incident_id):
         messages.error(request, "Access restricted to authorized fleet operations and maintenance accounts.")
         return redirect('dashboard_portal:homepage')
 
-    incident = get_object_or_404(
-        FleetIncident.objects.filter(reported_by=request.user).select_related('vehicle__vehicle_type'),
-        pk=incident_id,
-    )
+    incident_queryset = FleetIncident.objects.select_related('vehicle__vehicle_type')
+    if not permissions['is_logistics']:
+        incident_queryset = incident_queryset.filter(reported_by=request.user)
+    incident = get_object_or_404(incident_queryset, pk=incident_id)
 
     vehicle_queryset = Vehicle.objects.select_related('vehicle_type')
     if not permissions['is_logistics']:
@@ -751,6 +752,20 @@ def logistics_generate_report(request):
     if report_format not in {'print', 'csv', 'xlsx', 'pdf'}:
         return HttpResponse("Choose Print, CSV, Excel, or PDF as the export format.", status=400)
 
+    report_vehicle = None
+    vehicle_id = request.GET.get('vehicle_id', '').strip()
+    if vehicle_id and report_kind == 'maintenance':
+        try:
+            report_vehicle = Vehicle.objects.select_related('vehicle_type').get(pk=vehicle_id)
+        except (Vehicle.DoesNotExist, ValueError):
+            return HttpResponse("Choose a valid fleet asset for the maintenance report.", status=400)
+        is_seacraft = report_vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
+        division = 'Seacraft' if is_seacraft else 'Land Asset'
+        if not is_logistics and division not in allowed_divisions:
+            return HttpResponse("You are not authorized to report on this fleet asset.", status=403)
+        report_title = f'{report_title} - {report_vehicle.model_name}'
+        report_heading = f'{report_heading} - {report_vehicle.model_name}'
+
     start_datetime = timezone.make_aware(
         datetime.combine(start_date, time.min),
         timezone.get_current_timezone(),
@@ -845,6 +860,8 @@ def logistics_generate_report(request):
                 | Q(change_message__startswith='Completed maintenance checklist and returned ')
             )
         event_query = event_query.filter(maintenance_events)
+        if report_vehicle:
+            event_query = event_query.filter(object_id=str(report_vehicle.pk))
         category_label = {
             'all': 'All maintenance',
             'regular': 'Regular maintenance (tires and oil)',
@@ -1343,16 +1360,20 @@ def logistics_dashboard(request):
         vehicle_id = request.POST.get('vehicle_id')
 
         if action == 'add_operator':
-            if request.FILES.getlist('license_document_images'):
-                messages.error(
-                    request,
-                    'Scan the license image first and wait for suggestions. '
-                    'Driver document images are not stored.',
-                )
+            if (
+                request.FILES.getlist('license_document_images')
+                and request.POST.get('license_scan_complete') != 'true'
+            ):
+                messages.error(request, 'Scan the selected license image and wait for OCR to finish before saving.')
                 return redirect('dashboard_portal:logistics_dashboard')
-            form = OperatorDetailsForm(request.POST)
+            form = OperatorDetailsForm(request.POST, request.FILES)
             if form.is_valid():
-                operator = form.save()
+                operator = form.save(commit=False)
+                uploaded_images = form.cleaned_data.get('license_document_images', [])
+                if uploaded_images:
+                    operator.license_document = uploaded_images[0]
+                operator.save()
+                form.save_m2m()
                 log_action_to_admin(
                     request,
                     operator,
@@ -1364,6 +1385,77 @@ def logistics_dashboard(request):
                 for errors in form.errors.values():
                     for error in errors:
                         messages.error(request, error)
+            return redirect('dashboard_portal:logistics_dashboard')
+
+        if action == 'update_operator':
+            operator = get_object_or_404(
+                Driver,
+                pk=request.POST.get('driver_id'),
+                is_active=True,
+            )
+            previous_license_name = (
+                operator.license_document.name if operator.license_document else ''
+            )
+            if (
+                request.FILES.getlist('license_document_images')
+                and request.POST.get('license_scan_complete') != 'true'
+            ):
+                messages.error(request, 'Scan the selected license image and wait for OCR to finish before saving.')
+                return redirect('dashboard_portal:logistics_dashboard')
+            form = OperatorDetailsForm(request.POST, request.FILES, instance=operator)
+            if form.is_valid():
+                operator = form.save(commit=False)
+                uploaded_images = form.cleaned_data.get('license_document_images', [])
+                if uploaded_images:
+                    operator.license_document = uploaded_images[0]
+                operator.save()
+                form.save_m2m()
+                if (
+                    uploaded_images
+                    and previous_license_name
+                    and previous_license_name != operator.license_document.name
+                ):
+                    operator.license_document.storage.delete(previous_license_name)
+                log_action_to_admin(
+                    request,
+                    operator,
+                    CHANGE,
+                    f"Updated driver/operator record for {operator.name}.",
+                )
+                messages.success(request, f"Operator details for {operator.name} were updated.")
+            else:
+                for errors in form.errors.values():
+                    for error in errors:
+                        messages.error(request, error)
+            return redirect('dashboard_portal:logistics_dashboard')
+
+        if action == 'archive_operator':
+            operator = get_object_or_404(
+                Driver,
+                pk=request.POST.get('driver_id'),
+                is_active=True,
+            )
+            if hasattr(operator, 'assigned_vehicle') and operator.assigned_vehicle.status in {
+                'DEPLOYED', 'PENDING_DISPOSAL',
+            }:
+                messages.error(
+                    request,
+                    f"Return or reassign {operator.name} before archiving an operator assigned to a deployed or pending-disposal asset.",
+                )
+                return redirect('dashboard_portal:logistics_dashboard')
+            operator.is_active = False
+            operator.save(update_fields=['is_active'])
+            if hasattr(operator, 'assigned_vehicle'):
+                vehicle = operator.assigned_vehicle
+                vehicle.assigned_driver = None
+                vehicle.save(update_fields=['assigned_driver'])
+            log_action_to_admin(
+                request,
+                operator,
+                CHANGE,
+                f"Archived driver/operator record for {operator.name}.",
+            )
+            messages.success(request, f"Operator {operator.name} was archived.")
             return redirect('dashboard_portal:logistics_dashboard')
 
         # ACTION A: DEPLOY VEHICLE (Requires Location, Purpose, Time, & Operator Validation)
@@ -1443,7 +1535,56 @@ def logistics_dashboard(request):
             messages.success(request, f"Asset unit {vehicle.model_name} returned to depot!")
             return redirect('dashboard_portal:logistics_dashboard')
 
-        # ACTION C: NEW ASSET REGISTRATION ONBOARDING
+        # ACTION C: UPDATE AN EXISTING FLEET ASSET
+        elif action == 'update_vehicle':
+            vehicle = get_object_or_404(
+                Vehicle.objects.select_related('vehicle_type', 'assigned_driver'),
+                pk=request.POST.get('vehicle_id'),
+            )
+            form = FleetAssetRegistrationForm(
+                request.POST,
+                request.FILES,
+                prefix='edit-asset',
+                instance=vehicle,
+            )
+            if form.is_valid():
+                updated_vehicle = form.save(commit=False)
+                assigned_driver = vehicle.assigned_driver
+                if assigned_driver and not vehicle_type_matches_operator(
+                    updated_vehicle,
+                    assigned_driver,
+                ):
+                    messages.error(
+                        request,
+                        f"Asset type cannot be changed while {assigned_driver.name} is assigned; assign a qualified operator first.",
+                    )
+                    return redirect('dashboard_portal:logistics_dashboard')
+                if updated_vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}:
+                    updated_vehicle.odometer_km = None
+                else:
+                    updated_vehicle.hull_type = ''
+                    updated_vehicle.length_m = None
+                updated_vehicle.save()
+                for uploaded_file in form.cleaned_data.get('registration_documents', []):
+                    VehicleRegistrationDocument.objects.create(
+                        vehicle=updated_vehicle,
+                        file=uploaded_file,
+                    )
+                log_action_to_admin(
+                    request,
+                    updated_vehicle,
+                    CHANGE,
+                    f"Updated fleet asset record for '{updated_vehicle.model_name}'.",
+                )
+                messages.success(request, f"Fleet asset '{updated_vehicle.model_name}' was updated.")
+            else:
+                for field, errors in form.errors.items():
+                    label = form.fields[field].label if field in form.fields else 'Fleet asset'
+                    for error in errors:
+                        messages.error(request, f"{label}: {error}")
+            return redirect('dashboard_portal:logistics_dashboard')
+
+        # ACTION D: NEW ASSET REGISTRATION ONBOARDING
         elif action == 'add_vehicle':
             if 'asset_count' in request.POST:
                 try:
@@ -1453,6 +1594,7 @@ def logistics_dashboard(request):
                 if not 1 <= asset_count <= 20:
                     messages.error(request, "Add between 1 and 20 fleet assets at a time.")
                     return redirect('dashboard_portal:logistics_dashboard')
+
                 registration_forms = [
                     FleetAssetRegistrationForm(
                         request.POST,
@@ -1610,6 +1752,7 @@ def logistics_dashboard(request):
         'vehicle_type',
         'assigned_driver',
     ).prefetch_related('registration_documents')
+    fleet_assets = list(all_vehicles.exclude(status__in=['ARCHIVED', 'DISPOSED']))
     
     status_order = Case(
         When(status='OPERATIONAL', then=Value(1)),
@@ -1642,10 +1785,11 @@ def logistics_dashboard(request):
     sea_maintenance = [c for c in sea_crafts if c.status in ['MAINTENANCE', 'PENDING_DISPOSAL']]
 
     today = timezone.localdate()
-    all_drivers = list(Driver.objects.filter(is_active=True))
-    for driver in all_drivers:
+    all_driver_records = list(Driver.objects.all())
+    for driver in all_driver_records:
         driver.license_expired = driver_license_is_expired(driver, today)
         driver.license_expiring_soon = driver_license_expires_soon(driver, today)
+    all_drivers = [driver for driver in all_driver_records if driver.is_active]
     sea_drivers = [
         driver for driver in all_drivers
         if driver.license_authority == 'MARINA'
@@ -1685,8 +1829,21 @@ def logistics_dashboard(request):
         'sea_deployed': sea_deployed,
         'sea_maintenance': sea_maintenance,
         'types': types, 
+        'fleet_assets': fleet_assets,
+        'today': today,
+        'fleet_total': len(land_vehicles) + len(sea_crafts),
+        'operational_total': len(land_standby) + len(sea_standby),
+        'deployed_total': len(land_deployed) + len(sea_deployed),
+        'maintenance_total': len(land_maintenance) + len(sea_maintenance),
         'land_drivers': land_drivers,
         'sea_drivers': sea_drivers,
+        'active_driver_total': len(all_drivers),
+        'land_driver_total': len(land_drivers),
+        'sea_operator_total': len(sea_drivers),
+        'license_alert_total': len(expired_assigned_drivers) + len(expiring_assigned_drivers),
+        'archived_drivers': [
+            driver for driver in all_driver_records if not driver.is_active
+        ],
         'assigned_driver_ids': assigned_driver_ids,
         'assigned_driver_map': assigned_driver_map,
         'expired_assigned_drivers': expired_assigned_drivers,
@@ -1695,6 +1852,7 @@ def logistics_dashboard(request):
         'asset_registration_forms': [
             FleetAssetRegistrationForm(prefix='asset-0'),
         ],
+        'fleet_update_form': FleetAssetRegistrationForm(prefix='edit-asset'),
         'incident_form': FleetIncidentForm(
             vehicle_queryset=all_vehicles.select_related('vehicle_type'),
         ),
@@ -1780,6 +1938,28 @@ def logistics_operator_document_ocr(request):
         ),
     })
     response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@login_required
+def logistics_driver_license_document(request, driver_id):
+    if not check_user_role(
+        request.user,
+        'Logistics Officers',
+        ['logistics', 'log', 'depot', 'fleet'],
+    ):
+        return HttpResponseForbidden('Access restricted to Logistics Depot management accounts.')
+
+    driver = get_object_or_404(Driver, pk=driver_id)
+    if not driver.license_document:
+        raise Http404
+    content_type = mimetypes.guess_type(driver.license_document.name)[0] or 'application/octet-stream'
+    response = FileResponse(
+        driver.license_document.open('rb'),
+        content_type=content_type,
+    )
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 

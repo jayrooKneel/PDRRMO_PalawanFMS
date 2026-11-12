@@ -1,0 +1,35 @@
+<tr>
+    <td>
+        <strong>{{ vehicle.model_name }}</strong>
+        <div class="small text-muted">{{ vehicle.vehicle_type.name }} · {{ vehicle.plate_number }}</div>
+    </td>
+    <td><span class="badge {% if vehicle.status == 'OPERATIONAL' %}text-bg-success{% elif vehicle.status == 'DEPLOYED' %}text-bg-primary{% else %}text-bg-warning{% endif %}">{{ vehicle.get_status_display }}</span></td>
+    <td>
+        {% if vehicle.assigned_driver %}
+            <span class="{% if vehicle.assigned_driver.license_expired %}text-danger fw-bold{% endif %}">{{ vehicle.assigned_driver.name }}</span>
+        {% else %}<span class="text-muted">Unassigned</span>{% endif %}
+        <form method="post" action="{% url 'dashboard_portal:logistics_dashboard' %}" class="mt-1">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="set_driver">
+            <input type="hidden" name="vehicle_id" value="{{ vehicle.pk }}">
+            <select name="driver_id" class="form-select form-select-sm" aria-label="Assign operator to {{ vehicle.model_name }}" onchange="this.form.submit()" {% if vehicle.status == 'DEPLOYED' or vehicle.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
+                <option value="">-- Unassign / select --</option>
+                {% for driver in drivers %}
+                    {% if driver.license_expired %}
+                    <option value="{{ driver.pk }}" disabled {% if vehicle.assigned_driver_id == driver.pk %}selected{% endif %}>{{ driver.name }} — EXPIRED</option>
+                    {% elif vehicle.assigned_driver_id == driver.pk %}
+                    <option value="{{ driver.pk }}" selected>{{ driver.name }} — Assigned</option>
+                    {% elif driver.pk not in assigned_driver_ids %}
+                    <option value="{{ driver.pk }}">{{ driver.name }}</option>
+                    {% else %}
+                    <option value="{{ driver.pk }}" disabled>{{ driver.name }} — Assigned elsewhere</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </form>
+    </td>
+    <td>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-edit-asset data-asset-id="{{ vehicle.pk }}">Edit</button>
+        <button type="button" class="btn btn-sm btn-outline-success" data-open-maintenance-report="{{ vehicle.pk }}">Maintenance report</button>
+    </td>
+</tr>
