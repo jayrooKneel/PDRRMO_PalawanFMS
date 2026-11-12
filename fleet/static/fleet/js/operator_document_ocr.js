@@ -76,10 +76,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const fields = result.fields || {};
             const suggestions = Object.entries(fields).filter(([, value]) => value);
+            const replaceLicenseFields =
+                formBody.dataset.replaceLicenseFieldsOnScan === "true";
             let filledCount = 0;
             ["name", "license_number", "license_class", "license_expiry"].forEach((name) => {
                 const field = formBody.querySelector(`[name='${name}']`);
-                if (!field || !fields[name] || field.value) return;
+                const replaceValue = replaceLicenseFields
+                    && ["license_number", "license_class", "license_expiry"].includes(name);
+                if (!field || !fields[name] || (field.value && !replaceValue)) return;
                 field.value = fields[name];
                 field.dispatchEvent(new Event("input", { bubbles: true }));
                 field.dispatchEvent(new Event("change", { bubbles: true }));

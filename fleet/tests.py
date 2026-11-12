@@ -133,7 +133,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v6')
+        self.assertContains(response, 'pdrrmo-fms-shell-v11')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -835,6 +835,22 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'id="report-vehicle"')
         self.assertContains(response, 'All vehicles and seacraft')
 
+    def test_asset_forms_offer_dropdown_suggestions_for_common_details(self):
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        for suggestion_kind in (
+            'make',
+            'model-year',
+            'lto-classification',
+            'fuel-type',
+            'gross-weight',
+            'engine-model',
+        ):
+            self.assertContains(response, f'data-suggestion-kind="{suggestion_kind}"')
+        self.assertContains(response, 'Choose a suggestion or enter a custom value.')
+        self.assertContains(response, 'Dropdown suggestions are available for common values')
+
     def test_update_vehicle_action_modifies_existing_asset(self):
         response = self.client.post(
             reverse('dashboard_portal:logistics_dashboard'),
@@ -1493,6 +1509,32 @@ class DispatchDashboardAlignmentTests(TestCase):
         sea_vehicle.refresh_from_db()
         self.assertEqual(sea_vehicle.status, 'OPERATIONAL')
 
+    def test_logistics_deployment_modal_receives_active_land_operator_data(self):
+        Driver.objects.create(
+            name='Available Land Deployment Driver',
+            license_number='LTO-DEPLOY-AVAILABLE',
+            license_expiry=timezone.localdate() + timedelta(days=60),
+        )
+        Driver.objects.create(
+            name='Expired Land Deployment Driver',
+            license_number='LTO-DEPLOY-EXPIRED',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        self.create_vehicle(
+            model_name='Deployment Operator Test Vehicle',
+            plate_number='LAND-DEPLOY-OPERATORS',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'src="/static/fleet/js/logistics_deployment.js"')
+        self.assertContains(response, '"name": "Available Land Deployment Driver"')
+        self.assertContains(response, '"name": "Expired Land Deployment Driver"')
+        self.assertContains(response, '"license_expired": true')
+
     def create_vehicle(self, *, model_name, plate_number, vehicle_type, **kwargs):
         return Vehicle.objects.create(
             model_name=model_name,
@@ -1782,7 +1824,7 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(operator.license_number, 'MRA-601')
 
     def test_logistics_assignment_drawer_saves_on_dropdown_change(self):
-        self.create_vehicle(
+        vehicle = self.create_vehicle(
             model_name='Assignment Drawer Test Vehicle',
             plate_number='LAND-DRAWER-01',
             vehicle_type=self.land_type,
@@ -1791,8 +1833,207 @@ class DispatchDashboardAlignmentTests(TestCase):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
 
         self.assertNotContains(response, 'Save All Operator Assignments')
-        self.assertContains(response, 'onchange="this.form.submit()"')
-        self.assertContains(response, 'name="action" value="set_driver"')
+        self.assertContains(response, 'data-driver-assignment-form')
+        self.assertContains(response, 'data-assignment-status')
+        self.assertNotContains(response, 'onchange="this.form.submit()"')
+        self.assertNotContains(response, 'name="action" value="set_driver"')
+        self.assertContains(
+            response,
+            reverse('dashboard_portal:logistics_assign_driver', args=[vehicle.pk]),
+        )
+
+    def test_driver_assignment_lists_are_alphabetical_across_statuses(self):
+        land_zulu = Driver.objects.create(
+            name='Zulu Expired Driver',
+            license_number='LAND-ALPHA-03',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        land_assigned = Driver.objects.create(
+            name='Bravo Assigned Driver',
+            license_number='LAND-ALPHA-02',
+        )
+        Driver.objects.create(
+            name='Alpha Available Driver',
+            license_number='LAND-ALPHA-01',
+        )
+        self.create_vehicle(
+            model_name='Already Assigned Vehicle',
+            plate_number='LAND-ALPHA-VEHICLE',
+            vehicle_type=self.land_type,
+            assigned_driver=land_assigned,
+        )
+        self.create_vehicle(
+            model_name='Expired Assignment Vehicle',
+            plate_number='LAND-ALPHA-EXPIRED',
+            vehicle_type=self.land_type,
+            assigned_driver=land_zulu,
+        )
+
+        sea_assigned = Driver.objects.create(
+            name='Sierra Assigned Operator',
+            license_number='MAR-ALPHA-02',
+        )
+        Driver.objects.create(
+            name='Charlie Available Operator',
+            license_number='MAR-ALPHA-01',
+        )
+        self.create_vehicle(
+            model_name='Assigned Seacraft',
+            plate_number='SEA-ALPHA-01',
+            vehicle_type=self.marine_type,
+            assigned_driver=sea_assigned,
+        )
+
+        self.client.force_login(self.logistics_user)
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(
+            [driver.name for driver in response.context['land_drivers']],
+            ['Alpha Available Driver', 'Bravo Assigned Driver', 'Zulu Expired Driver'],
+        )
+        self.assertEqual(
+            [driver.name for driver in response.context['sea_drivers']],
+            ['Charlie Available Operator', 'Qualified Maritime Operator', 'Sierra Assigned Operator'],
+        )
+
+    def test_seacraft_dispatch_assignment_operators_are_alphabetical(self):
+        Driver.objects.create(name='Zulu Marina Operator', license_number='MAR-ZULU')
+        Driver.objects.create(name='Alpha Marina Operator', license_number='MAR-ALPHA')
+
+        self.client.force_login(self.seacraft_user)
+        response = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [driver.name for driver in response.context['drivers']],
+            ['Alpha Marina Operator', 'Qualified Maritime Operator', 'Zulu Marina Operator'],
+        )
+
+    def test_ajax_driver_assignment_keeps_drawer_open_and_returns_json(self):
+        driver = Driver.objects.create(
+            name='AJAX Assignment Driver',
+            license_number='LAND-AJAX-01',
+        )
+        vehicle = self.create_vehicle(
+            model_name='AJAX Assignment Vehicle',
+            plate_number='LAND-AJAX-01',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'set_driver',
+                'vehicle_id': vehicle.pk,
+                'driver_id': driver.pk,
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            HTTP_ACCEPT='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        self.assertEqual(response.json()['driver_id'], driver.pk)
+        self.assertEqual(response.json()['vehicle_id'], vehicle.pk)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.assigned_driver, driver)
+
+    def test_logistics_driver_assignment_endpoint_saves_assignment(self):
+        driver = Driver.objects.create(
+            name='Dedicated Endpoint Driver',
+            license_number='LAND-ENDPOINT-01',
+        )
+        vehicle = self.create_vehicle(
+            model_name='Dedicated Endpoint Vehicle',
+            plate_number='LAND-ENDPOINT-01',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_assign_driver', args=[vehicle.pk]),
+            {'driver_id': driver.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertEqual(response.json()['vehicle_id'], vehicle.pk)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.assigned_driver, driver)
+
+    def test_logistics_driver_assignment_endpoint_returns_json_for_missing_vehicle(self):
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_assign_driver', args=[999999]),
+            {'driver_id': ''},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.json()['ok'])
+        self.assertIn('no longer exists', response.json()['message'])
+
+    def test_logistics_driver_assignment_endpoint_reports_assignment_conflict(self):
+        driver = Driver.objects.create(
+            name='Already Assigned Endpoint Driver',
+            license_number='LAND-ENDPOINT-02',
+        )
+        self.create_vehicle(
+            model_name='Existing Assigned Endpoint Vehicle',
+            plate_number='LAND-ENDPOINT-EXISTING',
+            vehicle_type=self.land_type,
+            assigned_driver=driver,
+        )
+        target_vehicle = self.create_vehicle(
+            model_name='Target Endpoint Vehicle',
+            plate_number='LAND-ENDPOINT-TARGET',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_assign_driver', args=[target_vehicle.pk]),
+            {'driver_id': driver.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(response.json()['ok'])
+        self.assertIn('already assigned', response.json()['message'])
+        target_vehicle.refresh_from_db()
+        self.assertIsNone(target_vehicle.assigned_driver)
+
+    def test_ajax_driver_assignment_returns_validation_errors_without_redirect(self):
+        expired_driver = Driver.objects.create(
+            name='AJAX Expired Driver',
+            license_number='LAND-AJAX-EXPIRED',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        vehicle = self.create_vehicle(
+            model_name='AJAX Expired Assignment Vehicle',
+            plate_number='LAND-AJAX-EXPIRED',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'set_driver',
+                'vehicle_id': vehicle.pk,
+                'driver_id': expired_driver.pk,
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+        self.assertIn('Assignment denied', response.json()['message'])
+        vehicle.refresh_from_db()
+        self.assertIsNone(vehicle.assigned_driver)
 
     def test_expired_assigned_operator_is_red_disabled_and_alerted(self):
         today = timezone.localdate()
@@ -1833,6 +2074,10 @@ class DispatchDashboardAlignmentTests(TestCase):
         )
         self.assertContains(response, 'Expired operator licenses')
         self.assertContains(response, 'License expiry reminders')
+        self.assertContains(response, 'id="expired-license-alert"')
+        self.assertContains(response, 'id="expiring-license-alert"')
+        self.assertContains(response, 'data-bs-dismiss="alert"')
+        self.assertEqual(response.content.count(b'data-license-refresh="true">Fix now!</button>'), 2)
         self.assertContains(response, 'Expired Land Operator')
         self.assertContains(response, 'Expiring Land Operator')
         self.assertContains(

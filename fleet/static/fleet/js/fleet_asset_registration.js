@@ -1,12 +1,43 @@
 document.addEventListener("DOMContentLoaded", function () {
     const assetEntries = document.getElementById("assetRegistrationEntries");
     const assetCount = document.getElementById("assetCount");
-    if (!assetEntries || !assetCount) return;
 
     const makes = {
-        land: ["Ford", "Honda", "Hyundai", "Isuzu", "Kia", "Mitsubishi", "Nissan", "Suzuki", "Toyota"],
+        land: ["Chevrolet", "Ford", "Foton", "Hino", "Honda", "Hyundai", "Isuzu", "Kia", "Mazda", "Mitsubishi", "Nissan", "Suzuki", "Toyota"],
         sea: ["Honda Marine", "Kawasaki", "Mercury", "Sea-Doo", "Suzuki Marine", "Yamaha Marine"],
     };
+    const suggestions = {
+        "model-year": Array.from({ length: new Date().getFullYear() - 1979 }, (_, index) =>
+            String(new Date().getFullYear() - index)),
+        "fuel-type": ["Diesel", "Gasoline", "Hybrid", "LPG", "Electric", "Biodiesel", "Kerosene"],
+        "lto-classification": ["Private", "For Hire", "Government", "Diplomatic", "Tourist", "PUJ", "PUB", "Taxi", "UV Express", "School Service", "Truck"],
+        "gross-weight": ["1500", "2500", "3500", "5000", "7500", "10000", "15000", "25000"],
+        "engine-model": ["1GD-FTV", "2GD-FTV", "1KD-FTV", "2KD-FTV", "4JJ1", "4HK1", "4D56", "4N15", "4N16", "4M40", "4M41"],
+    };
+
+    function updateSuggestions(root, seaAsset = false) {
+        root.querySelectorAll("[data-suggestion-kind]").forEach((input) => {
+            const kind = input.dataset.suggestionKind;
+            const id = `${input.id}-suggestions`;
+            let list = root.querySelector(`#${CSS.escape(id)}`);
+            if (!list) {
+                list = document.createElement("datalist");
+                list.id = id;
+                input.insertAdjacentElement("afterend", list);
+            }
+            input.setAttribute("list", id);
+            const values = kind === "make" ? (seaAsset ? makes.sea : makes.land) : suggestions[kind] || [];
+            list.replaceChildren(...values.map((value) => {
+                const option = document.createElement("option");
+                option.value = value;
+                return option;
+            }));
+        });
+    }
+
+    updateSuggestions(document.getElementById("editFleetAssetForm") || document);
+
+    if (!assetEntries || !assetCount) return;
 
     function updateAssetEntry(entry) {
         const typeSelect = entry.querySelector("[data-vehicle-type]");
@@ -23,15 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
 
-        const makeInput = entry.querySelector("[data-make-input]");
-        const makeList = entry.querySelector("datalist");
-        if (makeInput && makeList) {
-            makeList.replaceChildren(...(seaAsset ? makes.sea : makes.land).map((make) => {
-                const option = document.createElement("option");
-                option.value = make;
-                return option;
-            }));
-        }
+        updateSuggestions(entry, seaAsset);
 
         const documentInput = entry.querySelector("[data-registration-documents]");
         documentInput.dataset.ocrReady = String(Boolean(typeSelect.value));

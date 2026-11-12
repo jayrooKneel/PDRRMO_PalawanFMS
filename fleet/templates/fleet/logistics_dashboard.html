@@ -187,23 +187,39 @@
             </div>
         </section>
         {% if expired_assigned_drivers %}
-        <div class="alert alert-danger" role="alert">
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" id="expired-license-alert">
             <h5 class="alert-heading"><i class="fa-solid fa-triangle-exclamation me-2"></i>Expired operator licenses</h5>
             <ul class="mb-0">
                 {% for assignment in expired_assigned_drivers %}
-                <li><strong>{{ assignment.driver.name }}</strong> has an expired license ({{ assignment.driver.license_expiry|date:"M j, Y" }}) and is assigned to {{ assignment.vehicle.model_name }}. Reassign an eligible operator.</li>
+                <li class="mb-2">
+                    <strong>{{ assignment.driver.name }}</strong> has an expired license ({{ assignment.driver.license_expiry|date:"M j, Y" }}) and is assigned to {{ assignment.vehicle.model_name }}.
+                    <button type="button" class="btn btn-sm btn-danger ms-2" data-edit-operator
+                            data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
+                            data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
+                            data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
+                            data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
+                </li>
                 {% endfor %}
             </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close expired license alerts"></button>
         </div>
         {% endif %}
         {% if expiring_assigned_drivers %}
-        <div class="alert alert-warning" role="alert">
+        <div class="alert alert-warning alert-dismissible fade show" role="alert" id="expiring-license-alert">
             <h5 class="alert-heading"><i class="fa-solid fa-clock me-2"></i>License expiry reminders</h5>
             <ul class="mb-0">
                 {% for assignment in expiring_assigned_drivers %}
-                <li><strong>{{ assignment.driver.name }}</strong>'s license expires {{ assignment.driver.license_expiry|date:"M j, Y" }} (within 30 days); currently assigned to {{ assignment.vehicle.model_name }}.</li>
+                <li class="mb-2">
+                    <strong>{{ assignment.driver.name }}</strong>'s license expires {{ assignment.driver.license_expiry|date:"M j, Y" }} (within 30 days); currently assigned to {{ assignment.vehicle.model_name }}.
+                    <button type="button" class="btn btn-sm btn-warning ms-2" data-edit-operator
+                            data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
+                            data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
+                            data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
+                            data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
+                </li>
                 {% endfor %}
             </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close license expiry reminders"></button>
         </div>
         {% endif %}
 
@@ -816,30 +832,31 @@
                     <div id="collapseLand" class="accordion-collapse collapse show" data-bs-parent="#drawerAccordion">
                         <div class="accordion-body bg-white p-3" data-dashboard-refresh-content="logistics-land-assignments">
                             {% for vehicle in land_vehicles %}
-                            <div class="border-bottom pb-3 mb-3">
+                            <div class="border-bottom pb-3 mb-3" data-driver-assignment-row>
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <strong class="text-dark small">{{ vehicle.model_name }}</strong>
                                     <span class="badge bg-secondary font-monospace">{{ vehicle.plate_number }}</span>
                                 </div>
-                                <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="d-flex gap-2">
+                                <span class="small text-muted d-block mb-1" data-assigned-driver-label>{% if vehicle.assigned_driver %}Assigned: {{ vehicle.assigned_driver.name }}{% else %}Unassigned{% endif %}</span>
+                                <form action="{% url 'dashboard_portal:logistics_assign_driver' vehicle.pk %}" method="post" class="d-flex gap-2" data-driver-assignment-form>
                                     {% csrf_token %}
-                                    <input type="hidden" name="action" value="set_driver">
                                     <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
-                                    <select name="driver_id" class="form-select form-select-sm" onchange="this.form.submit()" {% if vehicle.status == 'DEPLOYED' or vehicle.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
+                                    <select name="driver_id" class="form-select form-select-sm" data-current-driver="{{ vehicle.assigned_driver_id|default:'' }}" {% if vehicle.status == 'DEPLOYED' or vehicle.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in land_drivers %}
                                             {% if driver.license_expired %}
-                                                <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="true" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
                                             {% elif vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %}
-                                                <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.id not in assigned_driver_ids %}
-                                                <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
                                             {% else %}
-                                                <option value="{{ driver.id }}" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
                                             {% endif %}
                                         {% endfor %}
                                     </select>
                                 </form>
+                                <span class="small d-block mt-1" role="status" aria-live="polite" data-assignment-status></span>
                             </div>
                             {% empty %}
                             <div class="small text-muted">No land vehicles registered.</div>
@@ -857,30 +874,31 @@
                     <div id="collapseSea" class="accordion-collapse collapse" data-bs-parent="#drawerAccordion">
                         <div class="accordion-body bg-white p-3" data-dashboard-refresh-content="logistics-sea-assignments">
                             {% for craft in sea_crafts %}
-                            <div class="border-bottom pb-3 mb-3">
+                            <div class="border-bottom pb-3 mb-3" data-driver-assignment-row>
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <strong class="text-dark small">{{ craft.model_name }}</strong>
                                     <span class="badge bg-secondary font-monospace">{{ craft.plate_number }}</span>
                                 </div>
-                                <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="d-flex gap-2">
+                                <span class="small text-muted d-block mb-1" data-assigned-driver-label>{% if craft.assigned_driver %}Assigned: {{ craft.assigned_driver.name }}{% else %}Unassigned{% endif %}</span>
+                                <form action="{% url 'dashboard_portal:logistics_assign_driver' craft.pk %}" method="post" class="d-flex gap-2" data-driver-assignment-form>
                                     {% csrf_token %}
-                                    <input type="hidden" name="action" value="set_driver">
                                     <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
-                                    <select name="driver_id" class="form-select form-select-sm" onchange="this.form.submit()" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
+                                    <select name="driver_id" class="form-select form-select-sm" data-current-driver="{{ craft.assigned_driver_id|default:'' }}" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in sea_drivers %}
                                             {% if driver.license_expired %}
-                                                <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="true" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
                                             {% elif craft.assigned_driver and craft.assigned_driver.id == driver.id %}
-                                                <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.id not in assigned_driver_ids %}
-                                                <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
                                             {% else %}
-                                                <option value="{{ driver.id }}" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
                                             {% endif %}
                                         {% endfor %}
                                     </select>
                                 </form>
+                                <span class="small d-block mt-1" role="status" aria-live="polite" data-assignment-status></span>
                             </div>
                             {% empty %}
                             <div class="small text-muted">No seacrafts registered.</div>
@@ -987,7 +1005,7 @@
                             <div class="col-12">
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.registration_documents.id_for_label }}">{{ asset_registration_form.registration_documents.label }}</label>
                                 {{ asset_registration_form.registration_documents }}
-                                <div class="form-text">Upload LTO Form 3 / OR-CR photos for land assets or MARINA documents for seacraft. Up to 5 clear JPEG, PNG, or WebP images (10 MB each). Local OCR suggests values; verify them before saving. Images remain private attachments.</div>
+                                <div class="form-text">Upload LTO Form 3 / OR-CR photos for land assets or MARINA documents for seacraft. Up to 5 clear JPEG, PNG, or WebP images (10 MB each). Local OCR suggests values; verify them before saving. Dropdown suggestions are available for common values, and you can still type a custom value. Images remain private attachments.</div>
                                 <div class="small mt-1" data-ocr-status role="status" aria-live="polite"></div>
                             </div>
                             <div class="col-12" data-asset-fields="land">
@@ -1134,6 +1152,9 @@
                             <div class="{% if field.name == 'registration_documents' %}col-12{% else %}col-md-6{% endif %}">
                                 <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 {{ field }}
+                                {% if field.name == 'make' or field.name == 'model_year' or field.name == 'vehicle_classification' or field.name == 'fuel_type' or field.name == 'gross_vehicle_weight' or field.name == 'engine_details' %}
+                                <div class="form-text">Choose a suggestion or enter a custom value.</div>
+                                {% endif %}
                                 {% for error in field.errors %}<div class="small text-danger">{{ error }}</div>{% endfor %}
                             </div>
                             {% endfor %}
@@ -1246,73 +1267,12 @@
     <script src="{% static 'fleet/js/fleet_asset_registration.js' %}"></script>
     <script src="{% static 'fleet/js/operator_document_ocr.js' %}"></script>
     <script src="{% static 'fleet/js/logistics_menu.js' %}"></script>
+    <script src="{% static 'fleet/js/logistics_deployment.js' %}"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const operatorModal = document.getElementById("addOperatorModal");
-            const operatorForm = operatorModal.querySelector("form");
-            const operatorModalTitle = document.getElementById("addOperatorModalLabel");
-            const operatorAction = operatorForm.querySelector("[data-operator-action]");
-            const operatorId = operatorForm.querySelector("[data-operator-id]");
+            const operatorForm = document.querySelector("#addOperatorModal form");
             const operatorType = operatorForm.querySelector("[name='operator_type']");
-            const licenseInput = operatorForm.querySelector("[data-operator-documents]");
-
-            function prepareOperatorForm(operator = null) {
-                operatorForm.reset();
-                operatorAction.value = operator ? "update_operator" : "add_operator";
-                operatorId.value = operator ? operator.id : "";
-                operatorModalTitle.textContent = operator ? "Edit Driver / Operator" : "Add Driver / Operator Details";
-                operatorForm.querySelector("button[type='submit']").innerHTML = operator
-                    ? '<i class="fa-solid fa-floppy-disk me-1"></i>Update Operator'
-                    : '<i class="fa-solid fa-floppy-disk me-1"></i>Save Operator';
-                if (!operator) {
-                    if (licenseInput) licenseInput.removeAttribute("capture");
-                    return;
-                }
-                operatorType.value = operator.type === "MARINA" || operator.type === "SEA" ? "SEA" : "LAND";
-                operatorForm.querySelector("[name='name']").value = operator.name;
-                operatorForm.querySelector("[name='license_number']").value = operator.license;
-                operatorForm.querySelector("[name='license_class']").value = operator.licenseClass;
-                operatorForm.querySelector("[name='license_expiry']").value = operator.expiry;
-                operatorForm.querySelector("[name='phone_number']").value = operator.phone;
-                if (licenseInput) licenseInput.removeAttribute("capture");
-                operatorModal.querySelector("[data-operator-ocr-status]").textContent =
-                    "Select a replacement license image to scan and store it; otherwise the saved image is kept.";
-            }
-
-            let pendingOperatorEdit = null;
-            document.querySelectorAll("[data-edit-operator]").forEach((button) => {
-                button.addEventListener("click", () => {
-                    const manager = document.getElementById("manageOperatorsModal");
-                    pendingOperatorEdit = {
-                        id: button.dataset.driverId,
-                        type: button.dataset.driverType,
-                        name: button.dataset.driverName,
-                        license: button.dataset.driverLicense,
-                        licenseClass: button.dataset.driverClass,
-                        expiry: button.dataset.driverExpiry,
-                        phone: button.dataset.driverPhone,
-                    };
-                    bootstrap.Modal.getOrCreateInstance(manager).hide();
-                });
-            });
-            document.querySelectorAll("[data-menu-action='add-operator'], [data-open-add-operator]").forEach((button) => {
-                button.addEventListener("click", () => prepareOperatorForm());
-            });
-            document.getElementById("manageOperatorsModal").addEventListener("hidden.bs.modal", (event) => {
-                if (pendingOperatorEdit) {
-                    prepareOperatorForm(pendingOperatorEdit);
-                    pendingOperatorEdit = null;
-                    bootstrap.Modal.getOrCreateInstance(operatorModal).show();
-                    return;
-                }
-                if (event.target.dataset.openAddOperator !== "true") return;
-                delete event.target.dataset.openAddOperator;
-                bootstrap.Modal.getOrCreateInstance(operatorModal).show();
-            });
-            document.querySelector("[data-open-add-operator]").addEventListener("click", (event) => {
-                event.currentTarget.closest(".modal").dataset.openAddOperator = "true";
-            });
 
             const assetForm = document.getElementById("editFleetAssetForm");
             const assetModal = document.getElementById("editVehicleModal");
@@ -1441,15 +1401,21 @@
                         } else if (currentDriverId && String(driver.id) === String(currentDriverId)) {
                             option.textContent = `👤 ${driver.name} [Assigned to this Fleet]`;
                             option.selected = true;
+                            option.style.color = '#8a6d00';
+                            option.style.fontWeight = '700';
                             driverFound = true;
                         } else if (!assignedVehicle) {
                             option.textContent = `👤 ${driver.name} [Standby & Available]`;
                         } else if (assignedVehicle.status === 'MAINTENANCE' || assignedVehicle.status === 'PENDING_DISPOSAL') {
                             option.textContent = `👤 ${driver.name} [Assigned to ${assignedVehicle.model_name} (Under Maintenance) - Reassignable]`;
                             option.disabled = false;
+                            option.style.color = '#8a6d00';
+                            option.style.fontWeight = '700';
                         } else {
                             option.textContent = `👤 ${driver.name} [Assigned to ${assignedVehicle.model_name} (${assignedVehicle.status})]`;
                             option.disabled = true;
+                            option.style.color = '#8a6d00';
+                            option.style.fontWeight = '700';
                         }
 
                         driverSelect.appendChild(option);

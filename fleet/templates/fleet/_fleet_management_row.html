@@ -1,4 +1,4 @@
-<tr>
+<tr data-driver-assignment-row>
     <td>
         <strong>{{ vehicle.model_name }}</strong>
         <div class="small text-muted">{{ vehicle.vehicle_type.name }} · {{ vehicle.plate_number }}</div>
@@ -6,26 +6,26 @@
     <td><span class="badge {% if vehicle.status == 'OPERATIONAL' %}text-bg-success{% elif vehicle.status == 'DEPLOYED' %}text-bg-primary{% else %}text-bg-warning{% endif %}">{{ vehicle.get_status_display }}</span></td>
     <td>
         {% if vehicle.assigned_driver %}
-            <span class="{% if vehicle.assigned_driver.license_expired %}text-danger fw-bold{% endif %}">{{ vehicle.assigned_driver.name }}</span>
-        {% else %}<span class="text-muted">Unassigned</span>{% endif %}
-        <form method="post" action="{% url 'dashboard_portal:logistics_dashboard' %}" class="mt-1">
+            <span class="{% if vehicle.assigned_driver.license_expired %}text-danger fw-bold{% endif %}" data-assigned-driver-label>Assigned: {{ vehicle.assigned_driver.name }}</span>
+        {% else %}<span class="text-muted" data-assigned-driver-label>Unassigned</span>{% endif %}
+        <form method="post" action="{% url 'dashboard_portal:logistics_assign_driver' vehicle.pk %}" class="mt-1" data-driver-assignment-form>
             {% csrf_token %}
-            <input type="hidden" name="action" value="set_driver">
             <input type="hidden" name="vehicle_id" value="{{ vehicle.pk }}">
-            <select name="driver_id" class="form-select form-select-sm" aria-label="Assign operator to {{ vehicle.model_name }}" onchange="this.form.submit()" {% if vehicle.status == 'DEPLOYED' or vehicle.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
+            <select name="driver_id" class="form-select form-select-sm" aria-label="Assign operator to {{ vehicle.model_name }}" data-current-driver="{{ vehicle.assigned_driver_id|default:'' }}" {% if vehicle.status == 'DEPLOYED' or vehicle.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                 <option value="">-- Unassign / select --</option>
                 {% for driver in drivers %}
                     {% if driver.license_expired %}
-                    <option value="{{ driver.pk }}" disabled {% if vehicle.assigned_driver_id == driver.pk %}selected{% endif %}>{{ driver.name }} — EXPIRED</option>
+                    <option value="{{ driver.pk }}" data-driver-id="{{ driver.pk }}" data-license-expired="true" disabled {% if vehicle.assigned_driver_id == driver.pk %}selected{% endif %}>{{ driver.name }} — EXPIRED</option>
                     {% elif vehicle.assigned_driver_id == driver.pk %}
-                    <option value="{{ driver.pk }}" selected>{{ driver.name }} — Assigned</option>
+                    <option value="{{ driver.pk }}" data-driver-id="{{ driver.pk }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" selected>{{ driver.name }} — Assigned</option>
                     {% elif driver.pk not in assigned_driver_ids %}
-                    <option value="{{ driver.pk }}">{{ driver.name }}</option>
+                    <option value="{{ driver.pk }}" data-driver-id="{{ driver.pk }}" data-license-expired="false">{{ driver.name }}</option>
                     {% else %}
-                    <option value="{{ driver.pk }}" disabled>{{ driver.name }} — Assigned elsewhere</option>
+                    <option value="{{ driver.pk }}" data-driver-id="{{ driver.pk }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" disabled>{{ driver.name }} — Assigned elsewhere</option>
                     {% endif %}
                 {% endfor %}
             </select>
+            <span class="small d-block mt-1" role="status" aria-live="polite" data-assignment-status></span>
         </form>
     </td>
     <td>

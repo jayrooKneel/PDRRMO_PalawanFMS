@@ -224,13 +224,13 @@
                                             {% if driver.license_expired %}
                                                 <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
                                             {% elif craft.assigned_driver and craft.assigned_driver.id == driver.id %}
-                                                <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
+                                                <option value="{{ driver.id }}" style="color: #8a6d00; font-weight: 700;" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.reassignment_source_vehicle and driver.reassignment_source_vehicle.is_seacraft and driver.reassignment_source_vehicle.status == 'OPERATIONAL' %}
-                                                <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Reassign from {{ driver.reassignment_source_vehicle.model_name }}]</option>
+                                                <option value="{{ driver.id }}" style="color: #8a6d00; font-weight: 700;">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Reassign from {{ driver.reassignment_source_vehicle.model_name }}]</option>
                                             {% elif driver.id not in assigned_driver_ids %}
                                                 <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
                                             {% else %}
-                                                <option value="{{ driver.id }}" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
+                                                <option value="{{ driver.id }}" style="color: #8a6d00; font-weight: 700;" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
                                             {% endif %}
                                         {% endfor %}
                                     </select>
@@ -1063,15 +1063,21 @@
                         } else if (currentDriverId && String(driver.id) === String(currentDriverId)) {
                             option.textContent = `👤 ${driver.name} [Assigned to this Vessel]`;
                             option.selected = true;
+                            option.style.color = '#8a6d00';
+                            option.style.fontWeight = '700';
                             driverFound = true;
                         } else if (!assignedVehicle) {
                             option.textContent = `👤 ${driver.name} [Standby & Available]`;
                         } else if (assignedVehicle.status === 'MAINTENANCE' || assignedVehicle.status === 'PENDING_DISPOSAL') {
                             option.textContent = `👤 ${driver.name} [Assigned to ${assignedVehicle.model_name} (Under Maintenance) - Reassignable]`;
                             option.disabled = false;
+                            option.style.color = '#8a6d00';
+                            option.style.fontWeight = '700';
                         } else {
                             option.textContent = `👤 ${driver.name} [Assigned to ${assignedVehicle.model_name} (${assignedVehicle.status})]`;
                             option.disabled = true;
+                            option.style.color = '#8a6d00';
+                            option.style.fontWeight = '700';
                         }
 
                         driverSelect.appendChild(option);

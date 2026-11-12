@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import mimetypes
 from pathlib import Path
 from datetime import date, datetime, time, timedelta
@@ -393,6 +394,69 @@ def assign_vehicle_operator(vehicle, driver, allow_seacraft_reassignment=False):
 
     vehicle.assigned_driver = driver
     return None
+
+
+def save_vehicle_driver_assignment(request, vehicle):
+    previous_driver_id = vehicle.assigned_driver_id
+    released_vehicle_id = None
+
+    def assignment_response(message, success, status=200):
+        return JsonResponse({
+            'ok': success,
+            'message': message,
+            'vehicle_id': vehicle.pk,
+            'previous_driver_id': previous_driver_id,
+            'released_vehicle_id': released_vehicle_id or '',
+            'driver_id': vehicle.assigned_driver_id or '',
+            'driver_name': vehicle.assigned_driver.name if vehicle.assigned_driver else '',
+        }, status=status)
+
+    if vehicle.status in {'DEPLOYED', 'PENDING_DISPOSAL', 'ARCHIVED'}:
+        return assignment_response(
+            f"Operator assignments cannot be changed while '{vehicle.model_name}' is {vehicle.get_status_display().lower()}.",
+            False,
+            409,
+        )
+
+    driver_id = request.POST.get('driver_id')
+    if driver_id:
+        driver_obj = Driver.objects.filter(pk=driver_id, is_active=True).first()
+        if driver_obj is None or not vehicle_type_matches_operator(vehicle, driver_obj):
+            return assignment_response(
+                "Select an active operator qualified for this vehicle type.",
+                False,
+                400,
+            )
+        if driver_license_is_expired(driver_obj):
+            return assignment_response(
+                f"Assignment denied: {driver_obj.name}'s license expired on {driver_obj.license_expiry:%b %d, %Y}. Select an operator with a current license.",
+                False,
+                400,
+            )
+        message = f"Assigned operator {driver_obj.name} to {vehicle.model_name}."
+    else:
+        driver_obj = None
+        vehicle.assigned_driver = None
+        message = f"Removed driver assignment from asset {vehicle.model_name}."
+
+    with transaction.atomic():
+        if driver_obj:
+            previous_assignment = Vehicle.objects.filter(
+                assigned_driver=driver_obj,
+            ).exclude(pk=vehicle.pk).first()
+            conflicting_vehicle = assign_vehicle_operator(vehicle, driver_obj)
+            if conflicting_vehicle:
+                return assignment_response(
+                    f"RESTRICTION: Personnel '{driver_obj.name}' is already assigned to active fleet asset '{conflicting_vehicle.model_name}'.",
+                    False,
+                    409,
+                )
+            if previous_assignment and previous_assignment.assigned_driver_id is None:
+                released_vehicle_id = previous_assignment.pk
+        vehicle.save()
+
+    log_action_to_admin(request, vehicle, CHANGE, message)
+    return assignment_response(message, True)
 
 
 # =========================================================================
@@ -1685,36 +1749,15 @@ def logistics_dashboard(request):
         # ACTION D: SET/UNSET PERSONNEL OPERATOR
         elif action == 'set_driver':
             vehicle = get_object_or_404(Vehicle, id=vehicle_id)
-            if vehicle.status in {'DEPLOYED', 'PENDING_DISPOSAL', 'ARCHIVED'}:
-                messages.error(request, f"Operator assignments cannot be changed while '{vehicle.model_name}' is {vehicle.get_status_display().lower()}.")
-                return redirect('dashboard_portal:logistics_dashboard')
-            driver_id = request.POST.get('driver_id')
-            
-            if driver_id:  
-                driver_obj = Driver.objects.filter(pk=driver_id, is_active=True).first()
-                if driver_obj is None or not vehicle_type_matches_operator(vehicle, driver_obj):
-                    messages.error(request, "Select an active operator qualified for this vehicle type.")
-                    return redirect('dashboard_portal:logistics_dashboard')
-                if driver_license_is_expired(driver_obj):
-                    messages.error(request, f"Assignment denied: {driver_obj.name}'s license expired on {driver_obj.license_expiry:%b %d, %Y}. Select an operator with a current license.")
-                    return redirect('dashboard_portal:logistics_dashboard')
-                msg = f"Assigned operator {driver_obj.name} to {vehicle.model_name}."
-            else:  
-                vehicle.assigned_driver = None
-                msg = f"Removed driver assignment from asset {vehicle.model_name}."
-                
-            with transaction.atomic():
-                if driver_id:
-                    conflicting_vehicle = assign_vehicle_operator(vehicle, driver_obj)
-                    if conflicting_vehicle:
-                        messages.error(
-                            request,
-                            f"RESTRICTION: Personnel '{driver_obj.name}' is already assigned to active fleet asset '{conflicting_vehicle.model_name}'.",
-                        )
-                        return redirect('dashboard_portal:logistics_dashboard')
-                vehicle.save()
-            log_action_to_admin(request, vehicle, CHANGE, msg)
-            messages.success(request, msg)
+            is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+            if is_ajax:
+                return save_vehicle_driver_assignment(request, vehicle)
+            response = save_vehicle_driver_assignment(request, vehicle)
+            result = json.loads(response.content)
+            if result['ok']:
+                messages.success(request, result['message'])
+            else:
+                messages.error(request, result['message'])
             return redirect('dashboard_portal:logistics_dashboard')
 
         # ACTION E: CONFIRM DISPOSAL PIPELINE
@@ -1789,13 +1832,19 @@ def logistics_dashboard(request):
     for driver in all_driver_records:
         driver.license_expired = driver_license_is_expired(driver, today)
         driver.license_expiring_soon = driver_license_expires_soon(driver, today)
-    all_drivers = [driver for driver in all_driver_records if driver.is_active]
-    sea_drivers = [
+    all_drivers = sorted(
+        (driver for driver in all_driver_records if driver.is_active),
+        key=lambda driver: driver.name.casefold(),
+    )
+    sea_drivers = sorted([
         driver for driver in all_drivers
         if driver.license_authority == 'MARINA'
         or (driver.license_number or '').strip().upper().startswith('MAR-')
-    ]
-    land_drivers = [driver for driver in all_drivers if driver not in sea_drivers]
+    ], key=lambda driver: driver.name.casefold())
+    land_drivers = sorted(
+        (driver for driver in all_drivers if driver not in sea_drivers),
+        key=lambda driver: driver.name.casefold(),
+    )
 
     assigned_driver_ids = set(
         Vehicle.objects.filter(assigned_driver__isnull=False).values_list('assigned_driver_id', flat=True)
@@ -1903,6 +1952,30 @@ def logistics_registration_ocr(request):
     })
     response['Cache-Control'] = 'private, no-store'
     return response
+
+
+@login_required
+def logistics_assign_driver(request, vehicle_id):
+    if request.method != 'POST':
+        return JsonResponse(
+            {'ok': False, 'message': 'Driver assignments must be submitted with POST.'},
+            status=405,
+        )
+    if not check_user_role(request.user, 'Logistics Officers', ['logistics', 'log', 'depot', 'fleet']):
+        return JsonResponse(
+            {'ok': False, 'message': 'Access restricted to Logistics Depot management accounts.'},
+            status=403,
+        )
+    vehicle = Vehicle.objects.select_related(
+        'vehicle_type',
+        'assigned_driver',
+    ).filter(pk=vehicle_id).first()
+    if vehicle is None:
+        return JsonResponse(
+            {'ok': False, 'message': 'This fleet asset no longer exists. Refresh the dashboard and try again.'},
+            status=404,
+        )
+    return save_vehicle_driver_assignment(request, vehicle)
 
 
 @login_required
@@ -2284,8 +2357,9 @@ def seacraft_dispatch_view(request):
         return redirect("dashboard_portal:seacraft_dispatch")
 
     today = timezone.localdate()
-    sea_drivers = list(
-        Driver.objects.filter(is_active=True).filter(seacraft_operator_filter())
+    sea_drivers = sorted(
+        Driver.objects.filter(is_active=True).filter(seacraft_operator_filter()),
+        key=lambda driver: driver.name.casefold(),
     )
     for driver in sea_drivers:
         driver.license_expired = driver_license_is_expired(driver, today)
