@@ -78,20 +78,36 @@ class MaintenanceChecklistForm(forms.Form):
 
 
 class ScheduledMaintenanceForm(forms.Form):
-    MAINTENANCE_CHOICES = (
-        ('TIRES', 'Tire replacement'),
-        ('OIL', 'Oil replacement'),
-        ('OTHER', 'Other maintenance'),
+    LAND_MAINTENANCE_CHOICES = tuple(
+        choice for choice in Vehicle.SCHEDULED_MAINTENANCE_CHOICES
+        if choice[0] not in {
+            'ENGINE_SERVICE', 'PROPELLER', 'HULL', 'BILGE_PUMP',
+            'FUEL_SYSTEM', 'SAFETY_EQUIPMENT', 'COOLING_SYSTEM',
+        }
+    )
+    SEA_MAINTENANCE_CHOICES = tuple(
+        choice for choice in Vehicle.SCHEDULED_MAINTENANCE_CHOICES
+        if choice[0] not in {
+            'TIRES', 'BRAKES', 'ENGINE_COOLANT', 'AIR_FILTER',
+            'TRANSMISSION', 'BELTS_HOSES', 'REGISTRATION_INSPECTION',
+        }
     )
 
     maintenance_type = forms.ChoiceField(
         label='Maintenance type',
-        choices=MAINTENANCE_CHOICES,
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
     due_date = forms.DateField(
         label='Next replacement / maintenance date',
+        required=False,
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+    )
+    interval_months = forms.TypedChoiceField(
+        label='Oil replacement interval',
+        choices=[(months, f'{months} month{"s" if months != 1 else ""}') for months in range(1, 25)],
+        coerce=int,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
     )
     description = forms.CharField(
         label='Notes (optional)',
@@ -103,11 +119,76 @@ class ScheduledMaintenanceForm(forms.Form):
         }),
     )
 
+    def __init__(self, *args, is_seacraft=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = self.SEA_MAINTENANCE_CHOICES if is_seacraft else self.LAND_MAINTENANCE_CHOICES
+        self.fields['maintenance_type'].choices = choices
+
+    def clean(self):
+        cleaned_data = super().clean()
+        maintenance_type = cleaned_data.get('maintenance_type')
+        due_date = cleaned_data.get('due_date')
+        interval_months = cleaned_data.get('interval_months')
+
+        if maintenance_type == 'OIL':
+            if not interval_months:
+                self.add_error('interval_months', 'Select how many months until the next oil replacement.')
+        elif due_date is None:
+            self.add_error('due_date', 'Choose the next scheduled maintenance date.')
+        return cleaned_data
+
     def clean_due_date(self):
         due_date = self.cleaned_data['due_date']
+        if due_date is None:
+            return due_date
         if due_date < timezone.localdate():
             raise ValidationError('Choose today or a future date for the next scheduled maintenance.')
         return due_date
+
+
+class ScheduledMaintenanceReplacementForm(MaintenanceChecklistForm):
+    next_due_date = forms.DateField(
+        label='Next replacement due date',
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+    )
+    interval_months = forms.TypedChoiceField(
+        label='Oil replacement interval',
+        choices=[(months, f'{months} month{"s" if months != 1 else ""}') for months in range(1, 25)],
+        coerce=int,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    description = forms.CharField(
+        label='Replacement notes (optional)',
+        max_length=500,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Record parts replaced or follow-up work',
+        }),
+    )
+
+    def clean_next_due_date(self):
+        next_due_date = self.cleaned_data['next_due_date']
+        if next_due_date is None:
+            return next_due_date
+        if next_due_date <= timezone.localdate():
+            raise ValidationError('Choose a future date for the next scheduled replacement.')
+        return next_due_date
+
+    def __init__(self, *args, maintenance_type='', **kwargs):
+        super().__init__(*args, **kwargs)
+        self.maintenance_type = maintenance_type
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.maintenance_type == 'OIL':
+            if not cleaned_data.get('interval_months'):
+                self.add_error('interval_months', 'Select how many months until the next oil replacement.')
+        elif not cleaned_data.get('next_due_date'):
+            self.add_error('next_due_date', 'Choose the next scheduled replacement date.')
+        return cleaned_data
 
 
 class FleetIncidentForm(forms.ModelForm):

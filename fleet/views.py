@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import mimetypes
+import calendar
 from pathlib import Path
 from datetime import date, datetime, time, timedelta
 from xml.sax.saxutils import escape
@@ -39,6 +40,7 @@ from .forms import (
     OperatorDetailsForm,
     SeacraftRegistrationForm,
     ScheduledMaintenanceForm,
+    ScheduledMaintenanceReplacementForm,
 )
 from .models import (
     FleetIncident,
@@ -177,6 +179,15 @@ def maintenance_checklist_for_vehicle(vehicle):
     if vehicle.vehicle_type and vehicle.vehicle_type.name.upper() in {'MARINE', 'MARITIME'}:
         return SEACRAFT_MAINTENANCE_CHECKLIST
     return LAND_MAINTENANCE_CHECKLIST
+
+
+def maintenance_due_date_after_months(months, from_date=None):
+    source_date = from_date or timezone.localdate()
+    month_index = source_date.month - 1 + months
+    year = source_date.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(source_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
 
 
 def move_overdue_vehicles_to_maintenance(request):
@@ -350,6 +361,10 @@ def handle_mechanic_maintenance_action(request, vehicle):
         form = ScheduledMaintenanceForm(
             request.POST,
             prefix=f'schedule-{vehicle.pk}',
+            is_seacraft=bool(
+                vehicle.vehicle_type
+                and vehicle.vehicle_type.name.upper() in {'MARINE', 'MARITIME'}
+            ),
         )
         if not form.is_valid():
             for errors in form.errors.values():
@@ -358,7 +373,11 @@ def handle_mechanic_maintenance_action(request, vehicle):
             return
 
         vehicle.scheduled_maintenance_type = form.cleaned_data['maintenance_type']
-        vehicle.scheduled_maintenance_date = form.cleaned_data['due_date']
+        vehicle.scheduled_maintenance_date = (
+            maintenance_due_date_after_months(form.cleaned_data['interval_months'])
+            if form.cleaned_data['maintenance_type'] == 'OIL'
+            else form.cleaned_data['due_date']
+        )
         vehicle.scheduled_maintenance_description = form.cleaned_data['description']
         vehicle.save(update_fields=[
             'scheduled_maintenance_type',
@@ -374,6 +393,57 @@ def handle_mechanic_maintenance_action(request, vehicle):
         messages.success(
             request,
             f"{vehicle.get_scheduled_maintenance_type_display()} scheduled for {vehicle.scheduled_maintenance_date.strftime('%b %d, %Y')}.",
+        )
+        return
+
+    if action_type == 'COMPLETE_SCHEDULED_REPLACEMENT':
+        if (
+            vehicle.status != 'OPERATIONAL'
+            or not vehicle.scheduled_maintenance_date
+            or vehicle.scheduled_maintenance_date <= timezone.localdate()
+        ):
+            messages.error(
+                request,
+                f"{vehicle.model_name} must have an upcoming maintenance schedule before replacement can be recorded.",
+            )
+            return
+
+        form = ScheduledMaintenanceReplacementForm(
+            request.POST,
+            checklist=maintenance_checklist_for_vehicle(vehicle),
+            maintenance_type=vehicle.scheduled_maintenance_type,
+            prefix=f'replace-{vehicle.pk}',
+        )
+        if not form.is_valid():
+            for errors in form.errors.values():
+                for error in errors:
+                    messages.error(request, error)
+            return
+
+        previous_due_date = vehicle.scheduled_maintenance_date
+        vehicle.scheduled_maintenance_date = (
+            maintenance_due_date_after_months(form.cleaned_data['interval_months'])
+            if vehicle.scheduled_maintenance_type == 'OIL'
+            else form.cleaned_data['next_due_date']
+        )
+        vehicle.scheduled_maintenance_description = form.cleaned_data['description']
+        vehicle.save(update_fields=[
+            'scheduled_maintenance_date',
+            'scheduled_maintenance_description',
+        ])
+        log_action_to_admin(
+            request,
+            vehicle,
+            CHANGE,
+            f"Completed scheduled {vehicle.get_scheduled_maintenance_type_display().lower()} "
+            f"replacement for {vehicle.model_name} (original due {previous_due_date}); "
+            f"next service due {vehicle.scheduled_maintenance_date}. "
+            f"Checklist: {', '.join(form.cleaned_data['maintenance_checklist'])}.",
+        )
+        messages.success(
+            request,
+            f"Replacement checklist completed for {vehicle.model_name}. "
+            f"Next service is scheduled for {vehicle.scheduled_maintenance_date:%b %d, %Y}.",
         )
         return
 
@@ -932,21 +1002,26 @@ def logistics_generate_report(request):
             change_message__startswith='Reported maintenance fault for '
         )
     elif report_kind == 'maintenance':
+        scheduled_maintenance_events = Q()
+        for _, label in Vehicle.SCHEDULED_MAINTENANCE_CHOICES:
+            scheduled_maintenance_events |= (
+                Q(change_message__startswith=f'Scheduled {label} for ')
+                | Q(change_message__startswith=f'Scheduled maintenance due: {label}')
+            )
         maintenance_events = (
-            Q(change_message__startswith='Scheduled maintenance due: ')
-            | Q(change_message__startswith='Scheduled Tire replacement for ')
-            | Q(change_message__startswith='Scheduled Oil replacement for ')
-            | Q(change_message__startswith='Scheduled Other maintenance for ')
+            scheduled_maintenance_events
             | Q(change_message__startswith='Reported maintenance fault for ')
             | Q(change_message__startswith='Completed maintenance checklist and returned ')
         )
         if maintenance_category == 'regular':
-            maintenance_events &= (
-                Q(change_message__startswith='Scheduled maintenance due: Tire replacement')
-                | Q(change_message__startswith='Scheduled maintenance due: Oil replacement')
-                | Q(change_message__startswith='Scheduled Tire replacement for ')
-                | Q(change_message__startswith='Scheduled Oil replacement for ')
-            )
+            regular_maintenance_events = Q()
+            for value, label in Vehicle.SCHEDULED_MAINTENANCE_CHOICES:
+                if value != 'OTHER':
+                    regular_maintenance_events |= (
+                        Q(change_message__startswith=f'Scheduled {label} for ')
+                        | Q(change_message__startswith=f'Scheduled maintenance due: {label}')
+                    )
+            maintenance_events &= regular_maintenance_events
         elif maintenance_category == 'other':
             maintenance_events &= (
                 Q(change_message__startswith='Scheduled maintenance due: Other maintenance')
@@ -959,7 +1034,7 @@ def logistics_generate_report(request):
             event_query = event_query.filter(object_id=str(report_vehicle.pk))
         category_label = {
             'all': 'All maintenance',
-            'regular': 'Regular maintenance (tires and oil)',
+            'regular': 'Scheduled maintenance (all types)',
             'other': 'Other maintenance and repairs',
         }[maintenance_category]
         report_title = f'Fleet Maintenance Report - {category_label}'
@@ -1283,7 +1358,16 @@ def repairman_dashboard(request):
             checklist=LAND_MAINTENANCE_CHECKLIST,
             prefix=f'checklist-{vehicle.pk}',
         )
-        vehicle.schedule_form = ScheduledMaintenanceForm(prefix=f'schedule-{vehicle.pk}')
+        vehicle.schedule_form = ScheduledMaintenanceForm(
+            prefix=f'schedule-{vehicle.pk}',
+            is_seacraft=False,
+        )
+        if vehicle.scheduled_maintenance_date:
+            vehicle.replacement_form = ScheduledMaintenanceReplacementForm(
+                prefix=f'replace-{vehicle.pk}',
+                checklist=maintenance_checklist_for_vehicle(vehicle),
+                maintenance_type=vehicle.scheduled_maintenance_type,
+            )
 
     return render(request, 'fleet/repairman_dashboard.html', {
         **regular_maintenance_schedule_context(vehicles),
@@ -1410,7 +1494,16 @@ def seacraft_dashboard(request):
             checklist=SEACRAFT_MAINTENANCE_CHECKLIST,
             prefix=f'checklist-{vehicle.pk}',
         )
-        vehicle.schedule_form = ScheduledMaintenanceForm(prefix=f'schedule-{vehicle.pk}')
+        vehicle.schedule_form = ScheduledMaintenanceForm(
+            prefix=f'schedule-{vehicle.pk}',
+            is_seacraft=True,
+        )
+        if vehicle.scheduled_maintenance_date:
+            vehicle.replacement_form = ScheduledMaintenanceReplacementForm(
+                prefix=f'replace-{vehicle.pk}',
+                checklist=maintenance_checklist_for_vehicle(vehicle),
+                maintenance_type=vehicle.scheduled_maintenance_type,
+            )
 
     return render(request, 'fleet/seacraft_dashboard.html', {
         **regular_maintenance_schedule_context(vehicles),

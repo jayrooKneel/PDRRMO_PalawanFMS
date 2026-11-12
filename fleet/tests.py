@@ -24,6 +24,8 @@ from .models import (
     VehicleRegistrationDocument,
     VehicleType,
 )
+from .forms import ScheduledMaintenanceForm
+from .views import maintenance_due_date_after_months
 from .vehicle_document_ocr import (
     extract_driver_fields_from_text,
     extract_fields_from_text,
@@ -3377,9 +3379,21 @@ class MechanicMaintenanceWorkflowTests(TestCase):
             data[f'fault-{vehicle.pk}-fault_type'] = data.pop('fault_type', 'engine')
         if action == 'COMPLETE_MAINTENANCE' and 'maintenance_checklist' in data:
             data[f'checklist-{vehicle.pk}-maintenance_checklist'] = data.pop('maintenance_checklist')
+        if action == 'COMPLETE_SCHEDULED_REPLACEMENT':
+            if 'maintenance_checklist' in data:
+                data[f'replace-{vehicle.pk}-maintenance_checklist'] = data.pop('maintenance_checklist')
+            if 'next_due_date' in data:
+                data[f'replace-{vehicle.pk}-next_due_date'] = data.pop('next_due_date')
+            if 'interval_months' in data:
+                data[f'replace-{vehicle.pk}-interval_months'] = data.pop('interval_months')
+            if 'description' in data:
+                data[f'replace-{vehicle.pk}-description'] = data.pop('description')
         if action == 'SCHEDULE_MAINTENANCE':
             data[f'schedule-{vehicle.pk}-maintenance_type'] = data.pop('maintenance_type', 'TIRES')
-            data[f'schedule-{vehicle.pk}-due_date'] = data.pop('due_date')
+            if 'due_date' in data:
+                data[f'schedule-{vehicle.pk}-due_date'] = data.pop('due_date')
+            if 'interval_months' in data:
+                data[f'schedule-{vehicle.pk}-interval_months'] = data.pop('interval_months')
             if 'description' in data:
                 data[f'schedule-{vehicle.pk}-description'] = data.pop('description')
         self.client.force_login(user)
@@ -3402,6 +3416,8 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertContains(response, 'aria-label="Open mechanic menu"')
                 self.assertContains(response, 'Maintenance Menu')
                 self.assertContains(response, 'Maintenance Workbench')
+                self.assertContains(response, 'data-maintenance-schedule-form')
+                self.assertContains(response, 'Oil replacement interval')
                 self.assertContains(response, 'data-menu-action="print"')
                 self.assertContains(response, 'data-menu-action="generate-report"')
                 drawer_order = (
@@ -3416,7 +3432,7 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertContains(response, 'Generate Fleet Report')
                 self.assertContains(response, 'value="custom">Custom date range')
                 self.assertContains(response, 'value="xlsx"')
-                self.assertContains(response, 'Regular maintenance (tires and oil)')
+                self.assertContains(response, 'Scheduled maintenance (all types)')
 
     def test_unauthorized_mechanic_users_redirect_to_homepage(self):
         unauthorized_user = User.objects.create_user(username='blocked_user')
@@ -3509,7 +3525,7 @@ class MechanicMaintenanceWorkflowTests(TestCase):
         )
 
         self.assertEqual(regular_report.status_code, 200)
-        self.assertIn(b'Regular maintenance', regular_report.content)
+        self.assertIn(b'Scheduled maintenance (all types)', regular_report.content)
         self.assertIn(b'Tire replacement', regular_report.content)
         self.assertIn(b'Oil replacement', regular_report.content)
         self.assertNotIn(b'body panel', regular_report.content)
@@ -3659,6 +3675,10 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertContains(response, asset.model_name)
                 self.assertContains(response, 'alert alert-info')
                 self.assertContains(response, 'Scheduled Regular Maintenance')
+                self.assertContains(response, 'Replace')
+                self.assertContains(response, 'COMPLETE_SCHEDULED_REPLACEMENT')
+                self.assertContains(response, 'maintenance_checklist')
+                self.assertContains(response, 'next_due_date')
                 self.assertEqual(
                     [vehicle.pk for vehicle in response.context['scheduled_maintenance_vehicles']],
                     [asset.pk, beyond_window.pk if asset == self.land_vehicle else beyond_sea_window.pk],
@@ -3669,12 +3689,12 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 )
 
     def test_mechanic_can_schedule_future_preventive_maintenance(self):
-        due_date = timezone.localdate() + timedelta(days=30)
+        due_date = maintenance_due_date_after_months(2)
         response = self.post_as_mechanic(
             self.land_vehicle,
             'SCHEDULE_MAINTENANCE',
             maintenance_type='OIL',
-            due_date=due_date.isoformat(),
+            interval_months='2',
             description='Use the approved engine oil.',
         )
 
@@ -3741,7 +3761,7 @@ class MechanicMaintenanceWorkflowTests(TestCase):
         self.post_as_mechanic(
             self.land_vehicle,
             'SCHEDULE_MAINTENANCE',
-            maintenance_type='OIL',
+            maintenance_type='TIRES',
             due_date=(timezone.localdate() - timedelta(days=1)).isoformat(),
         )
 
@@ -3750,19 +3770,19 @@ class MechanicMaintenanceWorkflowTests(TestCase):
         self.assertIsNone(self.land_vehicle.scheduled_maintenance_date)
 
     def test_seacraft_mechanic_can_schedule_and_trigger_due_maintenance(self):
-        due_date = timezone.localdate() + timedelta(days=1)
+        due_date = maintenance_due_date_after_months(3)
         self.post_as_mechanic(
             self.seacraft,
             'SCHEDULE_MAINTENANCE',
             is_seacraft=True,
-            maintenance_type='OTHER',
-            due_date=due_date.isoformat(),
+            maintenance_type='OIL',
+            interval_months='3',
             description='Inspect bilge pump.',
         )
 
         self.seacraft.refresh_from_db()
         self.assertEqual(self.seacraft.status, 'OPERATIONAL')
-        self.assertEqual(self.seacraft.scheduled_maintenance_type, 'OTHER')
+        self.assertEqual(self.seacraft.scheduled_maintenance_type, 'OIL')
         self.assertEqual(self.seacraft.scheduled_maintenance_date, due_date)
 
         self.seacraft.scheduled_maintenance_date = timezone.localdate()
@@ -3775,7 +3795,130 @@ class MechanicMaintenanceWorkflowTests(TestCase):
         self.assertEqual(self.seacraft.status, 'MAINTENANCE')
         self.assertEqual(
             self.seacraft.maintenance_problem,
-            'Scheduled Other maintenance is due. Inspect bilge pump.',
+            'Scheduled Oil replacement is due. Inspect bilge pump.',
+        )
+
+    def test_mechanics_can_complete_scheduled_replacement_checklists_for_land_and_seacraft(self):
+        today = timezone.localdate()
+        next_due_date = maintenance_due_date_after_months(6)
+        common_items = [
+            'repairs_complete',
+            'safety_systems_checked',
+            'test_run_passed',
+            'no_unresolved_issues',
+        ]
+
+        for vehicle, is_seacraft, maintenance_type in (
+            (self.land_vehicle, False, 'TIRES'),
+            (self.seacraft, True, 'OIL'),
+        ):
+            with self.subTest(asset=vehicle.model_name):
+                vehicle.scheduled_maintenance_type = maintenance_type
+                vehicle.scheduled_maintenance_date = today + timedelta(days=10)
+                vehicle.scheduled_maintenance_description = 'Original replacement plan.'
+                vehicle.save(update_fields=[
+                    'scheduled_maintenance_type',
+                    'scheduled_maintenance_date',
+                    'scheduled_maintenance_description',
+                ])
+                checklist_items = common_items + [
+                    'propulsion_fuel_hull_checked' if is_seacraft else 'fluids_battery_tires_checked',
+                ]
+
+                response = self.post_as_mechanic(
+                    vehicle,
+                    'COMPLETE_SCHEDULED_REPLACEMENT',
+                    is_seacraft=is_seacraft,
+                    maintenance_checklist=checklist_items,
+                    **(
+                        {'interval_months': '6'}
+                        if maintenance_type == 'OIL'
+                        else {'next_due_date': next_due_date.isoformat()}
+                    ),
+                    description='Replacement completed and inspected.',
+                )
+                dashboard = (
+                    'dashboard_portal:seacraft_dashboard'
+                    if is_seacraft else 'dashboard_portal:repairman_dashboard'
+                )
+
+                self.assertRedirects(response, reverse(dashboard))
+                vehicle.refresh_from_db()
+                self.assertEqual(vehicle.status, 'OPERATIONAL')
+                self.assertEqual(vehicle.scheduled_maintenance_type, maintenance_type)
+                self.assertEqual(vehicle.scheduled_maintenance_date, next_due_date)
+                self.assertEqual(
+                    vehicle.scheduled_maintenance_description,
+                    'Replacement completed and inspected.',
+                )
+
+    def test_scheduled_replacement_requires_full_checklist_and_future_next_date(self):
+        due_date = timezone.localdate() + timedelta(days=30)
+        self.land_vehicle.scheduled_maintenance_type = 'TIRES'
+        self.land_vehicle.scheduled_maintenance_date = due_date
+        self.land_vehicle.save(update_fields=[
+            'scheduled_maintenance_type',
+            'scheduled_maintenance_date',
+        ])
+
+        self.post_as_mechanic(
+            self.land_vehicle,
+            'COMPLETE_SCHEDULED_REPLACEMENT',
+            maintenance_checklist=['repairs_complete'],
+            next_due_date=(due_date + timedelta(days=90)).isoformat(),
+        )
+        self.land_vehicle.refresh_from_db()
+        self.assertEqual(self.land_vehicle.scheduled_maintenance_date, due_date)
+
+        checklist = [
+            'repairs_complete',
+            'safety_systems_checked',
+            'fluids_battery_tires_checked',
+            'test_run_passed',
+            'no_unresolved_issues',
+        ]
+        self.post_as_mechanic(
+            self.land_vehicle,
+            'COMPLETE_SCHEDULED_REPLACEMENT',
+            maintenance_checklist=checklist,
+            next_due_date=timezone.localdate().isoformat(),
+        )
+        self.land_vehicle.refresh_from_db()
+        self.assertEqual(self.land_vehicle.scheduled_maintenance_date, due_date)
+
+    def test_scheduled_maintenance_choices_are_asset_specific(self):
+        land_form = ScheduledMaintenanceForm(is_seacraft=False)
+        sea_form = ScheduledMaintenanceForm(is_seacraft=True)
+        land_values = {value for value, _ in land_form.fields['maintenance_type'].choices}
+        sea_values = {value for value, _ in sea_form.fields['maintenance_type'].choices}
+
+        self.assertIn('BRAKES', land_values)
+        self.assertNotIn('PROPELLER', land_values)
+        self.assertIn('PROPELLER', sea_values)
+        self.assertNotIn('BRAKES', sea_values)
+        self.assertIn('OIL', land_values)
+        self.assertIn('OIL', sea_values)
+        response = self.post_as_mechanic(
+            self.land_vehicle,
+            'SCHEDULE_MAINTENANCE',
+            maintenance_type='PROPELLER',
+            due_date=(timezone.localdate() + timedelta(days=30)).isoformat(),
+        )
+        self.assertEqual(response.status_code, 302)
+        self.land_vehicle.refresh_from_db()
+        self.assertIsNone(self.land_vehicle.scheduled_maintenance_date)
+
+    def test_oil_schedule_requires_month_interval_and_clamps_month_end(self):
+        invalid_form = ScheduledMaintenanceForm(
+            {'schedule-1-maintenance_type': 'OIL'},
+            prefix='schedule-1',
+        )
+        self.assertFalse(invalid_form.is_valid())
+        self.assertIn('interval_months', invalid_form.errors)
+
+        self.assertEqual(
+            maintenance_due_date_after_months(1, from_date=datetime(2028, 1, 31).date()),
+            datetime(2028, 2, 29).date(),
         )
 
     def test_deployed_assets_show_mission_location_and_click_to_call_driver(self):

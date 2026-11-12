@@ -95,8 +95,22 @@ class Vehicle(models.Model):
     ]
 
     SCHEDULED_MAINTENANCE_CHOICES = [
-        ('TIRES', 'Tire replacement'),
         ('OIL', 'Oil replacement'),
+        ('TIRES', 'Tire replacement'),
+        ('BRAKES', 'Brake inspection / replacement'),
+        ('BATTERY', 'Battery service / replacement'),
+        ('ENGINE_COOLANT', 'Engine coolant service'),
+        ('AIR_FILTER', 'Air filter replacement'),
+        ('TRANSMISSION', 'Transmission service'),
+        ('BELTS_HOSES', 'Belts and hoses inspection / replacement'),
+        ('REGISTRATION_INSPECTION', 'Registration / safety inspection'),
+        ('ENGINE_SERVICE', 'Marine engine service'),
+        ('PROPELLER', 'Propeller inspection / replacement'),
+        ('HULL', 'Hull inspection / maintenance'),
+        ('BILGE_PUMP', 'Bilge pump inspection / service'),
+        ('FUEL_SYSTEM', 'Fuel system inspection / service'),
+        ('SAFETY_EQUIPMENT', 'Marine safety equipment inspection'),
+        ('COOLING_SYSTEM', 'Cooling system service'),
         ('OTHER', 'Other maintenance'),
     ]
 
@@ -149,7 +163,7 @@ class Vehicle(models.Model):
     maintenance_started_at = models.DateTimeField(null=True, blank=True)
     maintenance_last_assigned_driver = models.CharField(max_length=100, blank=True)
     scheduled_maintenance_type = models.CharField(
-        max_length=20,
+        max_length=32,
         choices=SCHEDULED_MAINTENANCE_CHOICES,
         blank=True,
     )
