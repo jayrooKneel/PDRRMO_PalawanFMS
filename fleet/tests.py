@@ -1537,6 +1537,44 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, '"name": "Expired Land Deployment Driver"')
         self.assertContains(response, '"license_expired": true')
 
+    def test_logistics_dashboard_marks_data_for_partial_refresh_after_changes(self):
+        self.create_vehicle(
+            model_name='Refresh Test Land Vehicle',
+            plate_number='LAND-REFRESH-01',
+            vehicle_type=self.land_type,
+        )
+        self.create_vehicle(
+            model_name='Refresh Test Seacraft',
+            plate_number='SEA-REFRESH-01',
+            vehicle_type=self.marine_type,
+        )
+        self.client.force_login(self.logistics_user)
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'src="/static/fleet/js/dashboard_auto_refresh.js"')
+        self.assertContains(response, 'data-logistics-dashboard')
+        for section in (
+            'logistics-summary',
+            'logistics-license-alerts',
+            'logistics-land-tabs',
+            'logistics-sea-tabs',
+            'logistics-incident-rows',
+            'logistics-operator-rows',
+            'logistics-asset-rows',
+            'logistics-land-assignments',
+            'logistics-sea-assignments',
+            'logistics-alerts',
+        ):
+            with self.subTest(section=section):
+                self.assertContains(response, f'data-dashboard-refresh-content="{section}"')
+        for form_data in (
+            'data-logistics-ajax-form',
+            'data-driver-assignment-form',
+        ):
+            with self.subTest(form=form_data):
+                self.assertContains(response, form_data)
+
     def test_logistics_can_set_priority_for_land_and_seacraft_work_orders(self):
         land_vehicle = self.create_vehicle(
             model_name='Priority Land Work Vehicle',
@@ -3281,6 +3319,77 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                     if item.status == 'MAINTENANCE'
                 ]
                 self.assertEqual(maintenance_orders, [vehicle.pk, later_vehicle.pk])
+
+    def test_mechanic_work_orders_are_ranked_urgent_high_then_normal(self):
+        for is_seacraft, vehicle, vehicle_type, dashboard in (
+            (
+                False,
+                self.land_vehicle,
+                self.land_type,
+                'dashboard_portal:repairman_dashboard',
+            ),
+            (
+                True,
+                self.seacraft,
+                self.marine_type,
+                'dashboard_portal:seacraft_dashboard',
+            ),
+        ):
+            with self.subTest(dashboard=dashboard):
+                normal_vehicle = vehicle
+                normal_vehicle.status = 'MAINTENANCE'
+                normal_vehicle.maintenance_priority = 'NORMAL'
+                normal_vehicle.maintenance_problem = 'Engine: Normal priority.'
+                normal_vehicle.save()
+
+                high_vehicle = Vehicle.objects.create(
+                    model_name='High Priority Work Order',
+                    plate_number=f'RANK-HIGH-{vehicle_type.pk}',
+                    vehicle_type=vehicle_type,
+                    status='MAINTENANCE',
+                    maintenance_priority='HIGH',
+                    maintenance_problem='Engine: High priority.',
+                )
+                urgent_vehicle = Vehicle.objects.create(
+                    model_name='Urgent Priority Work Order',
+                    plate_number=f'RANK-URGENT-{vehicle_type.pk}',
+                    vehicle_type=vehicle_type,
+                    status='MAINTENANCE',
+                    maintenance_problem='Engine: Urgent priority.',
+                )
+                Vehicle.objects.filter(pk=high_vehicle.pk).update(
+                    maintenance_priority='HIGH',
+                )
+                Vehicle.objects.filter(pk=urgent_vehicle.pk).update(
+                    maintenance_priority='URGENT',
+                )
+                base_time = timezone.now() - timedelta(days=3)
+                for offset, work_order in enumerate(
+                    (normal_vehicle, high_vehicle, urgent_vehicle),
+                ):
+                    Vehicle.objects.filter(pk=work_order.pk).update(
+                        maintenance_started_at=base_time + timedelta(minutes=offset),
+                    )
+
+                self.client.force_login(
+                    self.sea_mechanic if is_seacraft else self.land_mechanic,
+                )
+                response = self.client.get(reverse(dashboard))
+                self.assertEqual(response.status_code, 200)
+                maintenance_orders = [
+                    item
+                    for item in response.context['vehicles']
+                    if item.status == 'MAINTENANCE'
+                ]
+                self.assertEqual(
+                    [item.pk for item in maintenance_orders],
+                    [urgent_vehicle.pk, high_vehicle.pk, normal_vehicle.pk],
+                )
+
+                page = response.content.decode()
+                normal_badge = page.index('data-maintenance-priority="NORMAL"')
+                fault_label = page.index('FAULT REPAIR', normal_badge)
+                self.assertLess(normal_badge, fault_label)
 
     def test_maintenance_queue_timestamp_survives_disposal_review_and_resets_after_repair(self):
         previous_driver = Driver.objects.create(name='Previous Land Driver')

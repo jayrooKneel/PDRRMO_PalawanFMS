@@ -18,7 +18,7 @@
                 data-driver-name="{{ driver.name }}" data-driver-license="{{ driver.license_number|default:'' }}"
                 data-driver-class="{{ driver.license_class }}" data-driver-expiry="{{ driver.license_expiry|date:'Y-m-d' }}"
                 data-driver-phone="{{ driver.phone_number|default:'' }}">Edit</button>
-        <form method="post" class="d-inline" action="{% url 'dashboard_portal:logistics_dashboard' %}" onsubmit="return confirm('Archive {{ driver.name|escapejs }}?');">
+        <form method="post" class="d-inline" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form onsubmit="return confirm('Archive {{ driver.name|escapejs }}?');">
             {% csrf_token %}
             <input type="hidden" name="action" value="archive_operator">
             <input type="hidden" name="driver_id" value="{{ driver.pk }}">

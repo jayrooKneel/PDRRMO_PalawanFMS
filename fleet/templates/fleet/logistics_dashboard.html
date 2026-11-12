@@ -144,25 +144,25 @@
 
     {% include "fleet/_activity_report_modal.html" %}
 
-    <div class="container-fluid px-4">
-        {% if messages %}
-        <div id="floating-alert-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 450px;">
+    <div class="container-fluid px-4" data-logistics-dashboard>
+        <div id="floating-alert-container" data-dashboard-refresh-content="logistics-alerts" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 450px;">
+            {% if messages %}
             {% for msg in messages %}
             <div class="alert alert-success alert-dismissible fade show shadow-lg border-0 mb-2 p-3 text-white bg-dark d-flex align-items-center justify-content-between" 
                  role="alert" 
                  style="border-left: 5px solid #EA580C !important; border-radius: 6px;">
                 <div class="d-flex align-items-center gap-2">
                     <i class="fa-solid fa-circle-check text-warning"></i>
-                    <span class="fw-semibold font-monospace small">{{ msg }}</span>
+                    <span class="fw-semibold font-monospace small" data-message-tags="{{ msg.tags }}">{{ msg }}</span>
                 </div>
                 <button type="button" class="btn-close btn-close-white m-0 p-2" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}
+            {% endif %}
         </div>
-        {% endif %}
 
         <h3 class="fw-bold mb-4" style="color: #1A365D;">Personnel Deployment & Fleet Control Registry</h3>
-        <section class="mb-4" aria-labelledby="readinessSummaryTitle">
+        <section class="mb-4" aria-labelledby="readinessSummaryTitle" data-dashboard-refresh-content="logistics-summary">
             <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
                 <div>
                     <div class="dashboard-section-label text-uppercase fw-bold text-primary">Operational picture</div>
@@ -186,6 +186,7 @@
                 <button type="button" class="btn btn-outline-danger" data-dashboard-action="file-incident"><i class="fa-solid fa-triangle-exclamation me-1"></i>Add incident</button>
             </div>
         </section>
+        <div data-dashboard-refresh-content="logistics-license-alerts">
         {% if expired_assigned_drivers %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert" id="expired-license-alert">
             <h5 class="alert-heading"><i class="fa-solid fa-triangle-exclamation me-2"></i>Expired operator licenses</h5>
@@ -222,6 +223,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close license expiry reminders"></button>
         </div>
         {% endif %}
+        </div>
 
         <!-- LAND OPERATIONS DIVISION -->
         <div class="card shadow-sm border-0 mb-5">
@@ -323,7 +325,7 @@
                                     </div>
 
                                     <div class="mt-auto">
-                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0">
+                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0" data-logistics-ajax-form>
                                             {% csrf_token %}
                                             <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
                                             <input type="hidden" name="action" value="return_vehicle">
@@ -345,7 +347,7 @@
                             <article class="asset-card shadow-sm border-danger">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
                                     <div class="mb-2">{% include "fleet/_maintenance_priority_badge.html" with asset=vehicle %}</div>
-                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center">
+                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center" data-logistics-ajax-form>
                                         {% csrf_token %}
                                         <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
                                         <input type="hidden" name="action" value="set_maintenance_priority">
@@ -392,13 +394,13 @@
                                         <strong>Disposal reason:</strong> {{ vehicle.disposal_reason|default:"No reason recorded." }}
                                     </div>
                                     <div class="mt-auto d-flex gap-2">
-                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50">
+                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50" data-logistics-ajax-form>
                                             {% csrf_token %}
                                             <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
                                             <input type="hidden" name="action" value="decline_disposal">
                                             <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-wrench"></i> REPAIR & REINSTATE</button>
                                         </form>
-                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50">
+                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50" data-logistics-ajax-form>
                                             {% csrf_token %}
                                             <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
                                             <input type="hidden" name="action" value="confirm_disposal">
@@ -521,7 +523,7 @@
                                     </div>
 
                                     <div class="mt-auto">
-                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0">
+                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0" data-logistics-ajax-form>
                                             {% csrf_token %}
                                             <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
                                             <input type="hidden" name="action" value="return_vehicle">
@@ -543,7 +545,7 @@
                             <article class="asset-card asset-card-maritime shadow-sm border-danger">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
                                     <div class="mb-2">{% include "fleet/_maintenance_priority_badge.html" with asset=craft %}</div>
-                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center">
+                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center" data-logistics-ajax-form>
                                         {% csrf_token %}
                                         <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
                                         <input type="hidden" name="action" value="set_maintenance_priority">
@@ -590,13 +592,13 @@
                                         <strong>Disposal reason:</strong> {{ craft.disposal_reason|default:"No reason recorded." }}
                                     </div>
                                     <div class="mt-auto d-flex gap-2">
-                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50">
+                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50" data-logistics-ajax-form>
                                             {% csrf_token %}
                                             <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
                                             <input type="hidden" name="action" value="decline_disposal">
                                             <button type="submit" class="btn btn-sm btn-outline-secondary w-100"><i class="fa-solid fa-wrench"></i> REPAIR & REINSTATE</button>
                                         </form>
-                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50">
+                                        <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="m-0 w-50" data-logistics-ajax-form>
                                             {% csrf_token %}
                                             <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
                                             <input type="hidden" name="action" value="confirm_disposal">
@@ -625,7 +627,7 @@
             <div class="panel-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <h2 class="h5 mb-0" id="filedIncidentReportsTitle">
                     <i class="fa-solid fa-triangle-exclamation me-2 text-warning"></i>Add &amp; Manage Incident Reports
-                    <span class="badge bg-light text-dark ms-2">{{ incident_records|length }}</span>
+                    <span class="badge bg-light text-dark ms-2" data-dashboard-refresh-text="logistics-incident-count">{{ incident_records|length }}</span>
                 </h2>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-sm btn-outline-light" data-dashboard-action="file-incident"><i class="fa-solid fa-plus me-1"></i>Add report</button>
@@ -723,7 +725,7 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}">
+                <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form>
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_operator" data-operator-action>
                     <input type="hidden" name="driver_id" value="" data-operator-id>
@@ -791,7 +793,7 @@
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
                             <thead><tr><th>Name</th><th>Type</th><th>License</th><th>Expiry</th><th>Record</th><th>Actions</th></tr></thead>
-                            <tbody>
+                            <tbody data-dashboard-refresh-content="logistics-operator-rows">
                                 {% for driver in land_drivers %}{% include "fleet/_driver_management_row.html" with driver=driver operator_type="LAND" %}{% endfor %}
                                 {% for driver in sea_drivers %}{% include "fleet/_driver_management_row.html" with driver=driver operator_type="SEA" %}{% endfor %}
                                 {% for driver in archived_drivers %}{% include "fleet/_driver_management_row.html" with driver=driver operator_type=driver.license_authority archived=True %}{% endfor %}
@@ -819,7 +821,7 @@
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
                             <thead><tr><th>Asset</th><th>Status</th><th>Assigned operator</th><th>Management</th></tr></thead>
-                            <tbody>
+                            <tbody data-dashboard-refresh-content="logistics-asset-rows">
                                 {% for vehicle in land_vehicles %}{% include "fleet/_fleet_management_row.html" with vehicle=vehicle drivers=land_drivers %}{% endfor %}
                                 {% for vehicle in sea_crafts %}{% include "fleet/_fleet_management_row.html" with vehicle=vehicle drivers=sea_drivers %}{% endfor %}
                             </tbody>
@@ -947,7 +949,7 @@
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form method="POST" action="{% url 'dashboard_portal:logistics_dashboard' %}">
+                <form method="POST" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form>
                     {% csrf_token %}
                     <input type="hidden" name="action" value="deploy_vehicle">
                     <input type="hidden" name="vehicle_id" id="deploy_vehicle_id_input">
@@ -1010,7 +1012,7 @@
                     <h5 class="modal-title fw-bold" id="addVehicleModalLabel"><i class="fa-solid fa-plus-circle text-info me-2"></i>Add a fleet asset</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}">
+                <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form>
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_vehicle" data-asset-action>
                     <input type="hidden" name="vehicle_id" value="" data-asset-id>
@@ -1168,7 +1170,7 @@
                     <h5 class="modal-title" id="editVehicleModalLabel">Modify Vehicle / Seacraft</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}" id="editFleetAssetForm">
+                <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}" id="editFleetAssetForm" data-logistics-ajax-form>
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_vehicle">
                     <input type="hidden" name="vehicle_id" value="" data-edit-vehicle-id>
@@ -1303,15 +1305,16 @@
             const assetForm = document.getElementById("editFleetAssetForm");
             const assetModal = document.getElementById("editVehicleModal");
             let pendingAssetEdit = null;
-            document.querySelectorAll("[data-edit-asset]").forEach((button) => {
-                button.addEventListener("click", () => {
-                    const assets = JSON.parse(document.getElementById("fleet-assets-json").textContent || "[]");
-                    pendingAssetEdit = assets.find((asset) => String(asset.id) === button.dataset.assetId);
-                    if (!pendingAssetEdit) {
-                        throw new Error(`Fleet asset ${button.dataset.assetId} was not found.`);
-                    }
-                    bootstrap.Modal.getOrCreateInstance(document.getElementById("manageAssetsModal")).hide();
-                });
+            document.addEventListener("click", (event) => {
+                if (!(event.target instanceof Element)) return;
+                const button = event.target.closest("[data-edit-asset]");
+                if (!button) return;
+                const assets = JSON.parse(document.getElementById("fleet-assets-json").textContent || "[]");
+                pendingAssetEdit = assets.find((asset) => String(asset.id) === button.dataset.assetId);
+                if (!pendingAssetEdit) {
+                    throw new Error(`Fleet asset ${button.dataset.assetId} was not found.`);
+                }
+                bootstrap.Modal.getOrCreateInstance(document.getElementById("manageAssetsModal")).hide();
             });
             document.getElementById("manageAssetsModal").addEventListener("hidden.bs.modal", () => {
                 if (!pendingAssetEdit) return;
@@ -1365,7 +1368,7 @@
                     alertContainer.style.transition = "all 0.5s ease";
                     alertContainer.style.opacity = "0";
                     alertContainer.style.transform = "translateY(20px)";
-                    setTimeout(() => { alertContainer.remove(); }, 500); 
+                    setTimeout(() => { alertContainer.replaceChildren(); }, 500);
                 }, 3000);
             }
 

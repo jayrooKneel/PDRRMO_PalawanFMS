@@ -1347,6 +1347,12 @@ def repairman_dashboard(request):
             default=Value(5),
             output_field=IntegerField(),
         ),
+        Case(
+            When(maintenance_priority='URGENT', then=Value(1)),
+            When(maintenance_priority='HIGH', then=Value(2)),
+            default=Value(3),
+            output_field=IntegerField(),
+        ),
         'maintenance_started_at',
         'model_name'
     )
@@ -1481,6 +1487,12 @@ def seacraft_dashboard(request):
             When(status='MAINTENANCE', then=Value(3)),
             When(status='PENDING_DISPOSAL', then=Value(4)),
             default=Value(5),
+            output_field=IntegerField(),
+        ),
+        Case(
+            When(maintenance_priority='URGENT', then=Value(1)),
+            When(maintenance_priority='HIGH', then=Value(2)),
+            default=Value(3),
             output_field=IntegerField(),
         ),
         'maintenance_started_at',

@@ -225,6 +225,13 @@
             });
             status.textContent = result.message;
             status.classList.add("text-success");
+            if (typeof window.refreshLogisticsDashboardData === "function") {
+                await window.refreshLogisticsDashboardData([
+                    "logistics-land-assignments",
+                    "logistics-sea-assignments",
+                    "logistics-asset-rows",
+                ]);
+            }
         } catch (error) {
             select.value = previousValue;
             status.textContent = error.message;

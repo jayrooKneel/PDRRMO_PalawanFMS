@@ -109,6 +109,9 @@
                                 </td>
                                 <td class="px-6 py-4 font-mono text-gray-500 font-medium">{{ craft.plate_number }}</td>
                                 <td class="px-6 py-4">
+                                    {% if craft.status == 'MAINTENANCE' or craft.status == 'PENDING_DISPOSAL' %}
+                                        <div class="mb-2">{% include "fleet/_maintenance_priority_badge.html" with asset=craft %}</div>
+                                    {% endif %}
                                     {% if craft.status == 'MAINTENANCE' %}
                                         {% if craft.maintenance_problem|slice:":9" == "Scheduled" %}
                                             <span class="inline-flex items-center rounded-full border border-sky-300 bg-sky-100 px-2.5 py-0.5 text-xs font-bold uppercase text-sky-800">REGULAR MAINTENANCE</span>
@@ -148,7 +151,6 @@
                                         <div class="mt-2 text-xs text-gray-700"><strong>Assigned operator:</strong> {{ craft.assigned_driver.name|default:"Unassigned" }}</div>
                                     {% endif %}
                                     {% if craft.status == 'MAINTENANCE' or craft.status == 'PENDING_DISPOSAL' %}
-                                        <div class="mt-2">{% include "fleet/_maintenance_priority_badge.html" with asset=craft %}</div>
                                         <div class="mt-2 text-xs text-gray-500"><strong>Last assigned driver:</strong> {{ craft.maintenance_last_assigned_driver|default:"Not recorded" }}</div>
                                     {% endif %}
                                     {% if craft.scheduled_maintenance_date %}
