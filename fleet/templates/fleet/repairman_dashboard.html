@@ -167,6 +167,7 @@
                                     <div class="small mt-2 text-muted"><strong>Assigned operator:</strong> {{ vehicle.assigned_driver.name|default:"Unassigned" }}</div>
                                 {% endif %}
                                 {% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' %}
+                                    <div class="mt-2">{% include "fleet/_maintenance_priority_badge.html" with asset=vehicle %}</div>
                                     <div class="small mt-2 text-muted"><strong>Last assigned driver:</strong> {{ vehicle.maintenance_last_assigned_driver|default:"Not recorded" }}</div>
                                 {% endif %}
                                 {% if vehicle.scheduled_maintenance_date %}

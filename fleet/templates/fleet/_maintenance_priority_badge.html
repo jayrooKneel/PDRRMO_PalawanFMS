@@ -1,0 +1,4 @@
+<span class="badge {% if asset.maintenance_priority == 'URGENT' %}bg-danger{% elif asset.maintenance_priority == 'HIGH' %}bg-warning text-dark{% else %}bg-secondary{% endif %}"
+      data-maintenance-priority="{{ asset.maintenance_priority }}">
+    {% if asset.maintenance_priority == 'URGENT' %}URGENT{% elif asset.maintenance_priority == 'HIGH' %}HIGH PRIORITY{% else %}NORMAL PRIORITY{% endif %}
+</span>

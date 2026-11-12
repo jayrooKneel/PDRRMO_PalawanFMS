@@ -88,6 +88,12 @@ class VehicleAssignment(models.Model):
 
 
 class Vehicle(models.Model):
+    MAINTENANCE_PRIORITY_CHOICES = [
+        ('NORMAL', 'Normal'),
+        ('HIGH', 'High Priority'),
+        ('URGENT', 'Urgent'),
+    ]
+
     SCHEDULED_MAINTENANCE_CHOICES = [
         ('TIRES', 'Tire replacement'),
         ('OIL', 'Oil replacement'),
@@ -135,6 +141,11 @@ class Vehicle(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='OPERATIONAL')
 
     maintenance_problem = models.CharField(max_length=1000, blank=True)
+    maintenance_priority = models.CharField(
+        max_length=10,
+        choices=MAINTENANCE_PRIORITY_CHOICES,
+        default='NORMAL',
+    )
     maintenance_started_at = models.DateTimeField(null=True, blank=True)
     maintenance_last_assigned_driver = models.CharField(max_length=100, blank=True)
     scheduled_maintenance_type = models.CharField(
@@ -165,6 +176,7 @@ class Vehicle(models.Model):
                 'status',
                 'maintenance_started_at',
                 'maintenance_last_assigned_driver',
+                'maintenance_priority',
                 'assigned_driver__name',
             ).first()
 
@@ -174,6 +186,13 @@ class Vehicle(models.Model):
         )
         previous_maintenance_last_assigned_driver = (
             previous['maintenance_last_assigned_driver'] if previous else ''
+        )
+        previous_maintenance_priority = (
+            previous['maintenance_priority'] if previous else 'NORMAL'
+        )
+        update_fields = kwargs.get('update_fields')
+        priority_was_explicitly_updated = (
+            update_fields is None or 'maintenance_priority' in update_fields
         )
         if self.status in {'MAINTENANCE', 'PENDING_DISPOSAL'}:
             if (
@@ -191,11 +210,23 @@ class Vehicle(models.Model):
                 self.maintenance_last_assigned_driver = (
                     previous['assigned_driver__name'] if previous else ''
                 ) or ''
+            self.maintenance_priority = (
+                self.maintenance_priority
+                if (
+                    previous_status in {'MAINTENANCE', 'PENDING_DISPOSAL'}
+                    and priority_was_explicitly_updated
+                )
+                else (
+                    previous_maintenance_priority
+                    if previous_status in {'MAINTENANCE', 'PENDING_DISPOSAL'}
+                    else 'NORMAL'
+                )
+            )
         else:
             self.maintenance_started_at = None
             self.maintenance_last_assigned_driver = ''
+            self.maintenance_priority = 'NORMAL'
 
-        update_fields = kwargs.get('update_fields')
         if update_fields is not None and (
             previous is None
             or self.maintenance_started_at != previous_maintenance_started_at
@@ -207,6 +238,11 @@ class Vehicle(models.Model):
             != previous_maintenance_last_assigned_driver
         ):
             update_fields = set(update_fields) | {'maintenance_last_assigned_driver'}
+        if update_fields is not None and (
+            previous is None
+            or self.maintenance_priority != previous_maintenance_priority
+        ):
+            update_fields = set(update_fields) | {'maintenance_priority'}
         if update_fields is not None:
             kwargs['update_fields'] = update_fields
 

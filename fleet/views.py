@@ -246,6 +246,37 @@ def regular_maintenance_schedule_context(vehicles):
     }
 
 
+def update_vehicle_maintenance_priority(request, vehicle):
+    if vehicle.status not in {'MAINTENANCE', 'PENDING_DISPOSAL'}:
+        messages.error(
+            request,
+            f"Priority can only be changed while {vehicle.model_name} is in maintenance or pending disposal.",
+        )
+        return False
+
+    priority = request.POST.get('maintenance_priority', '')
+    valid_priorities = dict(Vehicle.MAINTENANCE_PRIORITY_CHOICES)
+    if priority not in valid_priorities:
+        messages.error(request, "Select a valid maintenance priority.")
+        return False
+
+    old_priority = vehicle.maintenance_priority
+    vehicle.maintenance_priority = priority
+    vehicle.save(update_fields=['maintenance_priority'])
+    log_action_to_admin(
+        request,
+        vehicle,
+        CHANGE,
+        f"Changed maintenance priority for {vehicle.model_name} from "
+        f"{valid_priorities[old_priority]} to {valid_priorities[priority]}.",
+    )
+    messages.success(
+        request,
+        f"{vehicle.model_name} priority set to {valid_priorities[priority]}.",
+    )
+    return True
+
+
 def handle_mechanic_maintenance_action(request, vehicle):
     action_type = request.POST.get('action_type')
 
@@ -1760,6 +1791,11 @@ def logistics_dashboard(request):
                 messages.error(request, result['message'])
             return redirect('dashboard_portal:logistics_dashboard')
 
+        elif action == 'set_maintenance_priority':
+            vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+            update_vehicle_maintenance_priority(request, vehicle)
+            return redirect('dashboard_portal:logistics_dashboard')
+
         # ACTION E: CONFIRM DISPOSAL PIPELINE
         elif action == 'confirm_disposal':
             vessel_to_archive = get_object_or_404(Vehicle, id=vehicle_id)
@@ -1909,6 +1945,7 @@ def logistics_dashboard(request):
             'vehicle__vehicle_type',
             'reported_by',
         ).order_by('-occurred_at', '-pk'),
+        'maintenance_priority_choices': Vehicle.MAINTENANCE_PRIORITY_CHOICES,
     }
     return render(request, 'fleet/logistics_dashboard.html', context)
 
@@ -2172,6 +2209,10 @@ def seacraft_dispatch_view(request):
             id=request.POST.get("vehicle_id"),
         )
 
+        if action == "set_maintenance_priority":
+            update_vehicle_maintenance_priority(request, vehicle)
+            return redirect("dashboard_portal:seacraft_dispatch")
+
         if action == "FLAG_DISPOSAL":
             if vehicle.status != "MAINTENANCE":
                 messages.error(request, f"{vehicle.model_name} must be in maintenance before it can be flagged for disposal.")
@@ -2418,6 +2459,7 @@ def seacraft_dispatch_view(request):
             "sea_maintenance": sea_maintenance,
             "drivers": sea_drivers,
             "assigned_driver_ids": assigned_driver_ids,
+            "maintenance_priority_choices": Vehicle.MAINTENANCE_PRIORITY_CHOICES,
             "operator_form": OperatorDetailsForm(allowed_operator_type='SEA'),
             "seacraft_forms": [SeacraftRegistrationForm(prefix='craft-0')],
             "incident_form": FleetIncidentForm(

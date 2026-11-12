@@ -1535,6 +1535,119 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, '"name": "Expired Land Deployment Driver"')
         self.assertContains(response, '"license_expired": true')
 
+    def test_logistics_can_set_priority_for_land_and_seacraft_work_orders(self):
+        land_vehicle = self.create_vehicle(
+            model_name='Priority Land Work Vehicle',
+            plate_number='LAND-PRIORITY-01',
+            vehicle_type=self.land_type,
+            status='MAINTENANCE',
+        )
+        sea_vehicle = self.create_vehicle(
+            model_name='Priority Sea Work Vessel',
+            plate_number='SEA-PRIORITY-01',
+            vehicle_type=self.marine_type,
+            status='PENDING_DISPOSAL',
+        )
+        self.client.force_login(self.logistics_user)
+        dashboard = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+        self.assertContains(dashboard, 'name="maintenance_priority"')
+        self.assertContains(dashboard, 'High Priority')
+
+        for vehicle, priority in (
+            (land_vehicle, 'URGENT'),
+            (sea_vehicle, 'HIGH'),
+        ):
+            with self.subTest(vehicle=vehicle.model_name):
+                response = self.client.post(
+                    reverse('dashboard_portal:logistics_dashboard'),
+                    {
+                        'action': 'set_maintenance_priority',
+                        'vehicle_id': vehicle.pk,
+                        'maintenance_priority': priority,
+                    },
+                )
+
+                self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+                vehicle.refresh_from_db()
+                self.assertEqual(vehicle.maintenance_priority, priority)
+
+    def test_logistics_cannot_set_work_order_priority_for_invalid_status_or_value(self):
+        vehicle = self.create_vehicle(
+            model_name='Priority Validation Vehicle',
+            plate_number='LAND-PRIORITY-02',
+            vehicle_type=self.land_type,
+            status='OPERATIONAL',
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'set_maintenance_priority',
+                'vehicle_id': vehicle.pk,
+                'maintenance_priority': 'URGENT',
+            },
+            follow=True,
+        )
+        self.assertContains(response, 'Priority can only be changed')
+
+        vehicle.status = 'MAINTENANCE'
+        vehicle.save()
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'set_maintenance_priority',
+                'vehicle_id': vehicle.pk,
+                'maintenance_priority': 'INVALID',
+            },
+            follow=True,
+        )
+        self.assertContains(response, 'Select a valid maintenance priority')
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.maintenance_priority, 'NORMAL')
+
+    def test_seacraft_dispatch_can_set_priority_only_for_seacraft_work_orders(self):
+        sea_vehicle = self.create_vehicle(
+            model_name='Dispatch Priority Vessel',
+            plate_number='SEA-DISPATCH-PRIORITY',
+            vehicle_type=self.marine_type,
+            status='MAINTENANCE',
+        )
+        land_vehicle = self.create_vehicle(
+            model_name='Dispatch Priority Land Vehicle',
+            plate_number='LAND-DISPATCH-PRIORITY',
+            vehicle_type=self.land_type,
+            status='MAINTENANCE',
+        )
+        self.client.force_login(self.seacraft_user)
+        dispatch = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+        self.assertContains(dispatch, 'name="maintenance_priority"')
+        self.assertContains(dispatch, 'High Priority')
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            {
+                'action': 'set_maintenance_priority',
+                'vehicle_id': sea_vehicle.pk,
+                'maintenance_priority': 'URGENT',
+            },
+        )
+        self.assertRedirects(response, reverse('dashboard_portal:seacraft_dispatch'))
+        sea_vehicle.refresh_from_db()
+        self.assertEqual(sea_vehicle.maintenance_priority, 'URGENT')
+
+        denied = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            {
+                'action': 'set_maintenance_priority',
+                'vehicle_id': land_vehicle.pk,
+                'maintenance_priority': 'HIGH',
+            },
+        )
+        self.assertEqual(denied.status_code, 404)
+        land_vehicle.refresh_from_db()
+        self.assertEqual(land_vehicle.maintenance_priority, 'NORMAL')
+
     def create_vehicle(self, *, model_name, plate_number, vehicle_type, **kwargs):
         return Vehicle.objects.create(
             model_name=model_name,
@@ -3213,6 +3326,48 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'Last assigned driver:')
                 self.assertContains(response, driver_name)
+
+    def test_mechanic_dashboards_show_high_and_urgent_priority_badges(self):
+        self.land_vehicle.status = 'MAINTENANCE'
+        self.land_vehicle.maintenance_problem = 'Engine: High-priority repair.'
+        self.land_vehicle.save()
+        self.land_vehicle.maintenance_priority = 'HIGH'
+        self.land_vehicle.save(update_fields=['maintenance_priority'])
+        self.seacraft.status = 'PENDING_DISPOSAL'
+        self.seacraft.save()
+        self.seacraft.maintenance_priority = 'URGENT'
+        self.seacraft.save(update_fields=['maintenance_priority'])
+
+        for user, vehicle, dashboard, priority, label, badge_class in (
+            (
+                self.land_mechanic,
+                self.land_vehicle,
+                'dashboard_portal:repairman_dashboard',
+                'HIGH',
+                'HIGH PRIORITY',
+                'bg-warning text-dark',
+            ),
+            (
+                self.sea_mechanic,
+                self.seacraft,
+                'dashboard_portal:seacraft_dashboard',
+                'URGENT',
+                'URGENT',
+                'bg-danger',
+            ),
+        ):
+            with self.subTest(dashboard=dashboard):
+                self.client.force_login(user)
+                response = self.client.get(reverse(dashboard))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, f'data-maintenance-priority="{priority}"')
+                self.assertContains(response, label)
+                self.assertContains(response, badge_class)
+
+        self.land_vehicle.status = 'OPERATIONAL'
+        self.land_vehicle.save(update_fields=['status'])
+        self.land_vehicle.refresh_from_db()
+        self.assertEqual(self.land_vehicle.maintenance_priority, 'NORMAL')
 
     def post_as_mechanic(self, vehicle, action, *, is_seacraft=False, **data):
         user = self.sea_mechanic if is_seacraft else self.land_mechanic
