@@ -221,7 +221,9 @@
                                     <select name="driver_id" class="form-select form-select-sm" data-craft-name="{{ craft.model_name }}" aria-label="Assign operator to {{ craft.model_name }}" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in drivers %}
-                                            {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}
+                                            {% if driver.license_expired %}
+                                                <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
+                                            {% elif craft.assigned_driver and craft.assigned_driver.id == driver.id %}
                                                 <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.reassignment_source_vehicle and driver.reassignment_source_vehicle.is_seacraft and driver.reassignment_source_vehicle.status == 'OPERATIONAL' %}
                                                 <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Reassign from {{ driver.reassignment_source_vehicle.model_name }}]</option>
@@ -847,6 +849,7 @@
             {
                 "id": "{{ driver.id }}",
                 "name": "{{ driver.name|escapejs }}",
+                "license_expired": {% if driver.license_expired %}true{% else %}false{% endif %},
                 "is_assigned": {% if driver.id in assigned_driver_ids %}true{% else %}false{% endif %}
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
@@ -1051,7 +1054,13 @@
 
                         const assignedVehicle = driverVehicleMap[driver.id];
 
-                        if (currentDriverId && String(driver.id) === String(currentDriverId)) {
+                        if (driver.license_expired) {
+                            option.textContent = `⚠ ${driver.name} [LICENSE EXPIRED]`;
+                            option.classList.add('text-danger', 'fw-bold');
+                            option.style.color = '#dc3545';
+                            option.style.fontWeight = '700';
+                            option.disabled = true;
+                        } else if (currentDriverId && String(driver.id) === String(currentDriverId)) {
                             option.textContent = `👤 ${driver.name} [Assigned to this Vessel]`;
                             option.selected = true;
                             driverFound = true;

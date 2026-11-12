@@ -144,6 +144,26 @@
         {% endif %}
 
         <h3 class="fw-bold mb-4" style="color: #1A365D;">Personnel Deployment & Fleet Control Registry</h3>
+        {% if expired_assigned_drivers %}
+        <div class="alert alert-danger" role="alert">
+            <h5 class="alert-heading"><i class="fa-solid fa-triangle-exclamation me-2"></i>Expired operator licenses</h5>
+            <ul class="mb-0">
+                {% for assignment in expired_assigned_drivers %}
+                <li><strong>{{ assignment.driver.name }}</strong> has an expired license ({{ assignment.driver.license_expiry|date:"M j, Y" }}) and is assigned to {{ assignment.vehicle.model_name }}. Reassign an eligible operator.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% if expiring_assigned_drivers %}
+        <div class="alert alert-warning" role="alert">
+            <h5 class="alert-heading"><i class="fa-solid fa-clock me-2"></i>License expiry reminders</h5>
+            <ul class="mb-0">
+                {% for assignment in expiring_assigned_drivers %}
+                <li><strong>{{ assignment.driver.name }}</strong>'s license expires {{ assignment.driver.license_expiry|date:"M j, Y" }} (within 30 days); currently assigned to {{ assignment.vehicle.model_name }}.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
 
         <!-- LAND OPERATIONS DIVISION -->
         <div class="card shadow-sm border-0 mb-5">
@@ -192,7 +212,7 @@
                                     <div class="mb-3 small">
                                         <span class="text-muted d-block small">Assigned Personnel Operator:</span>
                                         {% if vehicle.assigned_driver %}
-                                            <span class="fw-bold text-dark"><i class="fa-solid fa-user-check text-success me-1"></i> {{ vehicle.assigned_driver.name }}</span>
+                                            <span class="fw-bold {% if vehicle.assigned_driver.license_expired %}text-danger{% else %}text-dark{% endif %}"><i class="fa-solid fa-user-check {% if vehicle.assigned_driver.license_expired %}text-danger{% else %}text-success{% endif %} me-1"></i> {{ vehicle.assigned_driver.name }}{% if vehicle.assigned_driver.license_expired %} (LICENSE EXPIRED){% endif %}</span>
                                         {% else %}
                                             <span class="text-muted italic opacity-75"><i class="fa-solid fa-user-slash me-1"></i> Standby / Unassigned</span>
                                         {% endif %}
@@ -241,7 +261,7 @@
                                         <div class="mb-1 text-dark fw-semibold"><i class="fa-solid fa-bullseye text-warning me-1"></i> Mission: {{ vehicle.deployment_purpose }}</div>
                                         {% endif %}
                                         <div class="text-muted"><i class="fa-solid fa-clock me-1"></i> {{ vehicle.deployment_time|date:"M d, Y - H:i"|default:"Recently Dispatched" }}</div>
-                                        <div class="mt-1 text-dark fw-semibold"><i class="fa-solid fa-user me-1"></i> Operator: {{ vehicle.assigned_driver.name|default:"Unassigned Crew" }}</div>
+                                        <div class="mt-1 fw-semibold {% if vehicle.assigned_driver.license_expired %}text-danger{% else %}text-dark{% endif %}"><i class="fa-solid fa-user me-1"></i> Operator: {{ vehicle.assigned_driver.name|default:"Unassigned Crew" }}{% if vehicle.assigned_driver.license_expired %} (LICENSE EXPIRED){% endif %}</div>
                                     </div>
 
                                     <div class="mt-auto">
@@ -290,7 +310,7 @@
                                     <div class="mb-3 small">
                                         <span class="text-muted d-block small">Originally Assigned Operator:</span>
                                         {% if vehicle.assigned_driver %}
-                                            <span class="fw-bold text-danger"><i class="fa-solid fa-user-gear me-1"></i> {{ vehicle.assigned_driver.name }} <span class="badge bg-warning text-dark ms-1">Available for Reassignment</span></span>
+                                            <span class="fw-bold text-danger"><i class="fa-solid fa-user-gear me-1"></i> {{ vehicle.assigned_driver.name }}{% if vehicle.assigned_driver.license_expired %} (LICENSE EXPIRED){% endif %} <span class="badge bg-warning text-dark ms-1">Available for Reassignment</span></span>
                                         {% else %}
                                             <span class="text-muted italic opacity-75"><i class="fa-solid fa-user-slash me-1"></i> Unassigned</span>
                                         {% endif %}
@@ -377,7 +397,7 @@
                                     <div class="mb-3 small">
                                         <span class="text-muted d-block small">Assigned Personnel Operator:</span>
                                         {% if craft.assigned_driver %}
-                                            <span class="fw-bold text-dark"><i class="fa-solid fa-anchor text-info me-1"></i> {{ craft.assigned_driver.name }}</span>
+                                            <span class="fw-bold {% if craft.assigned_driver.license_expired %}text-danger{% else %}text-dark{% endif %}"><i class="fa-solid fa-anchor {% if craft.assigned_driver.license_expired %}text-danger{% else %}text-info{% endif %} me-1"></i> {{ craft.assigned_driver.name }}{% if craft.assigned_driver.license_expired %} (LICENSE EXPIRED){% endif %}</span>
                                         {% else %}
                                             <span class="text-muted italic opacity-75"><i class="fa-solid fa-user-slash me-1"></i> Standby / Unassigned</span>
                                         {% endif %}
@@ -426,7 +446,7 @@
                                         <div class="mb-1 text-dark fw-semibold"><i class="fa-solid fa-bullseye text-warning me-1"></i> Mission: {{ craft.deployment_purpose }}</div>
                                         {% endif %}
                                         <div class="text-muted"><i class="fa-solid fa-clock me-1"></i> {{ craft.deployment_time|date:"M d, Y - H:i"|default:"Recently Dispatched" }}</div>
-                                        <div class="mt-1 text-dark fw-semibold"><i class="fa-solid fa-anchor me-1"></i> Operator: {{ craft.assigned_driver.name|default:"Unassigned Skipper" }}</div>
+                                        <div class="mt-1 fw-semibold {% if craft.assigned_driver.license_expired %}text-danger{% else %}text-dark{% endif %}"><i class="fa-solid fa-anchor me-1"></i> Operator: {{ craft.assigned_driver.name|default:"Unassigned Skipper" }}{% if craft.assigned_driver.license_expired %} (LICENSE EXPIRED){% endif %}</div>
                                     </div>
 
                                     <div class="mt-auto">
@@ -475,7 +495,7 @@
                                     <div class="mb-3 small">
                                         <span class="text-muted d-block small">Originally Assigned Operator:</span>
                                         {% if craft.assigned_driver %}
-                                            <span class="fw-bold text-danger"><i class="fa-solid fa-user-gear me-1"></i> {{ craft.assigned_driver.name }} <span class="badge bg-warning text-dark ms-1">Available for Reassignment</span></span>
+                                            <span class="fw-bold text-danger"><i class="fa-solid fa-user-gear me-1"></i> {{ craft.assigned_driver.name }}{% if craft.assigned_driver.license_expired %} (LICENSE EXPIRED){% endif %} <span class="badge bg-warning text-dark ms-1">Available for Reassignment</span></span>
                                         {% else %}
                                             <span class="text-muted italic opacity-75"><i class="fa-solid fa-user-slash me-1"></i> Unassigned</span>
                                         {% endif %}
@@ -621,8 +641,16 @@
                         <div class="form-text mb-3" id="operator-authority-hint">Land vehicle driver license authority: LTO (automatic).</div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.license_document_images.id_for_label }}" data-operator-document-label>LTO driver's license image(s)</label>
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <button type="button" class="btn btn-primary" data-operator-document-action="camera">
+                                    <i class="fa-solid fa-camera me-1"></i>Scan with camera
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" data-operator-document-action="upload">
+                                    <i class="fa-solid fa-upload me-1"></i>Upload image
+                                </button>
+                            </div>
                             {{ operator_form.license_document_images }}
-                            <div class="form-text">Upload up to 5 clear JPEG, PNG, or WebP images (10 MB each). Date of birth and address are not extracted.</div>
+                            <div class="form-text">Take a clear photo or upload up to 5 JPEG, PNG, or WebP images (10 MB each). Recognized details will be suggested in the fields below; review them before saving. Date of birth and address are not extracted.</div>
                             <div class="small mt-1" data-operator-ocr-status role="status" aria-live="polite"></div>
                         </div>
                         <div class="mb-3">
@@ -691,7 +719,9 @@
                                     <select name="driver_id" class="form-select form-select-sm" onchange="this.form.submit()" {% if vehicle.status == 'DEPLOYED' or vehicle.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in land_drivers %}
-                                            {% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %}
+                                            {% if driver.license_expired %}
+                                                <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
+                                            {% elif vehicle.assigned_driver and vehicle.assigned_driver.id == driver.id %}
                                                 <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.id not in assigned_driver_ids %}
                                                 <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
@@ -730,7 +760,9 @@
                                     <select name="driver_id" class="form-select form-select-sm" onchange="this.form.submit()" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in sea_drivers %}
-                                            {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}
+                                            {% if driver.license_expired %}
+                                                <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
+                                            {% elif craft.assigned_driver and craft.assigned_driver.id == driver.id %}
                                                 <option value="{{ driver.id }}" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.id not in assigned_driver_ids %}
                                                 <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
@@ -982,6 +1014,7 @@
             {
                 "id": "{{ driver.id }}",
                 "name": "{{ driver.name|escapejs }}",
+                "license_expired": {% if driver.license_expired %}true{% else %}false{% endif %},
                 "is_assigned": {% if driver.id in assigned_driver_ids %}true{% else %}false{% endif %}
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
@@ -993,6 +1026,7 @@
             {
                 "id": "{{ driver.id }}",
                 "name": "{{ driver.name|escapejs }}",
+                "license_expired": {% if driver.license_expired %}true{% else %}false{% endif %},
                 "is_assigned": {% if driver.id in assigned_driver_ids %}true{% else %}false{% endif %}
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
@@ -1129,7 +1163,13 @@
 
                         const assignedVehicle = driverVehicleMap[driver.id];
 
-                        if (currentDriverId && String(driver.id) === String(currentDriverId)) {
+                        if (driver.license_expired) {
+                            option.textContent = `⚠ ${driver.name} [LICENSE EXPIRED]`;
+                            option.classList.add('text-danger', 'fw-bold');
+                            option.style.color = '#dc3545';
+                            option.style.fontWeight = '700';
+                            option.disabled = true;
+                        } else if (currentDriverId && String(driver.id) === String(currentDriverId)) {
                             option.textContent = `👤 ${driver.name} [Assigned to this Fleet]`;
                             option.selected = true;
                             driverFound = true;

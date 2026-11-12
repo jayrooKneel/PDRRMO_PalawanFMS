@@ -360,6 +360,21 @@ def vehicle_type_matches_operator(vehicle, driver):
     return is_seacraft == is_seacraft_operator
 
 
+def driver_license_is_expired(driver, today=None):
+    return bool(
+        driver.license_expiry
+        and driver.license_expiry < (today or timezone.localdate())
+    )
+
+
+def driver_license_expires_soon(driver, today=None):
+    today = today or timezone.localdate()
+    return bool(
+        driver.license_expiry
+        and today <= driver.license_expiry <= today + timedelta(days=30)
+    )
+
+
 def assign_vehicle_operator(vehicle, driver, allow_seacraft_reassignment=False):
     previous_vehicle = Vehicle.objects.filter(assigned_driver=driver).exclude(pk=vehicle.pk).first()
     if previous_vehicle:
@@ -1386,6 +1401,9 @@ def logistics_dashboard(request):
             if driver_obj is None or not vehicle_type_matches_operator(vehicle, driver_obj):
                 messages.error(request, "Select an active operator qualified for this vehicle type.")
                 return redirect('dashboard_portal:logistics_dashboard')
+            if driver_license_is_expired(driver_obj):
+                messages.error(request, f"DISPATCH DENIED: {driver_obj.name}'s license expired on {driver_obj.license_expiry:%b %d, %Y}. Select an operator with a current license.")
+                return redirect('dashboard_portal:logistics_dashboard')
 
             with transaction.atomic():
                 conflicting_vehicle = assign_vehicle_operator(vehicle, driver_obj)
@@ -1535,6 +1553,9 @@ def logistics_dashboard(request):
                 if driver_obj is None or not vehicle_type_matches_operator(vehicle, driver_obj):
                     messages.error(request, "Select an active operator qualified for this vehicle type.")
                     return redirect('dashboard_portal:logistics_dashboard')
+                if driver_license_is_expired(driver_obj):
+                    messages.error(request, f"Assignment denied: {driver_obj.name}'s license expired on {driver_obj.license_expiry:%b %d, %Y}. Select an operator with a current license.")
+                    return redirect('dashboard_portal:logistics_dashboard')
                 msg = f"Assigned operator {driver_obj.name} to {vehicle.model_name}."
             else:  
                 vehicle.assigned_driver = None
@@ -1620,9 +1641,17 @@ def logistics_dashboard(request):
     sea_deployed = [c for c in sea_crafts if c.status == 'DEPLOYED']
     sea_maintenance = [c for c in sea_crafts if c.status in ['MAINTENANCE', 'PENDING_DISPOSAL']]
 
-    all_drivers = Driver.objects.filter(is_active=True)
-    land_drivers = all_drivers.exclude(seacraft_operator_filter())
-    sea_drivers = all_drivers.filter(seacraft_operator_filter())
+    today = timezone.localdate()
+    all_drivers = list(Driver.objects.filter(is_active=True))
+    for driver in all_drivers:
+        driver.license_expired = driver_license_is_expired(driver, today)
+        driver.license_expiring_soon = driver_license_expires_soon(driver, today)
+    sea_drivers = [
+        driver for driver in all_drivers
+        if driver.license_authority == 'MARINA'
+        or (driver.license_number or '').strip().upper().startswith('MAR-')
+    ]
+    land_drivers = [driver for driver in all_drivers if driver not in sea_drivers]
 
     assigned_driver_ids = set(
         Vehicle.objects.filter(assigned_driver__isnull=False).values_list('assigned_driver_id', flat=True)
@@ -1631,6 +1660,18 @@ def logistics_dashboard(request):
     assigned_driver_map = {
         v.assigned_driver_id: v.model_name for v in Vehicle.objects.filter(assigned_driver__isnull=False)
     }
+    expired_assigned_drivers = []
+    expiring_assigned_drivers = []
+    for vehicle in [*land_vehicles, *sea_crafts]:
+        driver = vehicle.assigned_driver
+        if not driver:
+            continue
+        driver.license_expired = driver_license_is_expired(driver, today)
+        assignment = {'driver': driver, 'vehicle': vehicle}
+        if driver.license_expired:
+            expired_assigned_drivers.append(assignment)
+        elif driver_license_expires_soon(driver, today):
+            expiring_assigned_drivers.append(assignment)
 
     types = VehicleType.objects.all()
     
@@ -1648,6 +1689,8 @@ def logistics_dashboard(request):
         'sea_drivers': sea_drivers,
         'assigned_driver_ids': assigned_driver_ids,
         'assigned_driver_map': assigned_driver_map,
+        'expired_assigned_drivers': expired_assigned_drivers,
+        'expiring_assigned_drivers': expiring_assigned_drivers,
         'operator_form': OperatorDetailsForm(),
         'asset_registration_forms': [
             FleetAssetRegistrationForm(prefix='asset-0'),
@@ -1933,6 +1976,9 @@ def seacraft_dispatch_view(request):
             if driver is None:
                 messages.error(request, "Select an active, qualified seacraft operator before deployment.")
                 return redirect("dashboard_portal:seacraft_dispatch")
+            if driver_license_is_expired(driver):
+                messages.error(request, f"Dispatch denied: {driver.name}'s license expired on {driver.license_expiry:%b %d, %Y}. Select an operator with a current license.")
+                return redirect("dashboard_portal:seacraft_dispatch")
 
             with transaction.atomic():
                 conflicting_vehicle = assign_vehicle_operator(vehicle, driver)
@@ -1969,6 +2015,9 @@ def seacraft_dispatch_view(request):
                 ).filter(seacraft_operator_filter()).first()
                 if driver is None:
                     messages.error(request, "Select an active, qualified seacraft operator.")
+                    return redirect("dashboard_portal:seacraft_dispatch")
+                if driver_license_is_expired(driver):
+                    messages.error(request, f"Assignment denied: {driver.name}'s license expired on {driver.license_expiry:%b %d, %Y}. Select an operator with a current license.")
                     return redirect("dashboard_portal:seacraft_dispatch")
                 previous_vehicle = (
                     Vehicle.objects.filter(assigned_driver=driver)
@@ -2054,8 +2103,12 @@ def seacraft_dispatch_view(request):
 
         return redirect("dashboard_portal:seacraft_dispatch")
 
-    all_drivers = Driver.objects.filter(is_active=True)
-    sea_drivers = all_drivers.filter(seacraft_operator_filter())
+    today = timezone.localdate()
+    sea_drivers = list(
+        Driver.objects.filter(is_active=True).filter(seacraft_operator_filter())
+    )
+    for driver in sea_drivers:
+        driver.license_expired = driver_license_is_expired(driver, today)
 
     assigned_vehicles = (
         Vehicle.objects.filter(assigned_driver__in=sea_drivers)

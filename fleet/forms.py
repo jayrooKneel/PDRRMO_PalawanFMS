@@ -613,6 +613,8 @@ class OperatorDetailsForm(forms.ModelForm):
             'accept': 'image/jpeg,image/png,image/webp',
             'data-operator-documents': '',
             'multiple': True,
+            'capture': 'environment',
+            'hidden': True,
         }),
     )
 

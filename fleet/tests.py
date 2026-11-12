@@ -172,6 +172,9 @@ class SystemConsoleTests(TestCase):
         self.assertNotContains(response, 'id_license_authority')
         self.assertContains(response, 'Images are processed locally and discarded after scanning')
         self.assertContains(response, 'data-operator-documents')
+        self.assertContains(response, 'data-operator-document-action="camera"')
+        self.assertContains(response, 'data-operator-document-action="upload"')
+        self.assertContains(response, 'capture="environment"')
         self.assertContains(response, 'License class / seafarer rank')
         self.assertContains(response, 'License expiry date')
         self.assertContains(response, 'fleet/js/operator_document_ocr.js')
@@ -1536,6 +1539,96 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertNotContains(response, 'Save All Operator Assignments')
         self.assertContains(response, 'onchange="this.form.submit()"')
         self.assertContains(response, 'name="action" value="set_driver"')
+
+    def test_expired_assigned_operator_is_red_disabled_and_alerted(self):
+        today = timezone.localdate()
+        expired_driver = Driver.objects.create(
+            name='Expired Land Operator',
+            license_number='LAND-EXPIRED-01',
+            license_expiry=today - timedelta(days=1),
+        )
+        expiring_driver = Driver.objects.create(
+            name='Expiring Land Operator',
+            license_number='LAND-EXPIRING-01',
+            license_expiry=today + timedelta(days=30),
+        )
+        expired_vehicle = self.create_vehicle(
+            model_name='Expired License Assignment Vehicle',
+            plate_number='LAND-EXPIRED-01',
+            vehicle_type=self.land_type,
+            assigned_driver=expired_driver,
+        )
+        expiring_vehicle = self.create_vehicle(
+            model_name='Expiring License Assignment Vehicle',
+            plate_number='LAND-EXPIRING-01',
+            vehicle_type=self.land_type,
+            assigned_driver=expiring_driver,
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item['driver'] for item in response.context['expired_assigned_drivers']],
+            [expired_driver],
+        )
+        self.assertEqual(
+            [item['driver'] for item in response.context['expiring_assigned_drivers']],
+            [expiring_driver],
+        )
+        self.assertContains(response, 'Expired operator licenses')
+        self.assertContains(response, 'License expiry reminders')
+        self.assertContains(response, 'Expired Land Operator')
+        self.assertContains(response, 'Expiring Land Operator')
+        self.assertContains(
+            response,
+            'class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled selected',
+        )
+
+    def test_expired_operator_cannot_be_assigned_or_dispatched(self):
+        expired_driver = Driver.objects.create(
+            name='Expired Dispatch Operator',
+            license_number='LAND-EXPIRED-02',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        vehicle = self.create_vehicle(
+            model_name='Expired Dispatch Test Vehicle',
+            plate_number='LAND-EXPIRED-02',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.logistics_user)
+        dashboard_url = reverse('dashboard_portal:logistics_dashboard')
+
+        assignment_response = self.client.post(
+            dashboard_url,
+            {
+                'action': 'set_driver',
+                'vehicle_id': vehicle.pk,
+                'driver_id': expired_driver.pk,
+            },
+            follow=True,
+        )
+        self.assertContains(assignment_response, 'Assignment denied')
+        vehicle.refresh_from_db()
+        self.assertIsNone(vehicle.assigned_driver)
+
+        dispatch_response = self.client.post(
+            dashboard_url,
+            {
+                'action': 'deploy_vehicle',
+                'vehicle_id': vehicle.pk,
+                'driver_id': expired_driver.pk,
+                'deployment_location': 'Bancao-bancao, Puerto Princesa City, Palawan',
+                'deployment_purpose': 'Search and Rescue',
+                'deployment_time': timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
+            },
+            follow=True,
+        )
+        self.assertContains(dispatch_response, 'DISPATCH DENIED')
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, 'OPERATIONAL')
+        self.assertIsNone(vehicle.assigned_driver)
 
     def test_logistics_dropdown_changes_save_land_and_seacraft_assignments(self):
         land_operator = Driver.objects.create(

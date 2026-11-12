@@ -6,6 +6,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const documentInput = formBody.querySelector("[data-operator-documents]");
     const documentLabel = formBody.querySelector("[data-operator-document-label]");
 
+    formBody.querySelectorAll("[data-operator-document-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+            if (button.dataset.operatorDocumentAction === "camera") {
+                documentInput.setAttribute("capture", "environment");
+            } else {
+                documentInput.removeAttribute("capture");
+            }
+            documentInput.click();
+        });
+    });
+
     function setStatus(message, isError = false) {
         const status = formBody.querySelector("[data-operator-ocr-status]");
         status.textContent = message;
