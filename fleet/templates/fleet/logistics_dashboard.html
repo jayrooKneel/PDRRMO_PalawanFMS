@@ -344,6 +344,19 @@
                             {% for vehicle in land_maintenance %}
                             <article class="asset-card shadow-sm border-danger">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
+                                    <div class="mb-2">{% include "fleet/_maintenance_priority_badge.html" with asset=vehicle %}</div>
+                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
+                                        <input type="hidden" name="action" value="set_maintenance_priority">
+                                        <label class="visually-hidden" for="land-priority-{{ vehicle.id }}">Maintenance priority</label>
+                                        <select id="land-priority-{{ vehicle.id }}" name="maintenance_priority" class="form-select form-select-sm">
+                                            {% for value, label in maintenance_priority_choices %}
+                                            <option value="{{ value }}" {% if vehicle.maintenance_priority == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Set priority</button>
+                                    </form>
                                     <img src="{% static 'fleet/images/land-vehicle.svg' %}" alt="Land vehicle" class="asset-card-image mb-2">
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
@@ -364,19 +377,6 @@
                                         <strong>User-reported fault:</strong>
                                         {{ vehicle.maintenance_problem|default:"No fault description recorded." }}
                                     </div>
-                                    {% include "fleet/_maintenance_priority_badge.html" with asset=vehicle %}
-                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="vehicle_id" value="{{ vehicle.id }}">
-                                        <input type="hidden" name="action" value="set_maintenance_priority">
-                                        <label class="visually-hidden" for="land-priority-{{ vehicle.id }}">Maintenance priority</label>
-                                        <select id="land-priority-{{ vehicle.id }}" name="maintenance_priority" class="form-select form-select-sm">
-                                            {% for value, label in maintenance_priority_choices %}
-                                            <option value="{{ value }}" {% if vehicle.maintenance_priority == value %}selected{% endif %}>{{ label }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Set priority</button>
-                                    </form>
                                     
                                     <div class="mb-3 small">
                                         <span class="text-muted d-block small">Originally Assigned Operator:</span>
@@ -542,6 +542,19 @@
                             {% for craft in sea_maintenance %}
                             <article class="asset-card asset-card-maritime shadow-sm border-danger">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
+                                    <div class="mb-2">{% include "fleet/_maintenance_priority_badge.html" with asset=craft %}</div>
+                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
+                                        <input type="hidden" name="action" value="set_maintenance_priority">
+                                        <label class="visually-hidden" for="sea-priority-{{ craft.id }}">Maintenance priority</label>
+                                        <select id="sea-priority-{{ craft.id }}" name="maintenance_priority" class="form-select form-select-sm">
+                                            {% for value, label in maintenance_priority_choices %}
+                                            <option value="{{ value }}" {% if craft.maintenance_priority == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Set priority</button>
+                                    </form>
                                     <img src="{% static 'fleet/images/seacraft.svg' %}" alt="Seacraft" class="asset-card-image mb-2">
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
@@ -562,19 +575,6 @@
                                         <strong>User-reported fault:</strong>
                                         {{ craft.maintenance_problem|default:"No fault description recorded." }}
                                     </div>
-                                    {% include "fleet/_maintenance_priority_badge.html" with asset=craft %}
-                                    <form action="{% url 'dashboard_portal:logistics_dashboard' %}" method="post" class="mb-3 d-flex gap-2 align-items-center">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
-                                        <input type="hidden" name="action" value="set_maintenance_priority">
-                                        <label class="visually-hidden" for="sea-priority-{{ craft.id }}">Maintenance priority</label>
-                                        <select id="sea-priority-{{ craft.id }}" name="maintenance_priority" class="form-select form-select-sm">
-                                            {% for value, label in maintenance_priority_choices %}
-                                            <option value="{{ value }}" {% if craft.maintenance_priority == value %}selected{% endif %}>{{ label }}</option>
-                                            {% endfor %}
-                                        </select>
-                                        <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Set priority</button>
-                                    </form>
                                     
                                     <div class="mb-3 small">
                                         <span class="text-muted d-block small">Originally Assigned Operator:</span>

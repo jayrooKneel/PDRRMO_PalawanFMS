@@ -1554,6 +1554,16 @@ class DispatchDashboardAlignmentTests(TestCase):
         dashboard = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
         self.assertContains(dashboard, 'name="maintenance_priority"')
         self.assertContains(dashboard, 'High Priority')
+        self.assertContains(dashboard, 'data-maintenance-priority="NORMAL"')
+        self.assertContains(dashboard, 'badge bg-success')
+        dashboard_html = dashboard.content.decode()
+        land_asset_position = dashboard_html.index('Priority Land Work Vehicle')
+        land_card_image_position = dashboard_html.index('land-vehicle.svg', land_asset_position)
+        land_card_start = dashboard_html.rfind('<article', 0, land_card_image_position)
+        land_priority_position = dashboard_html.index(
+            'data-maintenance-priority="NORMAL"', land_card_start, land_card_image_position,
+        )
+        self.assertLess(land_priority_position, land_card_image_position)
 
         for vehicle, priority in (
             (land_vehicle, 'URGENT'),
@@ -1625,6 +1635,15 @@ class DispatchDashboardAlignmentTests(TestCase):
         dispatch = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
         self.assertContains(dispatch, 'name="maintenance_priority"')
         self.assertContains(dispatch, 'High Priority')
+        self.assertContains(dispatch, 'data-maintenance-priority="NORMAL"')
+        self.assertContains(dispatch, 'badge bg-success')
+        dispatch_html = dispatch.content.decode()
+        vessel_position = dispatch_html.index('Dispatch Priority Vessel')
+        vessel_priority_position = dispatch_html.index(
+            'data-maintenance-priority="NORMAL"', vessel_position,
+        )
+        vessel_status_position = dispatch_html.index('FAULT REPAIR', vessel_priority_position)
+        self.assertLess(vessel_priority_position, vessel_status_position)
 
         response = self.client.post(
             reverse('dashboard_portal:seacraft_dispatch'),
@@ -3365,6 +3384,13 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertContains(response, f'data-maintenance-priority="{priority}"')
                 self.assertContains(response, label)
                 self.assertContains(response, badge_class)
+
+        self.land_vehicle.maintenance_priority = 'NORMAL'
+        self.land_vehicle.save(update_fields=['maintenance_priority'])
+        self.client.force_login(self.land_mechanic)
+        normal_response = self.client.get(reverse('dashboard_portal:repairman_dashboard'))
+        self.assertContains(normal_response, 'data-maintenance-priority="NORMAL"')
+        self.assertContains(normal_response, 'badge bg-success')
 
         self.land_vehicle.status = 'OPERATIONAL'
         self.land_vehicle.save(update_fields=['status'])
