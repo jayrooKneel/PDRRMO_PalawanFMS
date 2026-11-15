@@ -63,14 +63,20 @@
 
         operatorForm.querySelector("[name='operator_type']").value =
             operator.type === "MARINA" || operator.type === "SEA" ? "SEA" : "LAND";
+        operatorForm.querySelector("[name='operator_type']").dispatchEvent(
+            new Event("change", { bubbles: true }),
+        );
         operatorForm.querySelector("[name='name']").value = operator.name || "";
         operatorForm.querySelector("[name='license_number']").value = operator.license || "";
         operatorForm.querySelector("[name='license_class']").value = operator.licenseClass || "";
+        operatorForm.querySelector("[name='license_type']").value = operator.licenseType || "";
+        operatorForm.querySelector("[name='license_restrictions']").value = operator.licenseRestrictions || "";
+        operatorForm.querySelector("[name='license_conditions']").value = operator.licenseConditions || "";
         operatorForm.querySelector("[name='license_expiry']").value = operator.expiry || "";
         operatorForm.querySelector("[name='phone_number']").value = operator.phone || "";
         operatorModal.querySelector("[data-operator-ocr-status]").textContent =
             operator.replaceLicenseFieldsOnScan
-                ? "Scan or upload the renewed license to replace its number, class, and expiry date; otherwise review and update them manually."
+                ? "Scan or upload the renewed license to replace its number, class, type, restrictions, conditions, and expiry; review them before saving."
                 : "Select a replacement license image to scan and store it; otherwise the saved image is kept.";
     }
 
@@ -93,6 +99,9 @@
                 name: editButton.dataset.driverName,
                 license: editButton.dataset.driverLicense,
                 licenseClass: editButton.dataset.driverClass,
+                licenseType: editButton.dataset.driverLicenseType,
+                licenseRestrictions: editButton.dataset.driverRestrictions,
+                licenseConditions: editButton.dataset.driverConditions,
                 expiry: editButton.dataset.driverExpiry,
                 phone: editButton.dataset.driverPhone,
                 replaceLicenseFieldsOnScan: editButton.dataset.licenseRefresh === "true",

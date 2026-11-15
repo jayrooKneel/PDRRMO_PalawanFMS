@@ -29,6 +29,9 @@ document.addEventListener("DOMContentLoaded", () => {
         documentLabel.textContent = operatorType.value === "SEA"
             ? "MARINA license / certificate image(s)"
             : "LTO driver's license image(s)";
+        formBody.querySelectorAll("[data-lto-license-field]").forEach((field) => {
+            field.hidden = operatorType.value === "SEA";
+        });
     }
 
     operatorType.addEventListener("change", updateDocumentLabel);
@@ -79,10 +82,25 @@ document.addEventListener("DOMContentLoaded", () => {
             const replaceLicenseFields =
                 formBody.dataset.replaceLicenseFieldsOnScan === "true";
             let filledCount = 0;
-            ["name", "license_number", "license_class", "license_expiry"].forEach((name) => {
+            [
+                "name",
+                "license_number",
+                "license_class",
+                "license_type",
+                "license_restrictions",
+                "license_conditions",
+                "license_expiry",
+            ].forEach((name) => {
                 const field = formBody.querySelector(`[name='${name}']`);
                 const replaceValue = replaceLicenseFields
-                    && ["license_number", "license_class", "license_expiry"].includes(name);
+                    && [
+                        "license_number",
+                        "license_class",
+                        "license_type",
+                        "license_restrictions",
+                        "license_conditions",
+                        "license_expiry",
+                    ].includes(name);
                 if (!field || !fields[name] || (field.value && !replaceValue)) return;
                 field.value = fields[name];
                 field.dispatchEvent(new Event("input", { bubbles: true }));

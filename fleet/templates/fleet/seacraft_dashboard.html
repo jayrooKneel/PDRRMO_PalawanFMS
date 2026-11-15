@@ -41,6 +41,7 @@
     {% include "fleet/_activity_report_modal.html" %}
 
     <main class="flex-grow p-6 max-w-7xl w-full mx-auto space-y-4">
+        {% include "fleet/_account_security_prompt.html" %}
         {% if upcoming_scheduled_maintenance_vehicles %}
         <div class="alert alert-info border-info-subtle mb-3" role="status" aria-live="polite">
             <div class="fw-bold"><i class="fa-solid fa-calendar-day me-2"></i>Regular maintenance due within 7 days</div>

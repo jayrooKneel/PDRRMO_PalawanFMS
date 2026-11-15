@@ -38,6 +38,7 @@
     </header>
 
     <main class="container py-4 py-md-5" id="driver-dashboard">
+        {% include "fleet/_account_security_prompt.html" %}
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %}" role="status">{{ message }}</div>

@@ -123,6 +123,18 @@ class LoginViewTests(TestCase):
         self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged in successfully.').exists())
         self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged out.').exists())
 
+    def test_account_security_setup_offers_at_least_ten_questions(self):
+        user = User.objects.create_user(username='security_choices_user', password='SecurePass123!')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('dashboard_portal:account_security'))
+
+        self.assertEqual(response.status_code, 200)
+        question_field = response.context['form'].fields['security_question']
+        self.assertGreaterEqual(len(question_field.choices) - 1, 10)
+        self.assertContains(response, '<select')
+        self.assertContains(response, 'What was the name of your first school?')
+
     def test_fifth_failed_login_temporarily_locks_account_on_both_login_urls(self):
         user = User.objects.create_user(username='locked_user', password='SecurePass123!')
         for attempt in range(5):
@@ -260,7 +272,7 @@ class LoginViewTests(TestCase):
             reverse('dashboard_portal:account_security'),
             {
                 'current_password': 'WrongPass123!',
-                'security_question': 'What was your first school?',
+                'security_question': 'What was the name of your first school?',
                 'security_answer': 'sample answer',
             },
         )
@@ -272,7 +284,7 @@ class LoginViewTests(TestCase):
             reverse('dashboard_portal:account_security'),
             {
                 'current_password': 'SecurePass123!',
-                'security_question': 'What was your first school?',
+                'security_question': 'What was the name of your first school?',
                 'security_answer': '  SAMPLE   ANSWER  ',
             },
         )
@@ -409,6 +421,9 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-operator-document-action="upload"')
         self.assertContains(response, 'capture="environment"')
         self.assertContains(response, 'License class / seafarer rank')
+        self.assertContains(response, 'License restrictions')
+        self.assertContains(response, 'License conditions')
+        self.assertContains(response, 'Driver type')
         self.assertContains(response, 'License expiry date')
         self.assertContains(response, 'fleet/js/operator_document_ocr.js')
         self.assertContains(response, 'license authority: ${authority} (automatic).')
@@ -706,6 +721,35 @@ DATE OF BIRTH: 01/02/1990
 ADDRESS: PUERTO PRINCESA, PALAWAN
 EXPIRY DATE: 2030/06/19
 """
+    LTO_LICENSE_TEXT = """\
+REPUBLIC OF THE PHILIPPINES
+DEPARTMENT OF TRANSPORTATION
+LAND TRANSPORTATION OFFICE
+DRIVER'S LICENSE
+Last Name, First Name, Middle Name
+BALANSAY, JOHN REY CATOR
+License No.
+D11-25-004594
+Expiration Date
+2030/05/18
+DL Codes
+A, B
+Conditions
+NONE
+I. DL CODES:
+A MOTORCYCLE
+B UP TO 5000 KGS GVW/8 SEATS
+L1,L2,L3-NP-MT/AT
+M1-NP-MT/AT
+II. CONDITIONS:
+1. WEAR CORRECTIVE LENSES
+2. DRIVE ONLY WITH SPECIAL EQUIPMENT FOR UPPER/LOWER LIMBS
+3. DRIVE CUSTOMIZED MOTOR VEHICLE ONLY
+4. DAYLIGHT DRIVING ONLY
+5. HEARING AID REQUIRED
+Serial Number
+522409374
+"""
     MARINA_OPERATOR_TEXT = """\
 NAME OF LICENSEE: MARIA SANTOS
 CERTIFICATE NO: MRA-9876
@@ -902,6 +946,35 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
             'license_expiry': '2030-06-19',
         })
 
+    def test_extracts_lto_license_number_codes_type_restrictions_and_conditions(self):
+        fields = extract_driver_fields_from_text(self.LTO_LICENSE_TEXT)
+
+        self.assertEqual(fields['name'], 'JOHN REY CATOR BALANSAY')
+        self.assertEqual(fields['license_number'], 'D11-25-004594')
+        self.assertEqual(fields['license_class'], 'A, B')
+        self.assertEqual(fields['license_expiry'], '2030-05-18')
+        self.assertEqual(fields['license_type'], 'NON_PROFESSIONAL')
+        self.assertEqual(
+            fields['license_restrictions'],
+            'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT',
+        )
+        self.assertEqual(
+            fields['license_conditions'],
+            'WEAR CORRECTIVE LENSES; DRIVE ONLY WITH SPECIAL EQUIPMENT FOR UPPER/LOWER LIMBS; '
+            'DRIVE CUSTOMIZED MOTOR VEHICLE ONLY; DAYLIGHT DRIVING ONLY; HEARING AID REQUIRED',
+        )
+
+    def test_identifies_professional_license_from_explicit_type_or_restriction_code(self):
+        explicit_type = extract_driver_fields_from_text(
+            'License Type: Professional Driver\nLicense No: D11-25-004594'
+        )
+        restriction_type = extract_driver_fields_from_text(
+            'License No: D11-25-004594\nRestrictions: M1-P-MT/AT'
+        )
+
+        self.assertEqual(explicit_type['license_type'], 'PROFESSIONAL')
+        self.assertEqual(restriction_type['license_type'], 'PROFESSIONAL')
+
     def test_extracts_marina_operator_certificate_and_expiry(self):
         fields = extract_driver_fields_from_text(self.MARINA_OPERATOR_TEXT)
 
@@ -916,7 +989,7 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
         self.client.force_login(self.user)
         with patch(
             'fleet.vehicle_document_ocr.pytesseract.image_to_string',
-            return_value=self.DRIVER_TEXT,
+            return_value=self.LTO_LICENSE_TEXT,
         ):
             response = self.client.post(
                 reverse('dashboard_portal:logistics_operator_document_ocr'),
@@ -928,11 +1001,25 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Cache-Control'], 'private, no-store')
-        self.assertEqual(response.json()['fields']['name'], 'JUAN SANTOS DELA CRUZ')
-        self.assertEqual(response.json()['fields']['license_expiry'], '2030-06-19')
+        self.assertEqual(response.json()['fields']['name'], 'JOHN REY CATOR BALANSAY')
+        self.assertEqual(response.json()['fields']['license_number'], 'D11-25-004594')
+        self.assertEqual(response.json()['fields']['license_expiry'], '2030-05-18')
+        self.assertEqual(response.json()['fields']['license_type'], 'NON_PROFESSIONAL')
+        self.assertEqual(
+            response.json()['fields']['license_restrictions'],
+            'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT',
+        )
         self.assertEqual(
             set(response.json()['fields']),
-            {'name', 'license_number', 'license_class', 'license_expiry'},
+            {
+                'name',
+                'license_number',
+                'license_class',
+                'license_expiry',
+                'license_type',
+                'license_restrictions',
+                'license_conditions',
+            },
         )
         self.assertIn('image was not saved', response.json()['message'])
         self.assertFalse(Driver.objects.exists())
@@ -1120,6 +1207,12 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'data-open-maintenance-report=')
         self.assertContains(response, 'id="report-vehicle"')
         self.assertContains(response, 'All vehicles and seacraft')
+
+    def test_dashboard_prompts_users_without_recovery_settings(self):
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertContains(response, 'Secure your account:')
+        self.assertContains(response, 'Set up account security')
 
     def test_asset_management_shows_archived_assets_filters_and_vehicle_details(self):
         archived_vehicle = Vehicle.objects.create(
@@ -2138,6 +2231,31 @@ class DispatchDashboardAlignmentTests(TestCase):
                 self.assertEqual(operator.license_class, 'A, B')
                 self.assertEqual(operator.license_expiry.isoformat(), '2030-06-19')
                 self.assertEqual(operator.phone_number, '555-0100')
+
+    def test_logistics_can_save_lto_license_type_restrictions_and_conditions(self):
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_type': 'LAND',
+                'name': 'LTO Details Driver',
+                'license_number': 'D11-25-004594',
+                'license_class': 'A, B',
+                'license_type': 'NON_PROFESSIONAL',
+                'license_restrictions': 'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT',
+                'license_conditions': 'WEAR CORRECTIVE LENSES; DAYLIGHT DRIVING ONLY',
+                'license_expiry': '2030-05-18',
+                'phone_number': '',
+            },
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        driver = Driver.objects.get(name='LTO Details Driver')
+        self.assertEqual(driver.license_type, 'NON_PROFESSIONAL')
+        self.assertEqual(driver.license_restrictions, 'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT')
+        self.assertEqual(driver.license_conditions, 'WEAR CORRECTIVE LENSES; DAYLIGHT DRIVING ONLY')
 
     def test_driver_license_image_is_saved_viewable_editable_and_archivable(self):
         image_bytes = BytesIO()

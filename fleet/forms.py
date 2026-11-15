@@ -7,6 +7,22 @@ from django.utils import timezone
 from .models import Driver, FleetIncident, Vehicle, VehicleType
 
 
+SECURITY_QUESTION_CHOICES = (
+    ('What was the name of your first school?', 'What was the name of your first school?'),
+    ('What was the name of your first pet?', 'What was the name of your first pet?'),
+    ('In what city or town were you born?', 'In what city or town were you born?'),
+    ('What was the first concert or live event you attended?', 'What was the first concert or live event you attended?'),
+    ('What was the make of your first vehicle?', 'What was the make of your first vehicle?'),
+    ('What was the name of the street where you grew up?', 'What was the name of the street where you grew up?'),
+    ('What was your childhood nickname?', 'What was your childhood nickname?'),
+    ('What was the first name of your favorite teacher?', 'What was the first name of your favorite teacher?'),
+    ('What was the name of your first employer?', 'What was the name of your first employer?'),
+    ('What was your favorite book as a child?', 'What was your favorite book as a child?'),
+    ('What was the name of the first beach or park you remember visiting?', 'What was the name of the first beach or park you remember visiting?'),
+    ('What was the first name of your childhood best friend?', 'What was the first name of your childhood best friend?'),
+)
+
+
 class AccountSecuritySetupForm(forms.Form):
     current_password = forms.CharField(
         label='Current password',
@@ -16,12 +32,11 @@ class AccountSecuritySetupForm(forms.Form):
             'autocomplete': 'current-password',
         }),
     )
-    security_question = forms.CharField(
+    security_question = forms.ChoiceField(
         label='Security question',
-        max_length=255,
-        widget=forms.TextInput(attrs={
+        choices=SECURITY_QUESTION_CHOICES,
+        widget=forms.Select(attrs={
             'class': 'form-control',
-            'autocomplete': 'off',
         }),
     )
     security_answer = forms.CharField(
@@ -35,9 +50,23 @@ class AccountSecuritySetupForm(forms.Form):
         }),
     )
 
-    def __init__(self, *args, user, **kwargs):
+    def __init__(self, *args, user, current_question='', **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        question_values = {value for value, _label in SECURITY_QUESTION_CHOICES}
+        if current_question and current_question not in question_values:
+            self.fields['security_question'].choices = (
+                ('', 'Choose a security question'),
+                (current_question, current_question),
+                *SECURITY_QUESTION_CHOICES,
+            )
+        else:
+            self.fields['security_question'].choices = (
+                ('', 'Choose a security question'),
+                *SECURITY_QUESTION_CHOICES,
+            )
+        if current_question:
+            self.fields['security_question'].initial = current_question
 
     def clean_current_password(self):
         password = self.cleaned_data['current_password']
@@ -786,7 +815,16 @@ class OperatorDetailsForm(forms.ModelForm):
 
     class Meta:
         model = Driver
-        fields = ('name', 'license_number', 'license_class', 'license_expiry', 'phone_number')
+        fields = (
+            'name',
+            'license_number',
+            'license_class',
+            'license_type',
+            'license_restrictions',
+            'license_conditions',
+            'license_expiry',
+            'phone_number',
+        )
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'license_number': forms.TextInput(attrs={
@@ -795,7 +833,16 @@ class OperatorDetailsForm(forms.ModelForm):
             }),
             'license_class': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'DL codes / restrictions or seafarer rank',
+                'placeholder': 'DL codes or seafarer rank',
+            }),
+            'license_type': forms.Select(attrs={'class': 'form-select'}),
+            'license_restrictions': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. L1, L2, L3-NP-MT/AT',
+            }),
+            'license_conditions': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
             }),
             'license_expiry': forms.DateInput(attrs={
                 'class': 'form-control',
@@ -812,6 +859,9 @@ class OperatorDetailsForm(forms.ModelForm):
         self.fields['name'].label = 'Full name'
         self.fields['license_number'].label = 'License number'
         self.fields['license_class'].label = 'License class / seafarer rank'
+        self.fields['license_type'].label = 'Driver type'
+        self.fields['license_restrictions'].label = 'License restrictions'
+        self.fields['license_conditions'].label = 'License conditions'
         self.fields['license_expiry'].label = 'License expiry date'
         self.fields['phone_number'].label = 'Phone number'
 

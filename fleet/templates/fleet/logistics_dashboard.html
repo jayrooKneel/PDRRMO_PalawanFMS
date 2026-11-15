@@ -147,6 +147,8 @@
 
     {% include "fleet/_activity_report_modal.html" %}
 
+    {% include "fleet/_account_security_prompt.html" %}
+
     <div class="container-fluid px-4" data-logistics-dashboard>
         <div id="floating-alert-container" data-dashboard-refresh-content="logistics-alerts" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 450px;">
             {% if messages %}
@@ -201,6 +203,9 @@
                             data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
                             data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
                             data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
+                            data-driver-license-type="{{ assignment.driver.license_type }}"
+                            data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
+                            data-driver-conditions="{{ assignment.driver.license_conditions }}"
                             data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
                 </li>
                 {% endfor %}
@@ -219,6 +224,9 @@
                             data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
                             data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
                             data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
+                            data-driver-license-type="{{ assignment.driver.license_type }}"
+                            data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
+                            data-driver-conditions="{{ assignment.driver.license_conditions }}"
                             data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
                 </li>
                 {% endfor %}
@@ -751,7 +759,7 @@
                                 </button>
                             </div>
                             {{ operator_form.license_document_images }}
-                            <div class="form-text">Take a clear photo or upload up to 5 JPEG, PNG, or WebP images (10 MB each). Recognized details will be suggested in the fields below; review them before saving. The first image is retained as the license record. Date of birth and address are not extracted.</div>
+                            <div class="form-text">Upload clear front and back images for best results. The system can suggest DL codes, professional status, restrictions, conditions, license number, and expiry. Review all suggestions before saving. The first image is retained as the license record; date of birth and address are not extracted.</div>
                             <div class="small mt-1" data-operator-ocr-status role="status" aria-live="polite"></div>
                         </div>
                         <div class="mb-3">
@@ -765,6 +773,18 @@
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.license_class.id_for_label }}">{{ operator_form.license_class.label }}</label>
                             {{ operator_form.license_class }}
+                        </div>
+                        <div class="mb-3" data-lto-license-field>
+                            <label class="form-label fw-semibold" for="{{ operator_form.license_type.id_for_label }}">{{ operator_form.license_type.label }}</label>
+                            {{ operator_form.license_type }}
+                        </div>
+                        <div class="mb-3" data-lto-license-field>
+                            <label class="form-label fw-semibold" for="{{ operator_form.license_restrictions.id_for_label }}">{{ operator_form.license_restrictions.label }}</label>
+                            {{ operator_form.license_restrictions }}
+                        </div>
+                        <div class="mb-3" data-lto-license-field>
+                            <label class="form-label fw-semibold" for="{{ operator_form.license_conditions.id_for_label }}">{{ operator_form.license_conditions.label }}</label>
+                            {{ operator_form.license_conditions }}
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.license_expiry.id_for_label }}">{{ operator_form.license_expiry.label }}</label>
@@ -795,7 +815,7 @@
                     <p class="small text-muted">Edit operator details, view the stored license image, or archive an operator. Archiving preserves the record and clears any eligible vehicle assignment.</p>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
-                            <thead><tr><th>Name</th><th>Type</th><th>License</th><th>Expiry</th><th>Record</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Name</th><th>Type</th><th>License, DL class, restrictions</th><th>Expiry</th><th>Record</th><th>Actions</th></tr></thead>
                             <tbody data-dashboard-refresh-content="logistics-operator-rows">
                                 {% for driver in land_drivers %}{% include "fleet/_driver_management_row.html" with driver=driver operator_type="LAND" %}{% endfor %}
                                 {% for driver in sea_drivers %}{% include "fleet/_driver_management_row.html" with driver=driver operator_type="SEA" %}{% endfor %}

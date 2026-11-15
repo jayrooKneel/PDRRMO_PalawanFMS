@@ -1,0 +1,6 @@
+{% if user.is_authenticated and security_setup_required %}
+<div class="alert alert-warning mx-3 mt-3 mb-0" role="status">
+    <strong>Secure your account:</strong> Add a security question and answer in your account settings to enable password recovery.
+    <a class="alert-link ms-1" href="{% url 'dashboard_portal:account_security' %}">Set up account security</a>
+</div>
+{% endif %}

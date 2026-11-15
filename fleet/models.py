@@ -15,6 +15,11 @@ class Driver(models.Model):
         ('LTO', 'LTO - Land Transportation Office'),
         ('MARINA', 'MARINA - Maritime Industry Authority'),
     ]
+    LICENSE_TYPE_CHOICES = [
+        ('', 'Not identified'),
+        ('PROFESSIONAL', 'Professional'),
+        ('NON_PROFESSIONAL', 'Non-Professional'),
+    ]
 
     name = models.CharField(max_length=100, unique=True)
     license_authority = models.CharField(
@@ -24,6 +29,9 @@ class Driver(models.Model):
     )
     license_number = models.CharField(max_length=50, blank=True, null=True)
     license_class = models.CharField(max_length=100, blank=True)
+    license_type = models.CharField(max_length=20, choices=LICENSE_TYPE_CHOICES, blank=True)
+    license_restrictions = models.CharField(max_length=255, blank=True)
+    license_conditions = models.TextField(blank=True)
     license_expiry = models.DateField(blank=True, null=True)
     license_document = models.ImageField(
         upload_to='driver_licenses/',

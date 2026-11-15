@@ -226,7 +226,11 @@ def login_view(request):
 def account_security_settings(request):
     profile, _ = AccountSecurityProfile.objects.get_or_create(user=request.user)
     if request.method == 'POST':
-        form = AccountSecuritySetupForm(request.POST, user=request.user)
+        form = AccountSecuritySetupForm(
+            request.POST,
+            user=request.user,
+            current_question=profile.security_question,
+        )
         if form.is_valid():
             profile.security_question = form.cleaned_data['security_question'].strip()
             profile.security_answer_hash = make_password(
@@ -253,7 +257,10 @@ def account_security_settings(request):
             )
             return redirect(next_url)
     else:
-        form = AccountSecuritySetupForm(user=request.user)
+        form = AccountSecuritySetupForm(
+            user=request.user,
+            current_question=profile.security_question,
+        )
 
     return render(request, 'fleet/account_security.html', {
         'form': form,
@@ -2465,7 +2472,10 @@ def logistics_operator_document_ocr(request):
         return JsonResponse({'error': 'Choose the operator type before scanning the document.'}, status=400)
 
     try:
-        fields = extract_operator_document_fields(request.FILES.getlist('documents'))
+        fields = extract_operator_document_fields(
+            request.FILES.getlist('documents'),
+            is_seacraft=operator_type == 'SEA',
+        )
     except RegistrationImageError as error:
         return JsonResponse({'error': str(error)}, status=400)
     except RegistrationOcrUnavailable as error:

@@ -193,11 +193,19 @@ DRIVER_FIELD_LABELS = {
         r'dl\s*codes?',
         r'license\s*class(?:ification)?',
         r'licence\s*class(?:ification)?',
-        r'restriction\s*codes?',
-        r'restrictions?',
         r'seafarer\s*rank',
         r'rank',
         r'position',
+    ),
+    'license_restrictions': (
+        r'restriction\s*codes?',
+        r'restrictions?',
+    ),
+    'license_conditions': (r'conditions?',),
+    'license_type': (
+        r'license\s*type',
+        r'professional\s*driver',
+        r'driver\s*type',
     ),
     'license_expiry': (
         r'date\s*of\s*expiry',
@@ -521,6 +529,16 @@ def extract_driver_fields_from_text(text):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     values = _read_label_values(lines, DRIVER_FIELD_LABELS, NON_DRIVER_LABELS)
 
+    lto_name = ''
+    for index, line in enumerate(lines[:-1]):
+        if (
+            re.search(r'last\s*name.*first\s*name.*middle\s*name', line, re.IGNORECASE)
+            and ',' in lines[index + 1]
+        ):
+            last_name, given_names = lines[index + 1].split(',', 1)
+            lto_name = f'{given_names.strip()} {last_name.strip()}'
+            break
+
     name_parts = [
         values.get('first_name', ''),
         values.get('middle_name', ''),
@@ -530,20 +548,98 @@ def extract_driver_fields_from_text(text):
     full_name = ' '.join(part for part in name_parts if part).strip()
     if not full_name:
         full_name = values.get('name', '').strip()
+    if lto_name:
+        full_name = lto_name
     full_name = re.sub(r'\s+', ' ', full_name).strip(' ,;:-_')
 
     expiry = _date(values.get('license_expiry', ''))
+    if not expiry:
+        expiry_label = re.search(
+            r'(?:date\s*of\s*expiry|expiration\s*date|expiry\s*date|'
+            r'expires?|valid\s*(?:until|thru|through))',
+            text,
+            re.IGNORECASE,
+        )
+        if expiry_label:
+            expiry = _date(text[expiry_label.end():expiry_label.end() + 120])
     extracted = {}
     if full_name:
         extracted['name'] = full_name[:100]
     if values.get('license_number'):
-        extracted['license_number'] = values['license_number'].strip(' \t:;#.-_')[:50]
+        license_number = values['license_number'].strip(' \t:;#.-_')
+        lto_number = re.search(
+            r'(?<![A-Z0-9])[A-Z]\s*\d{2}\s*[-–]\s*\d{2}\s*[-–]\s*\d{6}(?!\d)',
+            license_number,
+            re.IGNORECASE,
+        )
+        if lto_number:
+            license_number = re.sub(r'\s+', '', lto_number.group()).replace('–', '-').upper()
+        extracted['license_number'] = license_number[:50]
     if values.get('license_class'):
-        extracted['license_class'] = re.sub(
+        license_class = re.sub(
             r'\s+',
             ' ',
             values['license_class'],
         ).strip(' \t:;#.-_')[:100]
+        code_list = re.search(
+            r'(?<![A-Z0-9])(?:A1?|B[12]?|C|D|BE|CE)'
+            r'(?:\s*(?:,|/)\s*(?:A1?|B[12]?|C|D|BE|CE))*'
+            r'(?![A-Z0-9])',
+            license_class,
+            re.IGNORECASE,
+        )
+        extracted['license_class'] = (
+            re.sub(r'\s*,\s*', ', ', code_list.group()).upper()
+            if code_list
+            else license_class
+        )
+
+    raw_restrictions = values.get('license_restrictions', '')
+    restriction_codes = re.findall(
+        r'(?<![A-Z0-9])(?:[LM]\d(?:\s*,\s*[LM]\d)*)\s*-\s*'
+        r'(?:NP|P)\s*-\s*(?:MT|AT)(?:\s*/\s*(?:MT|AT))?(?![A-Z0-9])',
+        text,
+        re.IGNORECASE,
+    )
+    if not restriction_codes and raw_restrictions:
+        restriction_codes = [raw_restrictions]
+    if restriction_codes:
+        extracted['license_restrictions'] = '; '.join(
+            re.sub(r'\s+', '', code).upper() for code in restriction_codes
+        )[:255]
+
+    condition_text = values.get('license_conditions', '')
+    condition_section = re.search(
+        r'(?:II\.?\s*)?CONDITIONS?\s*[:：]?\s*(.*?)'
+        r'(?=(?:SERIAL\s*(?:NO\.?|NUMBER)|III\.|ORGAN\s+DONATION|$))',
+        text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if condition_section:
+        condition_lines = re.findall(
+            r'(?:^|\n)\s*\d+\s*[.)]?\s*([^\n]+)',
+            condition_section.group(1),
+        )
+        if condition_lines:
+            condition_text = '; '.join(
+                re.sub(r'\s+', ' ', condition).strip(' .;')
+                for condition in condition_lines
+            )
+    if condition_text and condition_text.strip().casefold() not in {'none', 'n/a', 'na'}:
+        extracted['license_conditions'] = re.sub(
+            r'\s+',
+            ' ',
+            condition_text,
+        ).strip(' \t:;#.-_')[:1000]
+
+    folded_text = text.casefold()
+    if re.search(r'\bnon[\s-]*professional\b|\bnon[\s-]*pro\b|\bnp\b', folded_text):
+        extracted['license_type'] = 'NON_PROFESSIONAL'
+    elif re.search(
+        r'\bprofessional\b|\bpro\b|\b[lm]\d(?:\s*,\s*[lm]\d)*\s*-\s*p\s*-',
+        folded_text,
+    ):
+        extracted['license_type'] = 'PROFESSIONAL'
     if expiry:
         extracted['license_expiry'] = expiry
     return extracted
@@ -639,7 +735,7 @@ def extract_registration_document_fields(uploaded_files, is_seacraft=False):
     return extracted
 
 
-def extract_operator_document_fields(uploaded_files):
+def extract_operator_document_fields(uploaded_files, is_seacraft=False):
     files = list(uploaded_files)
     if not files:
         raise RegistrationImageError('Choose at least one driver license or MARINA document image.')
@@ -669,6 +765,41 @@ def extract_operator_document_fields(uploaded_files):
                 'Tesseract could not read this image. Try a sharper, well-lit photo.'
             ) from error
 
-        for field, value in extract_driver_fields_from_text(text).items():
+        file_fields = extract_driver_fields_from_text(text)
+        if not is_seacraft and not {
+            'name',
+            'license_number',
+            'license_expiry',
+            'license_class',
+        }.issubset(file_fields):
+            try:
+                layout_text = pytesseract.image_to_string(
+                    image,
+                    lang='eng',
+                    config='--oem 3 --psm 11',
+                    timeout=OCR_TIMEOUT_SECONDS,
+                )
+            except TesseractNotFoundError as error:
+                raise RegistrationOcrUnavailable(
+                    'Local Tesseract OCR is not installed or configured on the application server.'
+                ) from error
+            except (TesseractError, RuntimeError) as error:
+                raise RegistrationOcrError(
+                    'Tesseract could not read the license layout. Try a sharper, well-lit photo.'
+                ) from error
+            for field, value in extract_driver_fields_from_text(layout_text).items():
+                if field in {'license_restrictions', 'license_conditions'}:
+                    if len(value) > len(file_fields.get(field, '')):
+                        file_fields[field] = value
+                else:
+                    file_fields.setdefault(field, value)
+
+        if is_seacraft:
+            file_fields = {
+                field: value
+                for field, value in file_fields.items()
+                if field in {'name', 'license_number', 'license_class', 'license_expiry'}
+            }
+        for field, value in file_fields.items():
             extracted.setdefault(field, value)
     return extracted
