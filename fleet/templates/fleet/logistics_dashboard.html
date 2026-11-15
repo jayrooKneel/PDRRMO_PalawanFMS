@@ -131,6 +131,9 @@
             <button type="button" class="btn btn-outline-secondary text-start fw-semibold logistics-menu-action" data-menu-action="print">
                 <i class="fa-solid fa-print me-2"></i>Print Dashboard
             </button>
+            <a href="{% url 'dashboard_portal:account_security' %}" class="btn btn-outline-primary text-start fw-semibold">
+                <i class="fa-solid fa-shield-halved me-2"></i>Password Recovery Settings
+            </a>
             <div class="mt-auto pt-3 border-top">
                 <form action="{% url 'dashboard_portal:custom_logout' %}" method="post" class="m-0">
                     {% csrf_token %}

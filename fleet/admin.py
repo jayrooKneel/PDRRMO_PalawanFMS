@@ -11,7 +11,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.templatetags.static import static
-from .models import FleetIncident, Vehicle, VehicleType, Driver
+from .models import AccountSecurityProfile, FleetIncident, Vehicle, VehicleType, Driver
 
 # =========================================================================
 # 1. ADMIN HEADERS PANEL STYLING TWEAKS
@@ -68,6 +68,49 @@ def system_console(request):
 # =========================================================================
 # 3. DRIVER MODEL REGISTRATION
 # =========================================================================
+@admin.action(description='Unlock selected accounts and clear failed attempts')
+def unlock_account_security_profiles(modeladmin, request, queryset):
+    unlocked_count = 0
+    for profile in queryset.select_related('user'):
+        profile.failed_login_attempts = 0
+        profile.locked_until = None
+        profile.failed_recovery_attempts = 0
+        profile.recovery_locked_until = None
+        profile.save(update_fields=[
+            'failed_login_attempts',
+            'locked_until',
+            'failed_recovery_attempts',
+            'recovery_locked_until',
+        ])
+        modeladmin.log_change(
+            request,
+            profile,
+            f"Administrator unlocked account security for {profile.user.username}.",
+        )
+        unlocked_count += 1
+    modeladmin.message_user(
+        request,
+        f'{unlocked_count} account(s) have been unlocked.',
+        messages.SUCCESS,
+    )
+
+
+@admin.register(AccountSecurityProfile)
+class AccountSecurityProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        'user',
+        'failed_login_attempts',
+        'locked_until',
+        'failed_recovery_attempts',
+        'recovery_locked_until',
+        'security_question',
+    )
+    search_fields = ('user__username', 'user__email')
+    list_filter = ('locked_until', 'recovery_locked_until')
+    actions = [unlock_account_security_profiles]
+    exclude = ('security_answer_hash',)
+
+
 @admin.register(Driver)
 class DriverAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'license_authority', 'license_number', 'phone_number', 'is_active')

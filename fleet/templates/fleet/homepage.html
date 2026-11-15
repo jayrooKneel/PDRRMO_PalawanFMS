@@ -220,6 +220,9 @@
                     <a href="{% url 'dashboard_portal:dashboard_portal' %}" class="btn nav-link-btn px-4">
                         <i class="fa-solid fa-gauge-high me-2" style="color: var(--brand-orange)"></i> SYSTEM PORTAL
                     </a>
+                    <a href="{% url 'dashboard_portal:account_security' %}" class="btn nav-link-btn px-3">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Password Recovery
+                    </a>
                     <form action="{% url 'dashboard_portal:custom_logout' %}" method="post" class="d-inline m-0">
                         {% csrf_token %}
                         <button type="submit" class="btn nav-link-btn px-3 border-danger text-danger bg-transparent" style="border: 1px solid #dc3545 !important;">

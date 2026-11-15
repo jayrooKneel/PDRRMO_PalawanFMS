@@ -28,6 +28,7 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 <span><i class="fa-solid fa-user-check me-1 text-info" aria-hidden="true"></i>{{ driver.name }}</span>
+                <a class="btn btn-sm btn-outline-light" href="{% url 'dashboard_portal:account_security' %}">Password recovery</a>
                 <form action="{% url 'dashboard_portal:custom_logout' %}" method="post">
                     {% csrf_token %}
                     <button class="btn btn-sm btn-outline-light" type="submit">Log out</button>

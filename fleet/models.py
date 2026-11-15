@@ -63,6 +63,23 @@ class OperatorProfile(models.Model):
         return f"{self.user.get_full_name()} ({self.get_crew_role_display()})"
 
 
+class AccountSecurityProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='account_security_profile',
+    )
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until = models.DateTimeField(blank=True, null=True)
+    security_question = models.CharField(max_length=255, blank=True)
+    security_answer_hash = models.CharField(max_length=128, blank=True)
+    failed_recovery_attempts = models.PositiveSmallIntegerField(default=0)
+    recovery_locked_until = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Security settings for {self.user.username}"
+
+
 class VehicleAssignment(models.Model):
     asset = models.ForeignKey(VehicleAsset, on_delete=models.CASCADE)
     operator = models.ForeignKey(OperatorProfile, on_delete=models.CASCADE)

@@ -8,6 +8,7 @@ from unittest.mock import patch
 from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.auth.models import Group, User
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command, CommandError
 from django.test import TestCase, override_settings
@@ -18,6 +19,7 @@ import pytesseract
 from io import StringIO
 
 from .models import (
+    AccountSecurityProfile,
     Driver,
     FleetIncident,
     Vehicle,
@@ -90,6 +92,15 @@ class LoginViewTests(TestCase):
         self.assertContains(response, 'Fleet Operations Center')
         self.assertNotContains(response, 'ACCESS DENIED: Invalid Username or Password.')
 
+    def test_admin_login_uses_the_same_secure_login_route(self):
+        response = self.client.get('/admin/login/?next=/admin/')
+
+        self.assertRedirects(
+            response,
+            '/login/?next=%2Fadmin%2F',
+            fetch_redirect_response=False,
+        )
+
     def test_login_page_shows_error_for_invalid_credentials(self):
         response = self.client.post(
             reverse('dashboard_portal:login'),
@@ -111,6 +122,163 @@ class LoginViewTests(TestCase):
 
         self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged in successfully.').exists())
         self.assertTrue(LogEntry.objects.filter(user=user, change_message='User logged out.').exists())
+
+    def test_fifth_failed_login_temporarily_locks_account_on_both_login_urls(self):
+        user = User.objects.create_user(username='locked_user', password='SecurePass123!')
+        for attempt in range(5):
+            response = self.client.post(
+                reverse('dashboard_portal:login'),
+                {'username': user.username, 'password': 'WrongPassword123!'},
+            )
+            self.assertEqual(response.status_code, 200)
+
+        profile = AccountSecurityProfile.objects.get(user=user)
+        self.assertEqual(profile.failed_login_attempts, 5)
+        self.assertGreater(profile.locked_until, timezone.now())
+        self.assertContains(response, 'temporarily disabled')
+        self.assertContains(response, 'Contact an administrator')
+
+        locked_response = self.client.post(
+            reverse('login'),
+            {'username': user.username, 'password': 'SecurePass123!'},
+        )
+        self.assertEqual(locked_response.status_code, 200)
+        self.assertContains(locked_response, 'temporarily disabled')
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_successful_login_clears_failed_attempts_and_requires_recovery_setup(self):
+        user = User.objects.create_user(username='recovery_setup_user', password='SecurePass123!')
+        profile = AccountSecurityProfile.objects.create(
+            user=user,
+            failed_login_attempts=3,
+        )
+
+        response = self.client.post(
+            reverse('login'),
+            {'username': user.username, 'password': 'SecurePass123!'},
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:account_security'))
+        profile.refresh_from_db()
+        self.assertEqual(profile.failed_login_attempts, 0)
+        self.assertIsNone(profile.locked_until)
+        self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+    def test_expired_login_lockout_allows_successful_login(self):
+        user = User.objects.create_user(username='expired_lock_user', password='SecurePass123!')
+        profile = AccountSecurityProfile.objects.create(
+            user=user,
+            failed_login_attempts=5,
+            locked_until=timezone.now() - timedelta(seconds=1),
+            security_question='What was your first school?',
+            security_answer_hash=make_password('sample answer'),
+        )
+
+        response = self.client.post(
+            reverse('login'),
+            {'username': user.username, 'password': 'SecurePass123!'},
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:dashboard_portal'))
+        profile.refresh_from_db()
+        self.assertEqual(profile.failed_login_attempts, 0)
+        self.assertIsNone(profile.locked_until)
+
+    def test_recovery_answer_can_reset_password_once(self):
+        user = User.objects.create_user(username='password_recovery_user', password='OldPass123!x')
+        profile = AccountSecurityProfile.objects.create(
+            user=user,
+            security_question='What was the name of your first school?',
+            security_answer_hash=make_password('sample answer'),
+        )
+
+        start = self.client.post(
+            reverse('dashboard_portal:forgot_password'),
+            {'username': user.username},
+        )
+        self.assertRedirects(start, reverse('dashboard_portal:forgot_password'))
+        question_page = self.client.get(reverse('dashboard_portal:forgot_password'))
+        self.assertContains(question_page, profile.security_question)
+
+        verify = self.client.post(
+            reverse('dashboard_portal:forgot_password'),
+            {'stage': 'answer', 'answer': '  SAMPLE   ANSWER  '},
+        )
+        self.assertRedirects(verify, reverse('dashboard_portal:reset_password'))
+        self.assertEqual(
+            self.client.get(reverse('dashboard_portal:reset_password')).status_code,
+            200,
+        )
+        changed = self.client.post(
+            reverse('dashboard_portal:reset_password'),
+            {
+                'new_password1': 'NewSecurePassword123!x',
+                'new_password2': 'NewSecurePassword123!x',
+            },
+        )
+        self.assertRedirects(changed, reverse('dashboard_portal:login'))
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('NewSecurePassword123!x'))
+
+        replayed = self.client.get(reverse('dashboard_portal:reset_password'))
+        self.assertRedirects(replayed, reverse('dashboard_portal:forgot_password'))
+
+    def test_incorrect_recovery_answers_are_limited(self):
+        user = User.objects.create_user(username='recovery_limited_user', password='SecurePass123!')
+        AccountSecurityProfile.objects.create(
+            user=user,
+            security_question='What was the name of your first school?',
+            security_answer_hash=make_password('sample answer'),
+        )
+        self.client.post(
+            reverse('dashboard_portal:forgot_password'),
+            {'username': user.username},
+        )
+
+        for _ in range(5):
+            response = self.client.post(
+                reverse('dashboard_portal:forgot_password'),
+                {'stage': 'answer', 'answer': 'incorrect answer'},
+            )
+            self.assertRedirects(response, reverse('dashboard_portal:forgot_password'))
+
+        profile = AccountSecurityProfile.objects.get(user=user)
+        self.assertEqual(profile.failed_recovery_attempts, 5)
+        self.assertGreater(profile.recovery_locked_until, timezone.now())
+        locked_response = self.client.post(
+            reverse('dashboard_portal:forgot_password'),
+            {'stage': 'answer', 'answer': 'sample answer'},
+        )
+        self.assertRedirects(locked_response, reverse('dashboard_portal:forgot_password'))
+        self.assertNotIn('password_recovery_verified_at', self.client.session)
+
+    def test_authenticated_user_can_update_recovery_answer_after_current_password_check(self):
+        user = User.objects.create_user(username='security_update_user', password='SecurePass123!')
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:account_security'),
+            {
+                'current_password': 'WrongPass123!',
+                'security_question': 'What was your first school?',
+                'security_answer': 'sample answer',
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        profile = AccountSecurityProfile.objects.get(user=user)
+        self.assertEqual(profile.security_question, '')
+
+        response = self.client.post(
+            reverse('dashboard_portal:account_security'),
+            {
+                'current_password': 'SecurePass123!',
+                'security_question': 'What was your first school?',
+                'security_answer': '  SAMPLE   ANSWER  ',
+            },
+        )
+        self.assertRedirects(response, reverse('dashboard_portal:dashboard_portal'))
+        profile.refresh_from_db()
+        self.assertTrue(check_password('sample answer', profile.security_answer_hash))
 
 
 class ProgressiveWebAppTests(TestCase):
@@ -597,6 +765,103 @@ Maria Example
         self.assertEqual(fields['passenger_capacity'], '8')
         self.assertEqual(fields['gross_vehicle_weight'], '2500')
         self.assertNotIn('Maria Example', fields.values())
+
+    def test_extracts_lto_payment_receipt_vehicle_fields(self):
+        text = """\
+Transaction No: MAIRD-SAR-20250827- Cost of plate PHP 450.00
+Office Code: 1336 Date: 08/29/2025 5:55 AM
+MVUC PHP 6,720.00
+Plate No: NJK 2168
+File No: 133625005559777 Transfer Fee PHP 50.00
+Classification: Private - (PVT) Legal Research Fee PHP 10.00
+Vehicle Type: Utility Vehicle PICK-UP
+Fuel Type: Diesel
+Aircon Type: R134a
+Color: ARCTIC WHITE
+Year Medel: 2026
+This payment is valid until
+08/2028 and due for
+renewal on 08/08/2028-08/14/2028.
+"""
+
+        fields = extract_fields_from_text(text)
+
+        self.assertEqual(fields, {
+            'plate_number': 'NJK 2168',
+            'mv_file_number': '133625005559777',
+            'registration_date': '2025-08-29',
+            'registration_expiry': '2028-08-31',
+            'vehicle_classification': 'Private - (PVT)',
+            'vehicle_category': 'Utility Vehicle PICK-UP',
+            'fuel_type': 'Diesel',
+            'aircon_type': 'R134a',
+            'color': 'ARCTIC WHITE',
+            'model_year': '2026',
+        })
+
+    def test_extracts_fields_from_multi_column_lto_certificate(self):
+        text = """\
+PLATE NO ENGINE NO CHASSIS NO
+NJK 2168 P020SX704405 MPBUMFPOSX704405
+FILE NO VEHICLE CATEGORY MAKE/BRAND
+133625005559777 N1 FORD
+PASSENGER CAPACITY COLOR TYPE OF FUEL CLASSIFICATION
+2 5 ARCTIC WHITE DIESEL PRIVATE - (PVT) a
+BODY TYPE SERIES GROSS WEIGHT NET WEIGHT
+RANGER 2.0L SPORT 4X4 6AT 3230 N/A
+PICK-UP
+YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
+2026 N/A 1996 N/A
+"""
+
+        fields = extract_fields_from_text(text)
+
+        self.assertEqual(fields['plate_number'], 'NJK 2168')
+        self.assertEqual(fields['engine_number'], 'P020SX704405')
+        self.assertEqual(fields['chassis_number'], 'MPBUMFPOSX704405')
+        self.assertEqual(fields['make'], 'Ford')
+        self.assertEqual(fields['vehicle_category'], 'N1')
+        self.assertEqual(fields['body_type'], 'PICK-UP')
+        self.assertEqual(fields['model_name'], 'RANGER 2.0L SPORT 4X4 6AT')
+        self.assertEqual(fields['model_year'], '2026')
+        self.assertEqual(fields['engine_displacement_cc'], '1996')
+        self.assertEqual(fields['vehicle_classification'], 'PRIVATE - (PVT)')
+
+    def test_registration_ocr_endpoint_uses_table_layout_for_lto_certificates(self):
+        table_text = """\
+PLATE NO ENGINE NO CHASSIS NO
+NJK 2168 P020SX704405 MPBUMFPOSX704405
+FILE NO VEHICLE CATEGORY MAKE/BRAND
+133625005559777 N1 FORD
+BODY TYPE SERIES GROSS WEIGHT NET WEIGHT
+RANGER 2.0L SPORT 4X4 6AT 3230 N/A
+PICK-UP
+YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
+2026 N/A 1996 N/A
+"""
+        self.client.force_login(self.user)
+        with patch(
+            'fleet.vehicle_document_ocr.pytesseract.image_to_string',
+            side_effect=[
+                'ENGINE NO CHASSIS NO\nMPBUMFPOSX704405',
+                table_text,
+            ],
+        ):
+            response = self.client.post(
+                reverse('dashboard_portal:logistics_registration_ocr'),
+                {
+                    'vehicle_type': self.land_type.pk,
+                    'documents': self.uploaded_image(),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        fields = response.json()['fields']
+        self.assertEqual(fields['engine_number'], 'P020SX704405')
+        self.assertEqual(fields['chassis_number'], 'MPBUMFPOSX704405')
+        self.assertEqual(fields['make'], 'Ford')
+        self.assertEqual(fields['model_name'], 'RANGER 2.0L SPORT 4X4 6AT')
+        self.assertEqual(fields['engine_displacement_cc'], '1996')
 
     def test_extracts_marina_vessel_fields(self):
         fields = extract_fields_from_text(self.SEA_TEXT, is_seacraft=True)

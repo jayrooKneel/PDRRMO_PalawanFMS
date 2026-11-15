@@ -44,6 +44,9 @@ urlpatterns = [
     # 🔒 Authentication Utilities
     path('logout/', views.custom_user_logout, name='custom_logout'),
     path('logout/', views.custom_user_logout, name='custom_user_logout'),
+    path('account/security/', views.account_security_settings, name='account_security'),
+    path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('reset-password/', views.reset_password, name='reset_password'),
 
     # 📊 Portal Operational Interfaces
     path('repair/', views.repairman_dashboard, name='repairman_dashboard'),

@@ -3,6 +3,7 @@ import io
 import json
 import mimetypes
 import calendar
+import unicodedata
 from pathlib import Path
 from datetime import date, datetime, time, timedelta
 from xml.sax.saxutils import escape
@@ -21,6 +22,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, authenticate, login
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.admin.models import LogEntry, CHANGE, ADDITION 
 from django.contrib.contenttypes.models import ContentType          
 from django.db import transaction
@@ -30,7 +34,9 @@ from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidd
 from django.template.loader import render_to_string
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from .forms import (
+    AccountSecuritySetupForm,
     LAND_MAINTENANCE_CHECKLIST,
     SEACRAFT_MAINTENANCE_CHECKLIST,
     MaintenanceChecklistForm,
@@ -38,11 +44,14 @@ from .forms import (
     FleetIncidentForm,
     FleetAssetRegistrationForm,
     OperatorDetailsForm,
+    PasswordRecoveryAnswerForm,
+    PasswordRecoveryUsernameForm,
     SeacraftRegistrationForm,
     ScheduledMaintenanceForm,
     ScheduledMaintenanceReplacementForm,
 )
 from .models import (
+    AccountSecurityProfile,
     FleetIncident,
     Vehicle,
     VehicleRegistrationDocument,
@@ -86,28 +95,330 @@ def pwa_service_worker(request):
 # SYSTEM SECURITY & AUDIT LOG HELPERS
 # =========================================================================
 
+LOGIN_MAX_FAILURES = 5
+LOGIN_LOCKOUT_DURATION = timedelta(minutes=15)
+RECOVERY_MAX_FAILURES = 5
+RECOVERY_LOCKOUT_DURATION = timedelta(minutes=15)
+RECOVERY_SESSION_AGE = 10 * 60
+
+
+def safe_login_redirect(request, candidate=None):
+    destination = candidate or request.POST.get('next') or request.GET.get('next')
+    if destination and url_has_allowed_host_and_scheme(
+        destination,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return destination
+    return redirect('dashboard_portal:dashboard_portal').url
+
+
+def normalized_security_answer(answer):
+    return ' '.join(unicodedata.normalize('NFKC', answer).casefold().split())
+
+
+def clear_recovery_session(request):
+    request.session.pop('password_recovery_user_id', None)
+    request.session.pop('password_recovery_started_at', None)
+    request.session.pop('password_recovery_verified_at', None)
+
+
+def locked_account_message():
+    return (
+        'This account is temporarily disabled after five unsuccessful login attempts. '
+        'Contact an administrator or try again in 15 minutes.'
+    )
+
+
 def login_view(request):
     if request.user.is_authenticated:
+        profile, _ = AccountSecurityProfile.objects.get_or_create(user=request.user)
+        if not profile.security_question or not profile.security_answer_hash:
+            return redirect('dashboard_portal:account_security')
         return redirect('dashboard_portal:dashboard_portal')
 
     if request.method == 'POST':
-        username = request.POST.get('username')
+        username = request.POST.get('username', '').strip()
         password = request.POST.get('password')
 
         if not username or not password:
             messages.error(request, "ACCESS DENIED: Username and password are required.")
             return render(request, 'fleet/login.html')
 
+        user_model = get_user_model()
+        try:
+            account = user_model._default_manager.get_by_natural_key(username)
+        except user_model.DoesNotExist:
+            account = None
+
+        if account is not None:
+            security_profile, _ = AccountSecurityProfile.objects.get_or_create(user=account)
+            now = timezone.now()
+            if security_profile.locked_until and security_profile.locked_until > now:
+                messages.error(request, locked_account_message())
+                return render(request, 'fleet/login.html')
+            if security_profile.locked_until:
+                AccountSecurityProfile.objects.filter(pk=security_profile.pk).update(
+                    failed_login_attempts=0,
+                    locked_until=None,
+                )
+
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            with transaction.atomic():
+                security_profile, _ = AccountSecurityProfile.objects.select_for_update().get_or_create(
+                    user=user,
+                )
+                if security_profile.locked_until and security_profile.locked_until > timezone.now():
+                    messages.error(request, locked_account_message())
+                    return render(request, 'fleet/login.html')
+                security_profile.failed_login_attempts = 0
+                security_profile.locked_until = None
+                security_profile.save(update_fields=['failed_login_attempts', 'locked_until'])
+
             login(request, user)
             log_action_to_admin(request, user, CHANGE, 'User logged in successfully.')
+            if not security_profile.security_question or not security_profile.security_answer_hash:
+                request.session['security_setup_next'] = safe_login_redirect(request)
+                messages.info(
+                    request,
+                    'Set up a security question and answer to enable password recovery.',
+                )
+                return redirect('dashboard_portal:account_security')
+            next_url = safe_login_redirect(request)
+            if next_url != redirect('dashboard_portal:dashboard_portal').url:
+                return redirect(next_url)
             return redirect('dashboard_portal:dashboard_portal')
 
+        if account is not None:
+            with transaction.atomic():
+                security_profile, _ = AccountSecurityProfile.objects.select_for_update().get_or_create(
+                    user=account,
+                )
+                now = timezone.now()
+                if security_profile.locked_until and security_profile.locked_until > now:
+                    messages.error(request, locked_account_message())
+                    return render(request, 'fleet/login.html')
+                if security_profile.locked_until:
+                    security_profile.failed_login_attempts = 0
+                    security_profile.locked_until = None
+                security_profile.failed_login_attempts += 1
+                if security_profile.failed_login_attempts >= LOGIN_MAX_FAILURES:
+                    security_profile.failed_login_attempts = LOGIN_MAX_FAILURES
+                    security_profile.locked_until = now + LOGIN_LOCKOUT_DURATION
+                    security_profile.save(update_fields=[
+                        'failed_login_attempts',
+                        'locked_until',
+                    ])
+                    messages.error(request, locked_account_message())
+                    return render(request, 'fleet/login.html')
+                security_profile.save(update_fields=[
+                    'failed_login_attempts',
+                    'locked_until',
+                ])
         messages.error(request, "ACCESS DENIED: Invalid Username or Password.")
 
     return render(request, 'fleet/login.html')
+
+
+@login_required
+def account_security_settings(request):
+    profile, _ = AccountSecurityProfile.objects.get_or_create(user=request.user)
+    if request.method == 'POST':
+        form = AccountSecuritySetupForm(request.POST, user=request.user)
+        if form.is_valid():
+            profile.security_question = form.cleaned_data['security_question'].strip()
+            profile.security_answer_hash = make_password(
+                normalized_security_answer(form.cleaned_data['security_answer']),
+            )
+            profile.failed_recovery_attempts = 0
+            profile.recovery_locked_until = None
+            profile.save(update_fields=[
+                'security_question',
+                'security_answer_hash',
+                'failed_recovery_attempts',
+                'recovery_locked_until',
+            ])
+            log_action_to_admin(
+                request,
+                request.user,
+                CHANGE,
+                'Updated password recovery security question.',
+            )
+            messages.success(request, 'Password recovery security question saved.')
+            next_url = request.session.pop(
+                'security_setup_next',
+                redirect('dashboard_portal:dashboard_portal').url,
+            )
+            return redirect(next_url)
+    else:
+        form = AccountSecuritySetupForm(user=request.user)
+
+    return render(request, 'fleet/account_security.html', {
+        'form': form,
+        'security_question': profile.security_question,
+    })
+
+
+def forgot_password(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard_portal:account_security')
+
+    profile = None
+    account_id = request.session.get('password_recovery_user_id')
+    started_at = request.session.get('password_recovery_started_at')
+    if account_id and started_at:
+        if timezone.now().timestamp() - started_at > RECOVERY_SESSION_AGE:
+            clear_recovery_session(request)
+            messages.error(request, 'Password recovery expired. Start again.')
+            return redirect('dashboard_portal:forgot_password')
+        profile = AccountSecurityProfile.objects.filter(
+            user_id=account_id,
+            user__is_active=True,
+        ).select_related('user').first()
+        if profile is None:
+            clear_recovery_session(request)
+
+    if request.method == 'POST' and request.POST.get('stage') == 'answer':
+        if (
+            profile is None
+            or not profile.security_question
+            or not profile.security_answer_hash
+        ):
+            clear_recovery_session(request)
+            messages.error(request, 'Password recovery could not be verified. Contact an administrator.')
+            return redirect('dashboard_portal:forgot_password')
+
+        now = timezone.now()
+        if profile.recovery_locked_until and profile.recovery_locked_until > now:
+            messages.error(
+                request,
+                'Password recovery is temporarily disabled after five incorrect answers. Contact an administrator or try again in 15 minutes.',
+            )
+        else:
+            answer_form = PasswordRecoveryAnswerForm(request.POST)
+            if answer_form.is_valid() and check_password(
+                normalized_security_answer(answer_form.cleaned_data['answer']),
+                profile.security_answer_hash,
+            ):
+                profile.failed_recovery_attempts = 0
+                profile.recovery_locked_until = None
+                profile.save(update_fields=[
+                    'failed_recovery_attempts',
+                    'recovery_locked_until',
+                ])
+                request.session.cycle_key()
+                request.session['password_recovery_user_id'] = profile.user_id
+                request.session['password_recovery_started_at'] = now.timestamp()
+                request.session['password_recovery_verified_at'] = now.timestamp()
+                return redirect('dashboard_portal:reset_password')
+
+            with transaction.atomic():
+                profile = AccountSecurityProfile.objects.select_for_update().get(pk=profile.pk)
+                now = timezone.now()
+                if profile.recovery_locked_until and profile.recovery_locked_until > now:
+                    messages.error(
+                        request,
+                        'Password recovery is temporarily disabled after five incorrect answers. Contact an administrator or try again in 15 minutes.',
+                    )
+                else:
+                    if profile.recovery_locked_until:
+                        profile.failed_recovery_attempts = 0
+                        profile.recovery_locked_until = None
+                    profile.failed_recovery_attempts += 1
+                    if profile.failed_recovery_attempts >= RECOVERY_MAX_FAILURES:
+                        profile.failed_recovery_attempts = RECOVERY_MAX_FAILURES
+                        profile.recovery_locked_until = now + RECOVERY_LOCKOUT_DURATION
+                        messages.error(
+                            request,
+                            'Password recovery is temporarily disabled after five incorrect answers. Contact an administrator or try again in 15 minutes.',
+                        )
+                    else:
+                        messages.error(request, 'The security answer could not be verified.')
+                    profile.save(update_fields=[
+                        'failed_recovery_attempts',
+                        'recovery_locked_until',
+                    ])
+        return redirect('dashboard_portal:forgot_password')
+
+    if request.method == 'POST':
+        clear_recovery_session(request)
+        form = PasswordRecoveryUsernameForm(request.POST)
+        if form.is_valid():
+            try:
+                user = get_user_model()._default_manager.get_by_natural_key(
+                    form.cleaned_data['username'].strip(),
+                )
+            except get_user_model().DoesNotExist:
+                user = None
+            if user and user.is_active:
+                profile = AccountSecurityProfile.objects.filter(user=user).first()
+                if profile and profile.security_question and profile.security_answer_hash:
+                    if (
+                        profile.recovery_locked_until
+                        and profile.recovery_locked_until > timezone.now()
+                    ):
+                        messages.error(
+                            request,
+                            'Password recovery is temporarily disabled. Contact an administrator or try again in 15 minutes.',
+                        )
+                        return redirect('dashboard_portal:forgot_password')
+                    request.session['password_recovery_user_id'] = profile.user_id
+                    request.session['password_recovery_started_at'] = timezone.now().timestamp()
+                    return redirect('dashboard_portal:forgot_password')
+            messages.error(
+                request,
+                'If this account has recovery settings, you can continue with its security question. Otherwise, contact an administrator.',
+            )
+            return render(request, 'fleet/forgot_password.html', {
+                'stage': 'username',
+                'form': form,
+            })
+    else:
+        form = PasswordRecoveryUsernameForm()
+
+    if profile:
+        answer_form = PasswordRecoveryAnswerForm()
+        return render(request, 'fleet/forgot_password.html', {
+            'stage': 'answer',
+            'form': answer_form,
+            'security_question': profile.security_question,
+        })
+    return render(request, 'fleet/forgot_password.html', {
+        'stage': 'username',
+        'form': form,
+    })
+
+
+def reset_password(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard_portal:account_security')
+
+    user_id = request.session.get('password_recovery_user_id')
+    verified_at = request.session.get('password_recovery_verified_at')
+    if not user_id or not verified_at or (
+        timezone.now().timestamp() - verified_at > RECOVERY_SESSION_AGE
+    ):
+        clear_recovery_session(request)
+        messages.error(request, 'Password recovery expired or was not verified. Start again.')
+        return redirect('dashboard_portal:forgot_password')
+
+    user = get_user_model().objects.filter(pk=user_id, is_active=True).first()
+    if user is None:
+        clear_recovery_session(request)
+        messages.error(request, 'Password recovery could not be completed. Contact an administrator.')
+        return redirect('dashboard_portal:forgot_password')
+
+    form = SetPasswordForm(user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        clear_recovery_session(request)
+        logout(request)
+        messages.success(request, 'Your password has been changed. Sign in with your new password.')
+        return redirect('dashboard_portal:login')
+
+    return render(request, 'fleet/reset_password.html', {'form': form})
 
 
 def custom_user_logout(request):

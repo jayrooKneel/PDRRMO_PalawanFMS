@@ -1,6 +1,7 @@
-import re
+from calendar import monthrange
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+import re
 
 import pytesseract
 from django.conf import settings
@@ -75,7 +76,6 @@ SEA_FIELDS = {
 FIELD_LABELS = {
     'plate_number': (
         r'plate\s*(?:no\.?|number|#)',
-        r'plate',
         r'official\s*(?:no\.?|number)',
         r'official\s*(?:registration\s*)?(?:no\.?|number)',
         r'registration\s*(?:no\.?|number)',
@@ -98,14 +98,15 @@ FIELD_LABELS = {
     'mv_file_number': (
         r'm\.?\s*v\.?\s*file\s*(?:no\.?|number)?',
         r'motor\s*vehicle\s*file\s*(?:no\.?|number)',
+        r'file\s*(?:no\.?|number)',
     ),
-    'vehicle_category': (r'vehicle\s*category',),
+    'vehicle_category': (r'vehicle\s*(?:category|type)',),
     'body_type': (r'body\s*(?:type|style)',),
     'vehicle_classification': (r'(?:vehicle\s*)?classification',),
     'aircon_type': (r'air\s*con(?:dition(?:er|ing)?)?\s*type', r'a\s*/\s*c\s*type'),
     'home_port': (r'port\s*of\s*registry', r'home\s*port', r'port\s*of\s*registration'),
     'model_year': (
-        r'year\s*(?:model|built|of\s*construction)',
+        r'year\s*(?:m[oe]del|built|of\s*construction)',
         r'year\s*of\s*manufacture',
         r'model\s*year',
         r'year\s*built',
@@ -139,6 +140,7 @@ FIELD_LABELS = {
         r'initial\s*registration\s*date',
         r'date\s*of\s*registration',
         r'date\s*registered',
+        r'(?<!expiry\s)(?<!expiration\s)(?<!inspection\s)(?<!birth\s)date(?=\s*[:：])',
     ),
     'registration_expiry': (
         r'registration\s*(?:expiry|expiration|expires)',
@@ -163,6 +165,10 @@ NON_TECHNICAL_LABELS = (
     r'address(?:\s*of\s*(?:the\s*)?(?:registered\s*)?owner)?',
     r'residing\s*(?:at|address)',
     r'date\s*of\s*birth',
+    r'cost\s*of\s*plate',
+    r'mvuc',
+    r'transfer\s*fee',
+    r'legal\s*research\s*fee',
 )
 
 DRIVER_FIELD_LABELS = {
@@ -295,6 +301,12 @@ def _decimal(value):
 
 
 def _date(value):
+    month_year = re.search(r'(?<![\d/])(\d{1,2})/(\d{4})(?![\d/])', value)
+    if month_year:
+        month, year = (int(part) for part in month_year.groups())
+        if 1 <= month <= 12:
+            return datetime(year, month, monthrange(year, month)[1]).date().isoformat()
+
     numeric_date = re.search(
         r'\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b',
         value,
@@ -328,9 +340,128 @@ def _date(value):
     return ''
 
 
+def _extract_certificate_table_fields(text):
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not any('engine' in line.casefold() and 'chassis' in line.casefold() for line in lines):
+        return {}
+    extracted = {}
+
+    def following_lines(index, count=3):
+        return lines[index + 1:index + 1 + count]
+
+    for index, line in enumerate(lines):
+        folded = line.casefold()
+        if 'engine' in folded and 'chassis' in folded:
+            for value_line in following_lines(index, 2):
+                serials = re.findall(
+                    r'\b(?=[A-Z0-9/-]{8,}\b)(?=[A-Z0-9/-]*[A-Z])'
+                    r'(?=[A-Z0-9/-]*\d)[A-Z0-9/-]+\b',
+                    value_line,
+                    re.IGNORECASE,
+                )
+                if len(serials) >= 2:
+                    extracted['engine_number'] = serials[0]
+                    extracted['chassis_number'] = serials[1]
+                    plate = re.search(r'\b([A-Z]{2,3})\s*(\d{3,4})\b', value_line)
+                    if plate:
+                        extracted['plate_number'] = ' '.join(plate.groups())
+                    break
+
+        if 'make' in folded and ('brand' in folded or 'series' in folded):
+            for value_line in following_lines(index):
+                for make in COMMON_MAKES:
+                    if re.search(rf'(?<![A-Z]){re.escape(make)}(?![A-Z])', value_line, re.IGNORECASE):
+                        extracted['make'] = make
+                        break
+                if 'make' in extracted:
+                    break
+
+        if 'vehicle category' in folded:
+            for value_line in following_lines(index, 2):
+                category = re.search(r'\b[MN]\d[A-Z]?\b', value_line, re.IGNORECASE)
+                if category:
+                    extracted['vehicle_category'] = category.group().upper()
+                    for make in COMMON_MAKES:
+                        if re.search(rf'(?<![A-Z]){re.escape(make)}(?![A-Z])', value_line, re.IGNORECASE):
+                            extracted['make'] = make
+                            break
+                    break
+
+        if 'file' in folded and 'no' in folded:
+            for value_line in following_lines(index, 2):
+                file_number = re.search(r'\b\d{10,20}\b', value_line)
+                if file_number:
+                    extracted['mv_file_number'] = file_number.group()
+                    break
+
+        if 'passenger capacity' in folded and 'color' in folded:
+            for value_line in following_lines(index, 2):
+                details = re.search(
+                    r'^(?:\D*\d\s+)?(\d{1,2})\s+(.+?)\s+'
+                    r'(DIESEL|GASOLINE|PETROL|ELECTRIC|HYBRID)\b'
+                    r'.*?\b(PRIVATE|GOVERNMENT|FOR HIRE)\b(?:\s*[-(]\s*([A-Z]+)\s*\)?)?',
+                    value_line,
+                    re.IGNORECASE,
+                )
+                if details:
+                    extracted['passenger_capacity'] = details.group(1)
+                    extracted['color'] = details.group(2).strip()
+                    extracted['fuel_type'] = details.group(3).upper()
+                    classification = details.group(4).upper()
+                    classification_code = re.search(
+                        r'\b(?:PRIVATE|GOVERNMENT|FOR HIRE)\s*-\s*\(?\s*([A-Z]+)\s*\)?',
+                        value_line,
+                        re.IGNORECASE,
+                    )
+                    if classification_code:
+                        classification += f" - ({classification_code.group(1).upper()})"
+                    extracted['vehicle_classification'] = classification
+                    break
+
+        if 'body type' in folded:
+            for value_line in following_lines(index, 3):
+                body_type = re.search(r'\bpick[\s-]*up\b', value_line, re.IGNORECASE)
+                if body_type:
+                    extracted['body_type'] = 'PICK-UP'
+                    break
+
+        if re.search(r'\byear\s*m[oea]del\b|\bwearmodel\b', folded):
+            for value_line in following_lines(index, 3):
+                year = re.search(r'\b(?:19|20)\d{2}\b', value_line)
+                if year:
+                    extracted['model_year'] = year.group()
+                    break
+
+        if 'piston displacement' in folded:
+            for value_line in following_lines(index, 3):
+                displacement = re.findall(r'\b\d{3,5}\b', value_line)
+                if displacement:
+                    extracted['engine_displacement_cc'] = displacement[-1]
+                    break
+
+        if 'gross weight' in folded:
+            for value_line in following_lines(index, 2):
+                weight = re.search(r'\b\d{3,6}(?:\.\d+)?\b', value_line)
+                if weight:
+                    extracted['gross_vehicle_weight'] = weight.group()
+                    break
+
+        if re.search(r'\bseries\b', folded) and 'make' not in folded:
+            for value_line in following_lines(index, 3):
+                series = re.sub(r'\s+\d{3,5}\s+(?:N/?A|\d{1,4})\b.*$', '', value_line, flags=re.IGNORECASE)
+                if re.search(r'[A-Z]{3,}', series, re.IGNORECASE):
+                    series = re.sub(r'^[^A-Z0-9]+', '', series, flags=re.IGNORECASE)
+                    series = re.sub(r'\s+[a-z]{2,5}$', '', series)
+                    extracted['model_name'] = series.strip(' +-')
+                    break
+
+    return extracted
+
+
 def extract_fields_from_text(text, is_seacraft=False):
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     values = _read_label_values(lines)
+    values.update(_extract_certificate_table_fields(text))
     for field_name, value in tuple(values.items()):
         if not value:
             continue
@@ -348,6 +479,9 @@ def extract_fields_from_text(text, is_seacraft=False):
             value = _decimal(value)
         elif field_name in {'model_year', 'passenger_capacity'}:
             match = re.search(r'\d{1,4}', value.replace(',', ''))
+            value = match.group() if match else ''
+        elif field_name == 'mv_file_number':
+            match = re.match(r'[A-Z0-9][A-Z0-9/-]*', value, re.IGNORECASE)
             value = match.group() if match else ''
         else:
             value = re.sub(r'\s+', ' ', value).strip(' \t:;#.-_')
@@ -446,7 +580,7 @@ def extract_registration_document_fields(uploaded_files, is_seacraft=False):
             text = pytesseract.image_to_string(
                 image,
                 lang='eng',
-                config='--oem 3 --psm 6',
+                config='--oem 3 --psm 4',
                 timeout=OCR_TIMEOUT_SECONDS,
             )
         except TesseractNotFoundError as error:
@@ -458,8 +592,32 @@ def extract_registration_document_fields(uploaded_files, is_seacraft=False):
                 'Tesseract could not read this image. Try a sharper, well-lit photo.'
             ) from error
 
-        for field, value in extract_fields_from_text(text, is_seacraft).items():
+        file_fields = extract_fields_from_text(text, is_seacraft)
+        if not is_seacraft and any(
+            'engine' in line.casefold() and 'chassis' in line.casefold()
+            for line in text.splitlines()
+        ):
+            try:
+                table_text = pytesseract.image_to_string(
+                    image,
+                    lang='eng',
+                    config='--oem 3 --psm 6',
+                    timeout=OCR_TIMEOUT_SECONDS,
+                )
+            except TesseractNotFoundError as error:
+                raise RegistrationOcrUnavailable(
+                    'Local Tesseract OCR is not installed or configured on the application server.'
+                ) from error
+            except (TesseractError, RuntimeError) as error:
+                raise RegistrationOcrError(
+                    'Tesseract could not read the vehicle detail table. Try a sharper, well-lit photo.'
+                ) from error
+            file_fields.update(_extract_certificate_table_fields(table_text))
+
+        for field, value in file_fields.items():
             extracted.setdefault(field, value)
+            if field in {'engine_number', 'chassis_number', 'plate_number'}:
+                extracted[field] = value
     return extracted
 
 

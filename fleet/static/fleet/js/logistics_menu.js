@@ -246,7 +246,19 @@
         const button = event.target.closest("[data-menu-action]");
         if (!button || !menuDrawer.contains(button)) return;
 
-        menuDrawer.dataset.pendingAction = button.dataset.menuAction;
+        const action = button.dataset.menuAction;
+        if (action === "add-asset") {
+            try {
+                runAction(action);
+                window.bootstrap.Offcanvas.getOrCreateInstance(menuDrawer).hide();
+            } catch (error) {
+                console.error(`Could not run logistics menu action "${action}".`, error);
+                window.alert("This menu action could not be opened. Please refresh the page and try again.");
+            }
+            return;
+        }
+
+        menuDrawer.dataset.pendingAction = action;
         window.bootstrap.Offcanvas.getOrCreateInstance(menuDrawer).hide();
     });
 

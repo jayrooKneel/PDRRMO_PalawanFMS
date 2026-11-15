@@ -1,9 +1,80 @@
 from django import forms
+from django.contrib.auth.forms import SetPasswordForm
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.templatetags.static import static
 from django.utils import timezone
 from .models import Driver, FleetIncident, Vehicle, VehicleType
+
+
+class AccountSecuritySetupForm(forms.Form):
+    current_password = forms.CharField(
+        label='Current password',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'current-password',
+        }),
+    )
+    security_question = forms.CharField(
+        label='Security question',
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'off',
+        }),
+    )
+    security_answer = forms.CharField(
+        label='Answer',
+        min_length=8,
+        max_length=128,
+        strip=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+    def clean_current_password(self):
+        password = self.cleaned_data['current_password']
+        if not self.user.check_password(password):
+            raise ValidationError('Enter your current password to update recovery settings.')
+        return password
+
+    def clean_security_answer(self):
+        answer = ' '.join(self.cleaned_data['security_answer'].casefold().split())
+        if len(answer) < 8:
+            raise ValidationError('Use an answer with at least 8 non-space characters.')
+        return answer
+
+
+class PasswordRecoveryUsernameForm(forms.Form):
+    username = forms.CharField(
+        label='Username',
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'username',
+        }),
+    )
+
+
+class PasswordRecoveryAnswerForm(forms.Form):
+    answer = forms.CharField(
+        label='Security answer',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'off',
+        }),
+    )
+
+    def clean_answer(self):
+        return ' '.join(self.cleaned_data['answer'].casefold().split())
 
 
 LAND_MAINTENANCE_CHECKLIST = (
