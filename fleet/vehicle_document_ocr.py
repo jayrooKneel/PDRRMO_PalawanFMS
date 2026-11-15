@@ -349,6 +349,18 @@ def _extract_certificate_table_fields(text):
     def following_lines(index, count=3):
         return lines[index + 1:index + 1 + count]
 
+    def make_from_value(value):
+        for make in sorted(COMMON_MAKES, key=len, reverse=True):
+            if re.search(rf'(?<![A-Z]){re.escape(make)}(?![A-Z])', value, re.IGNORECASE):
+                return make
+        candidates = re.findall(r'\b[A-Z][A-Z0-9-]{1,19}\b', value, re.IGNORECASE)
+        candidates = [
+            candidate for candidate in candidates
+            if candidate.casefold() not in {'n/a', 'na', 'n1', 'm1', 'n2', 'm2'}
+            and not candidate.isdigit()
+        ]
+        return candidates[-1] if candidates else ''
+
     for index, line in enumerate(lines):
         folded = line.casefold()
         if 'engine' in folded and 'chassis' in folded:
@@ -367,12 +379,14 @@ def _extract_certificate_table_fields(text):
                         extracted['plate_number'] = ' '.join(plate.groups())
                     break
 
-        if 'make' in folded and ('brand' in folded or 'series' in folded):
+        if 'make' in folded and any(
+            label in folded for label in ('brand', 'brano', 'branc', 'series')
+        ):
             for value_line in following_lines(index):
-                for make in COMMON_MAKES:
-                    if re.search(rf'(?<![A-Z]){re.escape(make)}(?![A-Z])', value_line, re.IGNORECASE):
-                        extracted['make'] = make
-                        break
+                make = make_from_value(value_line)
+                if make:
+                    extracted['make'] = make
+                    break
                 if 'make' in extracted:
                     break
 
@@ -381,10 +395,9 @@ def _extract_certificate_table_fields(text):
                 category = re.search(r'\b[MN]\d[A-Z]?\b', value_line, re.IGNORECASE)
                 if category:
                     extracted['vehicle_category'] = category.group().upper()
-                    for make in COMMON_MAKES:
-                        if re.search(rf'(?<![A-Z]){re.escape(make)}(?![A-Z])', value_line, re.IGNORECASE):
-                            extracted['make'] = make
-                            break
+                    make = make_from_value(re.sub(category.group(), '', value_line, flags=re.IGNORECASE))
+                    if make:
+                        extracted['make'] = make
                     break
 
         if 'file' in folded and 'no' in folded:
@@ -593,9 +606,14 @@ def extract_registration_document_fields(uploaded_files, is_seacraft=False):
             ) from error
 
         file_fields = extract_fields_from_text(text, is_seacraft)
-        if not is_seacraft and any(
+        has_certificate_table_labels = any(
             'engine' in line.casefold() and 'chassis' in line.casefold()
             for line in text.splitlines()
+        )
+        make_value = file_fields.get('make', '').strip().casefold()
+        if not is_seacraft and (
+            has_certificate_table_labels
+            or make_value in {'', 'make', 'brand', 'brano', 'branc', 'n/a'}
         ):
             try:
                 table_text = pytesseract.image_to_string(

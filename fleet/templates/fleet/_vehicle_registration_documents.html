@@ -3,8 +3,8 @@
     <div class="small mt-2">
         <span class="text-muted d-block">OR/CR attachments:</span>
         {% for document in documents %}
-        <a class="d-inline-block me-2" href="{% url 'dashboard_portal:logistics_registration_document' document.id %}">
-            <i class="fa-solid fa-paperclip me-1"></i>Image {{ forloop.counter }}
+        <a class="d-inline-block me-2" href="{% url 'dashboard_portal:logistics_registration_document' document.id %}" target="_blank" rel="noopener">
+            <i class="fa-solid fa-paperclip me-1"></i>View image {{ forloop.counter }}
         </a>
         {% endfor %}
     </div>

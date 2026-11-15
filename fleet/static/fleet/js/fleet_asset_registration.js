@@ -42,12 +42,26 @@ document.addEventListener("DOMContentLoaded", function () {
     function updateAssetEntry(entry) {
         const typeSelect = entry.querySelector("[data-vehicle-type]");
         const selectedType = typeSelect.options[typeSelect.selectedIndex]?.text.trim().toLowerCase();
-        const seaAsset = ["marine", "maritime"].includes(selectedType);
+        const hasType = Boolean(typeSelect.value);
+        const seaAsset = /\b(?:sea|seacraft|marine|maritime)\b/.test(selectedType);
         const identifierLabel = entry.querySelector("[data-identifier-label]");
         identifierLabel.textContent = seaAsset ? "Official number / hull ID" : "Plate / registration number";
 
+        const details = entry.querySelector("[data-asset-details]");
+        details.hidden = !hasType;
+        details.querySelectorAll("input, select, textarea").forEach((field) => {
+            field.disabled = !hasType;
+        });
+
+        const inspectionCheckbox = entry.querySelector("[data-has-inspection-expiry]");
+        const inspectionField = entry.querySelector("[data-inspection-expiry-field]");
+        const inspectionDate = inspectionField.querySelector("input");
+        inspectionField.hidden = !inspectionCheckbox.checked;
+        inspectionDate.disabled = !hasType || !inspectionCheckbox.checked;
+        if (!inspectionCheckbox.checked) inspectionDate.value = "";
+
         entry.querySelectorAll("[data-asset-fields]").forEach((group) => {
-            const active = group.dataset.assetFields === (seaAsset ? "sea" : "land");
+            const active = hasType && group.dataset.assetFields === (seaAsset ? "sea" : "land");
             group.hidden = !active;
             group.querySelectorAll("input, select, textarea").forEach((field) => {
                 field.disabled = !active;
@@ -110,6 +124,11 @@ document.addEventListener("DOMContentLoaded", function () {
             const suggestions = Object.entries(result.fields || {}).filter(([, value]) => value);
             let filledCount = 0;
             suggestions.forEach(([name, value]) => {
+                if (name === "inspection_expiry") {
+                    const inspectionCheckbox = entry.querySelector("[data-has-inspection-expiry]");
+                    inspectionCheckbox.checked = true;
+                    updateAssetEntry(entry);
+                }
                 const matchingFields = Array.from(entry.querySelectorAll("[data-ocr-field]"))
                     .filter((candidate) => candidate.dataset.ocrField === name);
                 const field = matchingFields.find((candidate) => !candidate.disabled);
@@ -149,6 +168,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 });
             });
+            const inspectionCheckbox = entry.querySelector("[data-has-inspection-expiry]");
+            inspectionCheckbox.id = `asset-${index}-has-inspection-expiry`;
+            inspectionCheckbox.nextElementSibling.htmlFor = inspectionCheckbox.id;
             entry.querySelector("[data-entry-title]").textContent = "Asset " + (index + 1);
             entry.querySelector("[data-remove-asset]").hidden = entries.length === 1;
             updateAssetEntry(entry);
@@ -158,6 +180,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     assetEntries.addEventListener("change", (event) => {
         if (event.target.matches("[data-vehicle-type]")) {
+            updateAssetEntry(event.target.closest("[data-asset-entry]"));
+        } else if (event.target.matches("[data-has-inspection-expiry]")) {
             updateAssetEntry(event.target.closest("[data-asset-entry]"));
         } else if (event.target.matches("[data-registration-documents]")) {
             readRegistrationDocuments(event.target.closest("[data-asset-entry]"), event.target);

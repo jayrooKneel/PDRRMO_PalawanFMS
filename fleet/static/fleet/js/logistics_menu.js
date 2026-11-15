@@ -2,6 +2,31 @@
     const menuDrawer = document.getElementById("logisticsMenuDrawer");
     if (!menuDrawer) return;
 
+    const assetRows = document.querySelector("[data-dashboard-refresh-content='logistics-asset-rows']");
+    const statusFilter = document.querySelector("[data-fleet-management-filter='status']");
+    const categoryFilter = document.querySelector("[data-fleet-management-filter='category']");
+    if (assetRows && statusFilter && categoryFilter) {
+        const applyAssetFilters = () => {
+            const selectedStatus = statusFilter.value;
+            const selectedCategory = categoryFilter.value.trim().toLowerCase();
+            assetRows.querySelectorAll("[data-fleet-management-row]").forEach((row) => {
+                const status = row.dataset.vehicleStatus;
+                const category = row.dataset.vehicleCategory.trim().toLowerCase();
+                const isArchived = status === "ARCHIVED" || status === "DISPOSED";
+                const matchesStatus = selectedStatus === "all"
+                    || (selectedStatus === "active" && !isArchived)
+                    || (selectedStatus === "ARCHIVED" && isArchived)
+                    || (selectedStatus === "MAINTENANCE" && (status === "MAINTENANCE" || status === "PENDING_DISPOSAL"))
+                    || status === selectedStatus;
+                row.hidden = !matchesStatus || (selectedCategory !== "" && category !== selectedCategory);
+            });
+        };
+        statusFilter.addEventListener("change", applyAssetFilters);
+        categoryFilter.addEventListener("change", applyAssetFilters);
+        new MutationObserver(applyAssetFilters).observe(assetRows, { childList: true, subtree: true });
+        applyAssetFilters();
+    }
+
     function showModal(id) {
         const modal = document.getElementById(id);
         if (!modal) {

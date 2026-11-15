@@ -821,12 +821,34 @@
                 </div>
                 <div class="modal-body">
                     <p class="small text-muted">Update vehicle and seacraft details, review assignments, or select an operator. Active deployments remain visible in the operational dashboard.</p>
+                    <div class="row g-2 mb-3" aria-label="Fleet asset filters">
+                        <div class="col-sm-6">
+                            <label class="form-label small mb-1" for="fleet-management-status-filter">Vehicle status</label>
+                            <select class="form-select form-select-sm" id="fleet-management-status-filter" data-fleet-management-filter="status">
+                                <option value="active">All vehicles (not including archived)</option>
+                                <option value="all">All vehicles including archived</option>
+                                <option value="DEPLOYED">Deployed</option>
+                                <option value="OPERATIONAL">Operational</option>
+                                <option value="MAINTENANCE">Under maintenance</option>
+                                <option value="ARCHIVED">Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small mb-1" for="fleet-management-category-filter">Vehicle category</label>
+                            <select class="form-select form-select-sm" id="fleet-management-category-filter" data-fleet-management-filter="category">
+                                <option value="">All categories</option>
+                                {% for category in vehicle_categories %}
+                                <option value="{{ category|lower }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
-                            <thead><tr><th>Asset</th><th>Status</th><th>Assigned operator</th><th>Management</th></tr></thead>
+                            <thead><tr><th>Asset</th><th>Vehicle details</th><th>Status</th><th>Assigned operator</th><th>Management</th></tr></thead>
                             <tbody data-dashboard-refresh-content="logistics-asset-rows">
-                                {% for vehicle in land_vehicles %}{% include "fleet/_fleet_management_row.html" with vehicle=vehicle drivers=land_drivers %}{% endfor %}
-                                {% for vehicle in sea_crafts %}{% include "fleet/_fleet_management_row.html" with vehicle=vehicle drivers=sea_drivers %}{% endfor %}
+                                {% for vehicle in management_land_assets %}{% include "fleet/_fleet_management_row.html" with vehicle=vehicle drivers=land_drivers %}{% endfor %}
+                                {% for vehicle in management_sea_assets %}{% include "fleet/_fleet_management_row.html" with vehicle=vehicle drivers=sea_drivers %}{% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -1015,7 +1037,7 @@
                     <h5 class="modal-title fw-bold" id="addVehicleModalLabel"><i class="fa-solid fa-plus-circle text-info me-2"></i>Add a fleet asset</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form>
+                <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_vehicle" data-asset-action>
                     <input type="hidden" name="vehicle_id" value="" data-asset-id>
@@ -1039,6 +1061,8 @@
                                 <div class="form-text">Upload LTO Form 3 / OR-CR photos for land assets or MARINA documents for seacraft. Up to 5 clear JPEG, PNG, or WebP images (10 MB each). Local OCR suggests values; verify them before saving. Dropdown suggestions are available for common values, and you can still type a custom value. Images remain private attachments.</div>
                                 <div class="small mt-1" data-ocr-status role="status" aria-live="polite"></div>
                             </div>
+                            <div class="col-12" data-asset-details hidden>
+                            <div class="row g-3">
                             <div class="col-12" data-asset-fields="land">
                                 <h6 class="mb-0 text-primary">Land Asset Details — LTO Form 3</h6>
                             </div>
@@ -1145,8 +1169,16 @@
                                 {{ asset_registration_form.registration_date }}
                             </div>
                             <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="{{ asset_registration_form.prefix }}-has-inspection-expiry" data-has-inspection-expiry>
+                                    <label class="form-check-label fw-semibold" for="{{ asset_registration_form.prefix }}-has-inspection-expiry">Inspection expiry applies</label>
+                                </div>
+                                <div data-inspection-expiry-field hidden>
                                 <label class="form-label fw-semibold" for="{{ asset_registration_form.inspection_expiry.id_for_label }}">{{ asset_registration_form.inspection_expiry.label }}</label>
                                 {{ asset_registration_form.inspection_expiry }}
+                                </div>
+                            </div>
+                            </div>
                             </div>
                             </div>
                         </section>
@@ -1252,7 +1284,7 @@
     </script>
     <script id="fleet-assets-json" type="application/json">
         [
-            {% for vehicle in fleet_assets %}
+            {% for vehicle in management_assets %}
             {
                 "id": "{{ vehicle.pk }}",
                 "model_name": "{{ vehicle.model_name|escapejs }}",

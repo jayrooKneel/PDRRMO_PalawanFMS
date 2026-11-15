@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from io import BytesIO
 from tempfile import TemporaryDirectory
@@ -430,8 +430,23 @@ class SystemConsoleTests(TestCase):
         self.assertEqual(drawer_positions, sorted(drawer_positions))
         self.assertEqual(response.content.count(b'class="asset-grid logistics-asset-grid"'), 6)
         self.assertContains(response, 'Add a fleet asset')
+        onboarding_modal_start = response.content.index(b'id="addVehicleModal"')
+        onboarding_form_start = response.content.index(
+            b'<form method="POST" enctype="multipart/form-data"',
+            onboarding_modal_start,
+        )
+        onboarding_form_end = response.content.index(b'>', onboarding_form_start)
+        self.assertNotIn(
+            b'data-logistics-ajax-form',
+            response.content[onboarding_form_start:onboarding_form_end],
+        )
         self.assertContains(response, 'Plate No. / Official No.')
         self.assertContains(response, 'Choose an asset type')
+        self.assertContains(response, 'data-asset-details hidden')
+        self.assertContains(response, 'data-asset-fields="land"')
+        self.assertContains(response, 'data-asset-fields="sea" hidden')
+        self.assertContains(response, 'data-has-inspection-expiry')
+        self.assertContains(response, 'data-inspection-expiry-field hidden')
         self.assertContains(response, 'name="asset-0-registration_documents"')
         self.assertContains(response, 'Land Asset Details — LTO Form 3')
         self.assertContains(response, 'data-ocr-field="engine_number"')
@@ -803,7 +818,7 @@ renewal on 08/08/2028-08/14/2028.
         text = """\
 PLATE NO ENGINE NO CHASSIS NO
 NJK 2168 P020SX704405 MPBUMFPOSX704405
-FILE NO VEHICLE CATEGORY MAKE/BRAND
+FILE NO VEHICLE CATEGORY MAKE/BRANO
 133625005559777 N1 FORD
 PASSENGER CAPACITY COLOR TYPE OF FUEL CLASSIFICATION
 2 5 ARCTIC WHITE DIESEL PRIVATE - (PVT) a
@@ -831,7 +846,7 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
         table_text = """\
 PLATE NO ENGINE NO CHASSIS NO
 NJK 2168 P020SX704405 MPBUMFPOSX704405
-FILE NO VEHICLE CATEGORY MAKE/BRAND
+FILE NO VEHICLE CATEGORY MAKE/BRANO
 133625005559777 N1 FORD
 BODY TYPE SERIES GROSS WEIGHT NET WEIGHT
 RANGER 2.0L SPORT 4X4 6AT 3230 N/A
@@ -843,7 +858,7 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
         with patch(
             'fleet.vehicle_document_ocr.pytesseract.image_to_string',
             side_effect=[
-                'ENGINE NO CHASSIS NO\nMPBUMFPOSX704405',
+                'CERTIFICATE OF REGISTRATION\nPLATE NO: NJK 2168',
                 table_text,
             ],
         ):
@@ -1014,6 +1029,7 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
         self.assertEqual(vehicle.chassis_number, 'CHASSIS-123')
         self.assertEqual(vehicle.vehicle_category, 'PASSENGER CAR M1')
         self.assertEqual(vehicle.aircon_type, 'R134A')
+        self.assertIsNone(vehicle.inspection_expiry)
         document = VehicleRegistrationDocument.objects.get(vehicle=vehicle)
         self.assertTrue(document.file.storage.exists(document.file.name))
         self.assertContains(response, 'OR/CR attachments:')
@@ -1024,6 +1040,9 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download['Cache-Control'], 'private, no-store')
         self.assertEqual(download['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(download['Content-Type'], 'image/png')
+        self.assertTrue(download['Content-Disposition'].startswith('inline;'))
+        self.assertContains(response, 'View image 1')
         download.close()
 
     def test_asset_registration_preserves_marina_fields(self):
@@ -1101,6 +1120,36 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'data-open-maintenance-report=')
         self.assertContains(response, 'id="report-vehicle"')
         self.assertContains(response, 'All vehicles and seacraft')
+
+    def test_asset_management_shows_archived_assets_filters_and_vehicle_details(self):
+        archived_vehicle = Vehicle.objects.create(
+            model_name='Archived Rescue Truck',
+            plate_number='ARCHIVED-01',
+            vehicle_type=self.land_type,
+            status='ARCHIVED',
+            make='Ford',
+            model_year=2018,
+            vehicle_category='Truck',
+            engine_number='ENGINE-ARCH-01',
+            chassis_number='CHASSIS-ARCH-01',
+            registration_date=date(2018, 4, 12),
+            registration_expiry=date(2026, 4, 12),
+        )
+
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'All vehicles (not including archived)')
+        self.assertContains(response, 'All vehicles including archived')
+        self.assertContains(response, 'Under maintenance')
+        self.assertContains(response, 'value="truck">Truck</option>')
+        self.assertContains(response, f'data-vehicle-status="ARCHIVED"')
+        self.assertContains(response, f'data-asset-id="{archived_vehicle.pk}"')
+        self.assertContains(response, 'Category:</strong> Truck')
+        self.assertContains(response, 'Make:</strong> Ford')
+        self.assertContains(response, 'ENGINE-ARCH-01')
+        self.assertContains(response, 'CHASSIS-ARCH-01')
+        self.assertContains(response, 'Registration expires:</strong> Apr 12, 2026')
 
     def test_asset_forms_offer_dropdown_suggestions_for_common_details(self):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))

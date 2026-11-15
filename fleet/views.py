@@ -2257,6 +2257,20 @@ def logistics_dashboard(request):
         default=Value(5),
         output_field=IntegerField(),
     )
+    management_assets = list(all_vehicles.order_by(status_order, 'model_name'))
+    vehicle_categories = sorted(
+        {
+            (vehicle.vehicle_category or vehicle.vehicle_type.name).strip()
+            for vehicle in management_assets
+        },
+        key=str.casefold,
+    )
+    management_land_assets = all_vehicles.exclude(
+        seacraft_vehicle_type_filter()
+    ).order_by(status_order, 'model_name')
+    management_sea_assets = all_vehicles.filter(
+        seacraft_vehicle_type_filter()
+    ).order_by(status_order, 'model_name')
     land_vehicles = all_vehicles.exclude(
         seacraft_vehicle_type_filter()
     ).exclude(
@@ -2331,6 +2345,10 @@ def logistics_dashboard(request):
         'sea_maintenance': sea_maintenance,
         'types': types, 
         'fleet_assets': fleet_assets,
+        'management_assets': management_assets,
+        'vehicle_categories': vehicle_categories,
+        'management_land_assets': management_land_assets,
+        'management_sea_assets': management_sea_assets,
         'today': today,
         'fleet_total': len(land_vehicles) + len(sea_crafts),
         'operational_total': len(land_standby) + len(sea_standby),
@@ -2507,11 +2525,13 @@ def logistics_registration_document(request, document_id):
         raise Http404 from error
 
     filename = Path(document.file.name).name
+    content_type = mimetypes.guess_type(filename)[0]
+    is_safe_image = content_type in {'image/jpeg', 'image/png', 'image/webp'}
     response = FileResponse(
         file_handle,
-        as_attachment=True,
+        as_attachment=not is_safe_image,
         filename=filename,
-        content_type='application/octet-stream',
+        content_type=content_type if is_safe_image else 'application/octet-stream',
     )
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
