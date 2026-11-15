@@ -49,6 +49,8 @@ from .forms import (
     SeacraftRegistrationForm,
     ScheduledMaintenanceForm,
     ScheduledMaintenanceReplacementForm,
+    normalize_record_identifier,
+    record_identifier_exists,
 )
 from .models import (
     AccountSecurityProfile,
@@ -1945,6 +1947,25 @@ def logistics_dashboard(request):
             if len(submitted_names) != len(set(submitted_names)):
                 messages.error(request, 'Each driver / operator must have a different name.')
                 forms_valid = False
+            submitted_licenses = [
+                (index, normalize_record_identifier(form.cleaned_data.get('license_number')))
+                for index, (form, is_valid) in enumerate(zip(operator_forms, valid_forms))
+                if is_valid and form.cleaned_data.get('license_number')
+            ]
+            duplicate_licenses = {
+                license_number
+                for _, license_number in submitted_licenses
+                if sum(value == license_number for _, value in submitted_licenses) > 1
+            }
+            if duplicate_licenses:
+                messages.error(request, 'Each driver / operator must have a different license number.')
+                for index, license_number in submitted_licenses:
+                    if license_number in duplicate_licenses:
+                        operator_forms[index].add_error(
+                            'license_number',
+                            'This license number is also entered for another operator in this batch.',
+                        )
+                forms_valid = False
 
             if forms_valid:
                 try:
@@ -2228,22 +2249,38 @@ def logistics_dashboard(request):
 
             valid_forms = [form.is_valid() for form in registration_forms]
             forms_valid = all(valid_forms)
-            submitted_identifiers = [
-                form.cleaned_data.get('plate_number', '').strip()
-                for form, is_valid in zip(registration_forms, valid_forms)
-                if is_valid
-            ]
-            duplicate_identifiers = {
-                identifier
-                for identifier in submitted_identifiers
-                if submitted_identifiers.count(identifier) > 1
+            identifier_labels = {
+                'plate_number': 'plate number or hull ID',
+                'chassis_number': 'chassis or hull number',
+                'engine_number': 'engine number',
+                'mv_file_number': 'MV file number',
             }
-            if duplicate_identifiers:
-                messages.error(
-                    request,
-                    "Each asset must have a different plate number or hull ID.",
-                )
-                forms_valid = False
+            for field_name, label in identifier_labels.items():
+                submitted_identifiers = [
+                    (index, normalize_record_identifier(form.cleaned_data.get(field_name)))
+                    for index, (form, is_valid) in enumerate(zip(registration_forms, valid_forms))
+                    if is_valid and form.cleaned_data.get(field_name)
+                ]
+                duplicate_identifiers = {
+                    identifier
+                    for _, identifier in submitted_identifiers
+                    if sum(value == identifier for _, value in submitted_identifiers) > 1
+                }
+                if duplicate_identifiers:
+                    if field_name == 'plate_number':
+                        messages.error(
+                            request,
+                            "Each asset must have a different plate number or hull ID.",
+                        )
+                    else:
+                        messages.error(request, f"Each asset must have a different {label}.")
+                    for index, identifier in submitted_identifiers:
+                        if identifier in duplicate_identifiers:
+                            registration_forms[index].add_error(
+                                field_name,
+                                f"This {label} is also entered for another asset in this batch.",
+                            )
+                    forms_valid = False
 
             if forms_valid:
                 for form in registration_forms:
@@ -2726,22 +2763,23 @@ def seacraft_dispatch_view(request):
 
             valid_forms = [form.is_valid() for form in forms]
             submitted_identifiers = [
-                form.cleaned_data.get('plate_number', '').strip()
+                normalize_record_identifier(form.cleaned_data.get('plate_number'))
                 for form, is_valid in zip(forms, valid_forms)
                 if is_valid
             ]
             duplicate_identifiers = {
                 identifier
                 for identifier in submitted_identifiers
-                if submitted_identifiers.count(identifier) > 1
+                if sum(value == identifier for value in submitted_identifiers) > 1
             }
             if duplicate_identifiers:
                 messages.error(request, "Each seacraft must have a different hull ID.")
 
             form_errors = any(not is_valid for is_valid in valid_forms)
             already_registered = any(
-                Vehicle.objects.filter(plate_number=identifier).exists()
-                for identifier in submitted_identifiers
+                record_identifier_exists(Vehicle, 'plate_number', form.cleaned_data.get('plate_number'))
+                for form, is_valid in zip(forms, valid_forms)
+                if form.cleaned_data.get('plate_number')
             )
             if already_registered:
                 messages.error(request, "A seacraft with one of those hull IDs is already registered.")

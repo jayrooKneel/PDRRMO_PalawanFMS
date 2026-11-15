@@ -7,6 +7,25 @@ from django.utils import timezone
 from .models import Driver, FleetIncident, Vehicle, VehicleType
 
 
+def normalize_record_identifier(value):
+    return ''.join(character.casefold() for character in str(value or '') if character.isalnum())
+
+
+def record_identifier_exists(model, field_name, value, exclude_pk=None):
+    normalized_value = normalize_record_identifier(value)
+    if not normalized_value:
+        return False
+
+    records = model.objects.all()
+    if exclude_pk is not None:
+        records = records.exclude(pk=exclude_pk)
+    return any(
+        normalize_record_identifier(existing_value) == normalized_value
+        for existing_value in records.values_list(field_name, flat=True)
+        if existing_value
+    )
+
+
 SECURITY_QUESTION_CHOICES = (
     ('What was the name of your first school?', 'What was the name of your first school?'),
     ('What was the name of your first pet?', 'What was the name of your first pet?'),
@@ -498,6 +517,23 @@ class SeacraftRegistrationForm(forms.ModelForm):
                 'vehicle_type',
             }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        hull_id = cleaned_data.get('plate_number')
+        original_hull_id = getattr(self.instance, 'plate_number', '')
+        if (
+            hull_id
+            and normalize_record_identifier(hull_id) != normalize_record_identifier(original_hull_id)
+            and record_identifier_exists(
+                Vehicle,
+                'plate_number',
+                hull_id,
+                exclude_pk=self.instance.pk,
+            )
+        ):
+            self.add_error('plate_number', 'This hull ID is already registered.')
+        return cleaned_data
+
     def clean_length_m(self):
         length = self.cleaned_data.get('length_m')
         if length is not None and length <= 0:
@@ -774,6 +810,27 @@ class FleetAssetRegistrationForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        identifier_errors = {
+            'plate_number': 'This plate number or hull ID is already registered.',
+            'chassis_number': 'This chassis or hull number is already registered.',
+            'engine_number': 'This engine number is already registered.',
+            'mv_file_number': 'This MV file number is already registered.',
+        }
+        for field_name, error_message in identifier_errors.items():
+            value = cleaned_data.get(field_name)
+            original_value = getattr(self.instance, field_name, '')
+            if (
+                value
+                and normalize_record_identifier(value) != normalize_record_identifier(original_value)
+                and record_identifier_exists(
+                    Vehicle,
+                    field_name,
+                    value,
+                    exclude_pk=self.instance.pk,
+                )
+            ):
+                self.add_error(field_name, error_message)
+
         for field_name in (
             'gross_vehicle_weight',
             'net_capacity',
@@ -880,6 +937,20 @@ class OperatorDetailsForm(forms.ModelForm):
         license_number = self.cleaned_data['license_number'].strip()
         if not license_number:
             raise ValidationError('License number is required.')
+        original_license_number = getattr(self.instance, 'license_number', '')
+        if (
+            normalize_record_identifier(license_number)
+            != normalize_record_identifier(original_license_number)
+            and record_identifier_exists(
+                Driver,
+                'license_number',
+                license_number,
+                exclude_pk=self.instance.pk,
+            )
+        ):
+            raise ValidationError(
+                'This license number is already registered to another operator.'
+            )
         return license_number
 
     def clean(self):

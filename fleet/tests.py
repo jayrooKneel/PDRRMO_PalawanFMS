@@ -2378,6 +2378,100 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(land_driver.emergency_contact_number, '09170000001')
         self.assertEqual(sea_operator.license_authority, 'MARINA')
 
+    def test_operator_registration_rejects_duplicate_license_number(self):
+        Driver.objects.create(
+            name='Existing Licensed Driver',
+            license_number='D11-18-000671',
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_type': 'LAND',
+                'name': 'Duplicate License Driver',
+                'license_number': 'D1118000671',
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, 'This license number is already registered to another operator.')
+        self.assertFalse(Driver.objects.filter(name='Duplicate License Driver').exists())
+
+    def test_operator_batch_rejects_duplicate_license_numbers(self):
+        self.client.force_login(self.logistics_user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_count': '2',
+                'operator-0-operator_type': 'LAND',
+                'operator-0-name': 'Batch Duplicate License One',
+                'operator-0-license_number': 'D11-18-000671',
+                'operator-1-operator_type': 'LAND',
+                'operator-1-name': 'Batch Duplicate License Two',
+                'operator-1-license_number': 'D1118000671',
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, 'Each driver / operator must have a different license number.')
+        self.assertFalse(Driver.objects.filter(name__startswith='Batch Duplicate License').exists())
+
+    def test_fleet_registration_rejects_duplicate_chassis_engine_and_mv_file_numbers(self):
+        self.create_vehicle(
+            model_name='Existing Identified Fleet Asset',
+            plate_number='LAND-ID-EXISTING',
+            vehicle_type=self.land_type,
+            chassis_number='CH-12345',
+            engine_number='EN-67890',
+            mv_file_number='MV-112233',
+        )
+        self.client.force_login(self.logistics_user)
+
+        for field_name, duplicate_value in (
+            ('chassis_number', 'CH 12345'),
+            ('engine_number', 'EN67890'),
+            ('mv_file_number', 'MV 112233'),
+        ):
+            with self.subTest(field=field_name):
+                response = self.client.post(
+                    reverse('dashboard_portal:logistics_dashboard'),
+                    {
+                        'action': 'add_vehicle',
+                        'model_name': f'Duplicate {field_name}',
+                        'plate_number': f'LAND-ID-{field_name}',
+                        'vehicle_type': self.land_type.pk,
+                        field_name: duplicate_value,
+                    },
+                    follow=True,
+                )
+                self.assertContains(response, 'already registered.')
+                self.assertFalse(Vehicle.objects.filter(model_name=f'Duplicate {field_name}').exists())
+
+    def test_fleet_batch_rejects_duplicate_engine_numbers(self):
+        self.client.force_login(self.logistics_user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_vehicle',
+                'asset_count': '2',
+                'asset-0-model_name': 'Batch Duplicate Engine One',
+                'asset-0-plate_number': 'LAND-ENG-BATCH-01',
+                'asset-0-vehicle_type': self.land_type.pk,
+                'asset-0-engine_number': 'ENG-001',
+                'asset-1-model_name': 'Batch Duplicate Engine Two',
+                'asset-1-plate_number': 'LAND-ENG-BATCH-02',
+                'asset-1-vehicle_type': self.land_type.pk,
+                'asset-1-engine_number': 'eng001',
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, 'Each asset must have a different engine number.')
+        self.assertFalse(Vehicle.objects.filter(model_name__startswith='Batch Duplicate Engine').exists())
+
     def test_multiple_operator_registration_is_atomic_when_one_entry_is_invalid(self):
         self.client.force_login(self.logistics_user)
         response = self.client.post(
@@ -2602,9 +2696,9 @@ class DispatchDashboardAlignmentTests(TestCase):
 
     def test_logistics_sets_authority_from_operator_type_without_user_input(self):
         self.client.force_login(self.logistics_user)
-        for operator_type, name, authority in (
-            ('SEA', 'Automatically Maritime Authority', 'MARINA'),
-            ('LAND', 'Automatically Land Authority', 'LTO'),
+        for operator_type, name, authority, license_number in (
+            ('SEA', 'Automatically Maritime Authority', 'MARINA', 'MRA-AUTH-001'),
+            ('LAND', 'Automatically Land Authority', 'LTO', 'LTO-AUTH-001'),
         ):
             with self.subTest(operator_type=operator_type):
                 response = self.client.post(
@@ -2613,7 +2707,7 @@ class DispatchDashboardAlignmentTests(TestCase):
                         'action': 'add_operator',
                         'operator_type': operator_type,
                         'name': name,
-                        'license_number': 'TEST-123456',
+                        'license_number': license_number,
                         'license_authority': 'LTO' if operator_type == 'SEA' else 'MARINA',
                     },
                 )
