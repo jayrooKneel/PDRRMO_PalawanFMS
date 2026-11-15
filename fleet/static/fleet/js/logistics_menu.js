@@ -71,7 +71,6 @@
         operatorForm.querySelector("[name='license_class']").value = operator.licenseClass || "";
         operatorForm.querySelector("[name='license_type']").value = operator.licenseType || "";
         operatorForm.querySelector("[name='license_restrictions']").value = operator.licenseRestrictions || "";
-        operatorForm.querySelector("[name='license_conditions']").value = operator.licenseConditions || "";
         operatorForm.querySelector("[name='emergency_contact_name']").value =
             operator.emergencyContactName || "";
         operatorForm.querySelector("[name='emergency_contact_number']").value =
@@ -80,7 +79,7 @@
         operatorForm.querySelector("[name='phone_number']").value = operator.phone || "";
         operatorModal.querySelector("[data-operator-ocr-status]").textContent =
             operator.replaceLicenseFieldsOnScan
-                ? "Scan or upload the renewed license to replace its number, class, type, restrictions, conditions, and expiry; review them before saving."
+                ? "Scan or upload the renewed license to replace its number, class, type, restrictions, and expiry; review them before saving."
                 : "Select a replacement license image to scan and store it; otherwise the saved image is kept.";
     }
 
@@ -105,7 +104,6 @@
                 licenseClass: editButton.dataset.driverClass,
                 licenseType: editButton.dataset.driverLicenseType,
                 licenseRestrictions: editButton.dataset.driverRestrictions,
-                licenseConditions: editButton.dataset.driverConditions,
                 emergencyContactName: editButton.dataset.driverEmergencyContactName,
                 emergencyContactNumber: editButton.dataset.driverEmergencyContactNumber,
                 expiry: editButton.dataset.driverExpiry,

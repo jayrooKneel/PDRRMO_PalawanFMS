@@ -422,7 +422,6 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'capture="environment"')
         self.assertContains(response, 'License class / seafarer rank')
         self.assertContains(response, 'License restrictions')
-        self.assertContains(response, 'License conditions')
         self.assertContains(response, 'Driver type')
         self.assertContains(response, 'License expiry date')
         self.assertContains(response, 'fleet/js/operator_document_ocr.js')
@@ -962,13 +961,27 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
             fields['license_restrictions'],
             'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT',
         )
-        self.assertEqual(
-            fields['license_conditions'],
-            'WEAR CORRECTIVE LENSES; DRIVE ONLY WITH SPECIAL EQUIPMENT FOR UPPER/LOWER LIMBS; '
-            'DRIVE CUSTOMIZED MOTOR VEHICLE ONLY; DAYLIGHT DRIVING ONLY; HEARING AID REQUIRED',
-        )
+        self.assertNotIn('license_conditions', fields)
         self.assertEqual(fields['emergency_contact_name'], 'MARIA BALANSAY')
         self.assertEqual(fields['emergency_contact_number'], '09171234567')
+
+    def test_extracts_only_labeled_dl_codes_and_ignores_restriction_legend(self):
+        front_ocr = """\
+DL Codes Conditions
+A,B NONE MARKUS LACANILAO
+"""
+        back_ocr = """\
+I. DL CODES:
+A MOTORCYCLE L1,L2,L3-NP-MT/AT
+B UP TO 5000 KGS GVW M1-NP-MT/AT
+II. CONDITIONS:
+"""
+
+        self.assertEqual(
+            extract_driver_fields_from_text(front_ocr)['license_class'],
+            'A, B',
+        )
+        self.assertNotIn('license_class', extract_driver_fields_from_text(back_ocr))
 
     def test_identifies_driver_type_from_np_and_pl_restriction_codes(self):
         non_professional = extract_driver_fields_from_text(
@@ -1028,7 +1041,6 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
                 'license_expiry',
                 'license_type',
                 'license_restrictions',
-                'license_conditions',
                 'emergency_contact_name',
                 'emergency_contact_number',
             },
@@ -2257,7 +2269,6 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'license_class': 'A, B',
                 'license_type': 'NON_PROFESSIONAL',
                 'license_restrictions': 'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT',
-                'license_conditions': 'WEAR CORRECTIVE LENSES; DAYLIGHT DRIVING ONLY',
                 'emergency_contact_name': 'Maria Balansay',
                 'emergency_contact_number': '09171234567',
                 'license_expiry': '2030-05-18',
@@ -2269,7 +2280,6 @@ class DispatchDashboardAlignmentTests(TestCase):
         driver = Driver.objects.get(name='LTO Details Driver')
         self.assertEqual(driver.license_type, 'NON_PROFESSIONAL')
         self.assertEqual(driver.license_restrictions, 'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT')
-        self.assertEqual(driver.license_conditions, 'WEAR CORRECTIVE LENSES; DAYLIGHT DRIVING ONLY')
         self.assertEqual(driver.emergency_contact_name, 'Maria Balansay')
         self.assertEqual(driver.emergency_contact_number, '09171234567')
 

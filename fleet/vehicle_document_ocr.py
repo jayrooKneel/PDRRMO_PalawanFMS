@@ -201,7 +201,6 @@ DRIVER_FIELD_LABELS = {
         r'restriction\s*codes?',
         r'restrictions?',
     ),
-    'license_conditions': (r'conditions?',),
     'license_type': (
         r'license\s*type',
         r'professional\s*driver',
@@ -592,23 +591,58 @@ def extract_driver_fields_from_text(text):
             license_number = re.sub(r'\s+', '', lto_number.group()).replace('–', '-').upper()
         extracted['license_number'] = license_number[:50]
     if values.get('license_class'):
-        license_class = re.sub(
+        extracted['license_class'] = re.sub(
             r'\s+',
             ' ',
             values['license_class'],
         ).strip(' \t:;#.-_')[:100]
-        code_list = re.search(
-            r'(?<![A-Z0-9])(?:A1?|B[12]?|C|D|BE|CE)'
-            r'(?:\s*(?:,|/)\s*(?:A1?|B[12]?|C|D|BE|CE))*'
-            r'(?![A-Z0-9])',
-            license_class,
-            re.IGNORECASE,
-        )
-        extracted['license_class'] = (
-            re.sub(r'\s*,\s*', ', ', code_list.group()).upper()
-            if code_list
-            else license_class
-        )
+
+    has_dl_code_legend = re.search(
+        r'(?:^|\n)\s*I\.\s*DL\s*CODES?\s*[:：]?.*?'
+        r'(?=\n\s*II\.\s*CONDITIONS?\b|$)',
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    dl_text = re.sub(
+        r'(?:^|\n)\s*I\.\s*DL\s*CODES?\s*[:：]?.*?'
+        r'(?=\n\s*II\.\s*CONDITIONS?\b|$)',
+        '',
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    dl_lines = [line.strip() for line in dl_text.splitlines() if line.strip()]
+    code_token = r'(?:A1?|B[12]?|C|D|BE|CE)'
+    dl_code_found = False
+    for index, line in enumerate(dl_lines):
+        label = re.search(r'\bDL\s*CODE(?:S)?\b', line, re.IGNORECASE)
+        if not label:
+            continue
+        candidates = [line[label.end():]]
+        candidates.extend(dl_lines[index + 1:index + 4])
+        for candidate in candidates:
+            candidate = re.split(
+                r'\b(?:CONDITIONS?|EXPIRATION\s*DATE|LICENSE\s*NO\.?)\b',
+                candidate,
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0].strip(' \t:;#.-_|')
+            codes = re.match(
+                rf'^({code_token}(?:\s*[,/]\s*{code_token})*)',
+                candidate,
+                re.IGNORECASE,
+            )
+            if codes:
+                extracted['license_class'] = re.sub(
+                    r'\s*([,/])\s*',
+                    r'\1 ',
+                    codes.group(1),
+                ).upper()[:100]
+                dl_code_found = True
+                break
+        if dl_code_found:
+            break
+    if has_dl_code_legend and not dl_code_found:
+        extracted.pop('license_class', None)
 
     raw_restrictions = values.get('license_restrictions', '')
     restriction_codes = re.findall(
@@ -623,30 +657,6 @@ def extract_driver_fields_from_text(text):
         extracted['license_restrictions'] = '; '.join(
             re.sub(r'\s+', '', code).upper() for code in restriction_codes
         )[:255]
-
-    condition_text = values.get('license_conditions', '')
-    condition_section = re.search(
-        r'(?:II\.?\s*)?CONDITIONS?\s*[:：]?\s*(.*?)'
-        r'(?=(?:SERIAL\s*(?:NO\.?|NUMBER)|III\.|ORGAN\s+DONATION|$))',
-        text,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if condition_section:
-        condition_lines = re.findall(
-            r'(?:^|\n)\s*\d+\s*[.)]?\s*([^\n]+)',
-            condition_section.group(1),
-        )
-        if condition_lines:
-            condition_text = '; '.join(
-                re.sub(r'\s+', ' ', condition).strip(' .;')
-                for condition in condition_lines
-            )
-    if condition_text and condition_text.strip().casefold() not in {'none', 'n/a', 'na'}:
-        extracted['license_conditions'] = re.sub(
-            r'\s+',
-            ' ',
-            condition_text,
-        ).strip(' \t:;#.-_')[:1000]
 
     if emergency_section:
         contact_text = emergency_section.group(1)
@@ -835,7 +845,7 @@ def extract_operator_document_fields(uploaded_files, is_seacraft=False):
                     'Tesseract could not read the license layout. Try a sharper, well-lit photo.'
                 ) from error
             for field, value in extract_driver_fields_from_text(layout_text).items():
-                if field in {'license_restrictions', 'license_conditions'}:
+                if field == 'license_restrictions':
                     if len(value) > len(file_fields.get(field, '')):
                         file_fields[field] = value
                 else:

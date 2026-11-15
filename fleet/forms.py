@@ -821,7 +821,6 @@ class OperatorDetailsForm(forms.ModelForm):
             'license_class',
             'license_type',
             'license_restrictions',
-            'license_conditions',
             'emergency_contact_name',
             'emergency_contact_number',
             'license_expiry',
@@ -842,10 +841,6 @@ class OperatorDetailsForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'e.g. L1, L2, L3-NP-MT/AT',
             }),
-            'license_conditions': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 2,
-            }),
             'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
             'emergency_contact_number': forms.TelInput(attrs={'class': 'form-control'}),
             'license_expiry': forms.DateInput(attrs={
@@ -865,7 +860,6 @@ class OperatorDetailsForm(forms.ModelForm):
         self.fields['license_class'].label = 'License class / seafarer rank'
         self.fields['license_type'].label = 'Driver type'
         self.fields['license_restrictions'].label = 'License restrictions'
-        self.fields['license_conditions'].label = 'License conditions'
         self.fields['emergency_contact_name'].label = 'Emergency contact name'
         self.fields['emergency_contact_number'].label = 'Emergency contact number'
         self.fields['license_expiry'].label = 'License expiry date'
