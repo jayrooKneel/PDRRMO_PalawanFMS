@@ -27,7 +27,7 @@ from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.admin.models import LogEntry, CHANGE, ADDITION 
 from django.contrib.contenttypes.models import ContentType          
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Case, When, Value, IntegerField, Q, Count
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -1878,31 +1878,87 @@ def logistics_dashboard(request):
         vehicle_id = request.POST.get('vehicle_id')
 
         if action == 'add_operator':
-            if (
-                request.FILES.getlist('license_document_images')
-                and request.POST.get('license_scan_complete') != 'true'
-            ):
-                messages.error(request, 'Scan the selected license image and wait for OCR to finish before saving.')
-                return redirect('dashboard_portal:logistics_dashboard')
-            form = OperatorDetailsForm(request.POST, request.FILES)
-            if form.is_valid():
-                operator = form.save(commit=False)
-                uploaded_images = form.cleaned_data.get('license_document_images', [])
-                if uploaded_images:
-                    operator.license_document = uploaded_images[0]
-                operator.save()
-                form.save_m2m()
-                log_action_to_admin(
-                    request,
-                    operator,
-                    ADDITION,
-                    f"Registered {form.cleaned_data['operator_type'].lower()} operator {operator.name}.",
-                )
-                messages.success(request, f"Operator details for {operator.name} were added.")
+            if 'operator_count' in request.POST:
+                try:
+                    operator_count = int(request.POST['operator_count'])
+                except (TypeError, ValueError):
+                    operator_count = 0
+                if not 1 <= operator_count <= 20:
+                    messages.error(request, 'Add between 1 and 20 drivers / operators at a time.')
+                    return redirect('dashboard_portal:logistics_dashboard')
+
+                operator_forms = [
+                    OperatorDetailsForm(
+                        request.POST,
+                        request.FILES,
+                        prefix=f'operator-{index}',
+                    )
+                    for index in range(operator_count)
+                ]
+                for index in range(operator_count):
+                    prefix = f'operator-{index}'
+                    if (
+                        request.FILES.getlist(f'{prefix}-license_document_images')
+                        and request.POST.get(f'{prefix}-license_scan_complete') != 'true'
+                    ):
+                        messages.error(
+                            request,
+                            f'Driver / operator {index + 1}: wait for license scanning to finish before saving.',
+                        )
+                        return redirect('dashboard_portal:logistics_dashboard')
             else:
-                for errors in form.errors.values():
-                    for error in errors:
-                        messages.error(request, error)
+                if (
+                    request.FILES.getlist('license_document_images')
+                    and request.POST.get('license_scan_complete') != 'true'
+                ):
+                    messages.error(
+                        request,
+                        'Scan the selected license image and wait for OCR to finish before saving.',
+                    )
+                    return redirect('dashboard_portal:logistics_dashboard')
+                operator_forms = [OperatorDetailsForm(request.POST, request.FILES)]
+
+            valid_forms = [form.is_valid() for form in operator_forms]
+            forms_valid = all(valid_forms)
+            submitted_names = [
+                form.cleaned_data['name'].strip().casefold()
+                for form, is_valid in zip(operator_forms, valid_forms)
+                if is_valid
+            ]
+            if len(submitted_names) != len(set(submitted_names)):
+                messages.error(request, 'Each driver / operator must have a different name.')
+                forms_valid = False
+
+            if forms_valid:
+                try:
+                    with transaction.atomic():
+                        for form in operator_forms:
+                            operator = form.save(commit=False)
+                            uploaded_images = form.cleaned_data.get('license_document_images', [])
+                            if uploaded_images:
+                                operator.license_document = uploaded_images[0]
+                            operator.save()
+                            form.save_m2m()
+                            log_action_to_admin(
+                                request,
+                                operator,
+                                ADDITION,
+                                f"Registered {form.cleaned_data['operator_type'].lower()} operator {operator.name}.",
+                            )
+                except IntegrityError:
+                    messages.error(request, 'A driver / operator with one of these names was registered concurrently. Refresh and try again.')
+                    return redirect('dashboard_portal:logistics_dashboard')
+                if len(operator_forms) == 1:
+                    messages.success(request, f"Operator details for {operator.name} were added.")
+                else:
+                    messages.success(request, f"{len(operator_forms)} drivers / operators were added.")
+            else:
+                for index, (form, is_valid) in enumerate(zip(operator_forms, valid_forms), start=1):
+                    if not is_valid:
+                        for field, errors in form.errors.items():
+                            label = form.fields[field].label if field in form.fields else 'Driver / operator'
+                            for error in errors:
+                                messages.error(request, f"Driver / operator {index} — {label}: {error}")
             return redirect('dashboard_portal:logistics_dashboard')
 
         if action == 'update_operator':
@@ -1911,16 +1967,34 @@ def logistics_dashboard(request):
                 pk=request.POST.get('driver_id'),
                 is_active=True,
             )
+            operator_prefix = (
+                'operator-0' if 'operator-0-name' in request.POST else ''
+            )
+            document_field = (
+                f'{operator_prefix}-license_document_images'
+                if operator_prefix
+                else 'license_document_images'
+            )
+            scan_complete_field = (
+                f'{operator_prefix}-license_scan_complete'
+                if operator_prefix
+                else 'license_scan_complete'
+            )
             previous_license_name = (
                 operator.license_document.name if operator.license_document else ''
             )
             if (
-                request.FILES.getlist('license_document_images')
-                and request.POST.get('license_scan_complete') != 'true'
+                request.FILES.getlist(document_field)
+                and request.POST.get(scan_complete_field) != 'true'
             ):
                 messages.error(request, 'Scan the selected license image and wait for OCR to finish before saving.')
                 return redirect('dashboard_portal:logistics_dashboard')
-            form = OperatorDetailsForm(request.POST, request.FILES, instance=operator)
+            form = OperatorDetailsForm(
+                request.POST,
+                request.FILES,
+                instance=operator,
+                prefix=operator_prefix or None,
+            )
             if form.is_valid():
                 operator = form.save(commit=False)
                 uploaded_images = form.cleaned_data.get('license_document_images', [])
@@ -2374,7 +2448,7 @@ def logistics_dashboard(request):
         'assigned_driver_map': assigned_driver_map,
         'expired_assigned_drivers': expired_assigned_drivers,
         'expiring_assigned_drivers': expiring_assigned_drivers,
-        'operator_form': OperatorDetailsForm(),
+        'operator_form': OperatorDetailsForm(prefix='operator-0'),
         'asset_registration_forms': [
             FleetAssetRegistrationForm(prefix='asset-0'),
         ],

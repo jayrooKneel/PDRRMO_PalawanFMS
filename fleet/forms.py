@@ -857,7 +857,9 @@ class OperatorDetailsForm(forms.ModelForm):
             self.fields.pop('operator_type')
         self.fields['name'].label = 'Full name'
         self.fields['license_number'].label = 'License number'
-        self.fields['license_class'].label = 'License class / seafarer rank'
+        self.fields['license_class'].label = (
+            'Seafarer rank' if allowed_operator_type == 'SEA' else 'DL Codes'
+        )
         self.fields['license_type'].label = 'Driver type'
         self.fields['license_restrictions'].label = 'License restrictions'
         self.fields['emergency_contact_name'].label = 'Emergency contact name'

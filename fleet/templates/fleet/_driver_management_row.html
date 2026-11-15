@@ -3,7 +3,7 @@
     <td>{% if operator_type == "SEA" or operator_type == "MARINA" %}Seacraft operator{% else %}Land driver{% endif %}</td>
     <td>
         <div>{{ driver.license_number|default:"Not recorded" }}</div>
-        <div class="small text-muted">DL class / rank: {{ driver.license_class|default:"Not recorded" }}</div>
+        <div class="small text-muted">{% if driver.license_authority == "LTO" %}DL Codes{% else %}Seafarer rank{% endif %}: {{ driver.license_class|default:"Not recorded" }}</div>
         {% if driver.license_authority == "LTO" %}
         <div class="small"><strong>Type:</strong> {{ driver.get_license_type_display|default:"Not identified" }}</div>
         {% if driver.license_restrictions %}<div class="small"><strong>Restrictions:</strong> {{ driver.license_restrictions }}</div>{% endif %}

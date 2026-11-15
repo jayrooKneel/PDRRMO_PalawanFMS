@@ -44,7 +44,19 @@
         if (!operatorModal || !operatorForm) {
             throw new Error("The driver/operator form was not found.");
         }
+        const operatorEntries = document.getElementById("operatorRegistrationEntries");
+        const firstEntry = operatorEntries?.querySelector("[data-operator-entry]");
+        if (!operatorEntries || !firstEntry) {
+            throw new Error("The driver/operator registration fields were not found.");
+        }
+        operatorEntries.querySelectorAll("[data-operator-entry]").forEach((entry) => {
+            if (entry !== firstEntry) entry.remove();
+        });
         operatorForm.reset();
+        document.getElementById("operatorCount").value = "1";
+        document.getElementById("addOperatorEntry").hidden = Boolean(operator);
+        operatorForm.querySelector("[data-bulk-license-panel]").hidden = Boolean(operator);
+        operatorForm.querySelector("[data-bulk-license-status]").textContent = "";
         operatorForm.querySelector("[data-operator-action]").value =
             operator ? "update_operator" : "add_operator";
         operatorForm.querySelector("[data-operator-id]").value = operator?.id || "";
@@ -55,29 +67,29 @@
             ? '<i class="fa-solid fa-floppy-disk me-1"></i>Update Operator'
             : '<i class="fa-solid fa-floppy-disk me-1"></i>Save Operator';
 
-        const documentInput = operatorForm.querySelector("[data-operator-documents]");
+        const documentInput = firstEntry.querySelector("[data-operator-documents]");
         if (documentInput) documentInput.removeAttribute("capture");
-        operatorForm.dataset.replaceLicenseFieldsOnScan =
+        firstEntry.dataset.replaceLicenseFieldsOnScan =
             operator?.replaceLicenseFieldsOnScan ? "true" : "false";
         if (!operator) return;
 
-        operatorForm.querySelector("[name='operator_type']").value =
+        firstEntry.querySelector("[name$='-operator_type']").value =
             operator.type === "MARINA" || operator.type === "SEA" ? "SEA" : "LAND";
-        operatorForm.querySelector("[name='operator_type']").dispatchEvent(
+        firstEntry.querySelector("[name$='-operator_type']").dispatchEvent(
             new Event("change", { bubbles: true }),
         );
-        operatorForm.querySelector("[name='name']").value = operator.name || "";
-        operatorForm.querySelector("[name='license_number']").value = operator.license || "";
-        operatorForm.querySelector("[name='license_class']").value = operator.licenseClass || "";
-        operatorForm.querySelector("[name='license_type']").value = operator.licenseType || "";
-        operatorForm.querySelector("[name='license_restrictions']").value = operator.licenseRestrictions || "";
-        operatorForm.querySelector("[name='emergency_contact_name']").value =
+        firstEntry.querySelector("[name$='-name']").value = operator.name || "";
+        firstEntry.querySelector("[name$='-license_number']").value = operator.license || "";
+        firstEntry.querySelector("[name$='-license_class']").value = operator.licenseClass || "";
+        firstEntry.querySelector("[name$='-license_type']").value = operator.licenseType || "";
+        firstEntry.querySelector("[name$='-license_restrictions']").value = operator.licenseRestrictions || "";
+        firstEntry.querySelector("[name$='-emergency_contact_name']").value =
             operator.emergencyContactName || "";
-        operatorForm.querySelector("[name='emergency_contact_number']").value =
+        firstEntry.querySelector("[name$='-emergency_contact_number']").value =
             operator.emergencyContactNumber || "";
-        operatorForm.querySelector("[name='license_expiry']").value = operator.expiry || "";
-        operatorForm.querySelector("[name='phone_number']").value = operator.phone || "";
-        operatorModal.querySelector("[data-operator-ocr-status]").textContent =
+        firstEntry.querySelector("[name$='-license_expiry']").value = operator.expiry || "";
+        firstEntry.querySelector("[name$='-phone_number']").value = operator.phone || "";
+        firstEntry.querySelector("[data-operator-ocr-status]").textContent =
             operator.replaceLicenseFieldsOnScan
                 ? "Scan or upload the renewed license to replace its number, class, type, restrictions, and expiry; review them before saving."
                 : "Select a replacement license image to scan and store it; otherwise the saved image is kept.";

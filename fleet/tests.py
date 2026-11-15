@@ -407,6 +407,13 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-menu-action="add-operator"')
         self.assertContains(response, 'data-menu-action="manage-operators"')
         self.assertContains(response, 'id="manageOperatorsModal"')
+        self.assertContains(response, 'name="operator_count"')
+        self.assertContains(response, 'data-add-operator-entry')
+        self.assertContains(response, 'name="operator-0-name"')
+        self.assertContains(response, 'name="operator-0-license_scan_complete"')
+        self.assertContains(response, 'data-bulk-operator-licenses')
+        self.assertContains(response, 'multiple')
+        self.assertContains(response, 'one clear LTO license image per driver')
         self.assertContains(response, 'data-edit-operator')
         self.assertContains(response, 'value="archive_operator"')
         self.assertContains(response, 'data-menu-action="add-asset"')
@@ -420,7 +427,7 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-operator-document-action="camera"')
         self.assertContains(response, 'data-operator-document-action="upload"')
         self.assertContains(response, 'capture="environment"')
-        self.assertContains(response, 'License class / seafarer rank')
+        self.assertContains(response, 'data-license-class-label>DL Codes</label>')
         self.assertContains(response, 'License restrictions')
         self.assertContains(response, 'Driver type')
         self.assertContains(response, 'License expiry date')
@@ -1155,6 +1162,39 @@ II. CONDITIONS:
         self.assertTrue(download['Content-Disposition'].startswith('inline;'))
         self.assertContains(response, 'View image 1')
         download.close()
+
+    def test_multiple_uploaded_lto_license_images_are_saved_to_separate_driver_records(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_count': '2',
+                'operator-0-operator_type': 'LAND',
+                'operator-0-name': 'First Batch LTO Driver',
+                'operator-0-license_number': 'D11-25-000101',
+                'operator-0-license_class': 'A, B',
+                'operator-0-license_expiry': '2030-05-18',
+                'operator-0-license_scan_complete': 'true',
+                'operator-0-license_document_images': self.uploaded_image('first-license.png'),
+                'operator-1-operator_type': 'LAND',
+                'operator-1-name': 'Second Batch LTO Driver',
+                'operator-1-license_number': 'D11-25-000102',
+                'operator-1-license_class': 'B',
+                'operator-1-license_expiry': '2031-06-19',
+                'operator-1-license_scan_complete': 'true',
+                'operator-1-license_document_images': self.uploaded_image('second-license.png'),
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        self.assertContains(response, '2 drivers / operators were added.')
+        first_driver = Driver.objects.get(name='First Batch LTO Driver')
+        second_driver = Driver.objects.get(name='Second Batch LTO Driver')
+        self.assertTrue(first_driver.license_document.name.endswith('first-license.png'))
+        self.assertTrue(second_driver.license_document.name.endswith('second-license.png'))
+        self.assertNotEqual(first_driver.license_document.name, second_driver.license_document.name)
 
     def test_asset_registration_preserves_marina_fields(self):
         self.client.force_login(self.user)
@@ -2255,6 +2295,69 @@ class DispatchDashboardAlignmentTests(TestCase):
                 self.assertEqual(operator.license_class, 'A, B')
                 self.assertEqual(operator.license_expiry.isoformat(), '2030-06-19')
                 self.assertEqual(operator.phone_number, '555-0100')
+
+    def test_logistics_can_add_multiple_operators_in_one_submission(self):
+        self.client.force_login(self.logistics_user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_count': '2',
+                'operator-0-operator_type': 'LAND',
+                'operator-0-name': 'Batch Land Driver',
+                'operator-0-license_number': 'D11-25-000001',
+                'operator-0-license_class': 'A, B',
+                'operator-0-license_type': 'PROFESSIONAL',
+                'operator-0-license_restrictions': 'M1-PL-MT/AT',
+                'operator-0-emergency_contact_name': 'First Contact',
+                'operator-0-emergency_contact_number': '09170000001',
+                'operator-0-license_expiry': '2030-05-18',
+                'operator-0-phone_number': '09170000000',
+                'operator-0-license_scan_complete': 'false',
+                'operator-1-operator_type': 'SEA',
+                'operator-1-name': 'Batch Sea Operator',
+                'operator-1-license_number': 'MRA-200',
+                'operator-1-license_class': 'Deck Officer',
+                'operator-1-license_type': '',
+                'operator-1-license_restrictions': '',
+                'operator-1-emergency_contact_name': '',
+                'operator-1-emergency_contact_number': '',
+                'operator-1-license_expiry': '',
+                'operator-1-phone_number': '09170000002',
+                'operator-1-license_scan_complete': 'false',
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        self.assertContains(response, '2 drivers / operators were added.')
+        land_driver = Driver.objects.get(name='Batch Land Driver')
+        sea_operator = Driver.objects.get(name='Batch Sea Operator')
+        self.assertEqual(land_driver.license_authority, 'LTO')
+        self.assertEqual(land_driver.license_type, 'PROFESSIONAL')
+        self.assertEqual(land_driver.emergency_contact_number, '09170000001')
+        self.assertEqual(sea_operator.license_authority, 'MARINA')
+
+    def test_multiple_operator_registration_is_atomic_when_one_entry_is_invalid(self):
+        self.client.force_login(self.logistics_user)
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'add_operator',
+                'operator_count': '2',
+                'operator-0-operator_type': 'LAND',
+                'operator-0-name': 'Should Not Be Added',
+                'operator-0-license_number': 'D11-25-000002',
+                'operator-1-operator_type': 'LAND',
+                'operator-1-name': '',
+                'operator-1-license_number': 'D11-25-000003',
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
+        self.assertFalse(Driver.objects.filter(name='Should Not Be Added').exists())
+        self.assertContains(response, 'Driver / operator 2')
 
     def test_logistics_can_save_lto_license_type_restrictions_and_conditions(self):
         self.client.force_login(self.logistics_user)
