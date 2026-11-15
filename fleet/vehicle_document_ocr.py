@@ -207,6 +207,11 @@ DRIVER_FIELD_LABELS = {
         r'professional\s*driver',
         r'driver\s*type',
     ),
+    'emergency_contact_name': (r'emergency\s*contact\s*name',),
+    'emergency_contact_number': (
+        r'emergency\s*contact\s*(?:tel(?:ephone)?|phone)\s*(?:no\.?|number)?',
+        r'emergency\s*contact\s*number',
+    ),
     'license_expiry': (
         r'date\s*of\s*expiry',
         r'expiration\s*date',
@@ -526,7 +531,18 @@ def extract_fields_from_text(text, is_seacraft=False):
 
 
 def extract_driver_fields_from_text(text):
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    emergency_section = re.search(
+        r'(?:IV\.?\s*)?IN\s+CASE\s+OF\s+EMERGENCY\s+NOTIFY\s*[:：]?\s*(.*?)'
+        r'(?=(?:ORGAN\s+DONATION|$))',
+        text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    identity_text = (
+        text[:emergency_section.start()] + text[emergency_section.end():]
+        if emergency_section
+        else text
+    )
+    lines = [line.strip() for line in identity_text.splitlines() if line.strip()]
     values = _read_label_values(lines, DRIVER_FIELD_LABELS, NON_DRIVER_LABELS)
 
     lto_name = ''
@@ -597,7 +613,7 @@ def extract_driver_fields_from_text(text):
     raw_restrictions = values.get('license_restrictions', '')
     restriction_codes = re.findall(
         r'(?<![A-Z0-9])(?:[LM]\d(?:\s*,\s*[LM]\d)*)\s*-\s*'
-        r'(?:NP|P)\s*-\s*(?:MT|AT)(?:\s*/\s*(?:MT|AT))?(?![A-Z0-9])',
+        r'(?:NP|PL|P)\s*-\s*(?:MT|AT)(?:\s*/\s*(?:MT|AT))?(?![A-Z0-9])',
         text,
         re.IGNORECASE,
     )
@@ -632,8 +648,39 @@ def extract_driver_fields_from_text(text):
             condition_text,
         ).strip(' \t:;#.-_')[:1000]
 
+    if emergency_section:
+        contact_text = emergency_section.group(1)
+        contact_name = re.search(
+            r'\bName\s*[:：]\s*(.*?)'
+            r'(?=\bAddress\s*[:：]|\bTel(?:ephone)?\.?\s*'
+            r'(?:(?:No|Number)\.?)?\s*[:：]|\bPhone(?:\s*(?:No|Number)\.?)?\s*[:：]|$)',
+            contact_text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if contact_name:
+            name = re.sub(r'\s+', ' ', contact_name.group(1)).strip(' \t:;#.-_')
+            if name:
+                extracted['emergency_contact_name'] = name[:100]
+
+        contact_number = re.search(
+            r'\b(?:Tel(?:ephone)?\.?\s*(?:(?:No|Number)\.?)?|'
+            r'Phone(?:\s*(?:No|Number)\.?)?)'
+            r'\s*[:：]\s*([+()\d][+()\d\s./-]*)',
+            contact_text,
+            re.IGNORECASE,
+        )
+        if contact_number:
+            number = re.sub(r'\s+', ' ', contact_number.group(1)).strip(' \t:;#.-_')
+            if number:
+                extracted['emergency_contact_number'] = number[:20]
+
     folded_text = text.casefold()
-    if re.search(r'\bnon[\s-]*professional\b|\bnon[\s-]*pro\b|\bnp\b', folded_text):
+    restrictions = extracted.get('license_restrictions', '')
+    if re.search(r'(?<![A-Z0-9])NP(?![A-Z0-9])', restrictions, re.IGNORECASE):
+        extracted['license_type'] = 'NON_PROFESSIONAL'
+    elif re.search(r'(?<![A-Z0-9])PL(?![A-Z0-9])', restrictions, re.IGNORECASE):
+        extracted['license_type'] = 'PROFESSIONAL'
+    elif re.search(r'\bnon[\s-]*professional\b|\bnon[\s-]*pro\b', folded_text):
         extracted['license_type'] = 'NON_PROFESSIONAL'
     elif re.search(
         r'\bprofessional\b|\bpro\b|\b[lm]\d(?:\s*,\s*[lm]\d)*\s*-\s*p\s*-',

@@ -206,6 +206,8 @@
                             data-driver-license-type="{{ assignment.driver.license_type }}"
                             data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
                             data-driver-conditions="{{ assignment.driver.license_conditions }}"
+                            data-driver-emergency-contact-name="{{ assignment.driver.emergency_contact_name }}"
+                            data-driver-emergency-contact-number="{{ assignment.driver.emergency_contact_number }}"
                             data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
                 </li>
                 {% endfor %}
@@ -227,6 +229,8 @@
                             data-driver-license-type="{{ assignment.driver.license_type }}"
                             data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
                             data-driver-conditions="{{ assignment.driver.license_conditions }}"
+                            data-driver-emergency-contact-name="{{ assignment.driver.emergency_contact_name }}"
+                            data-driver-emergency-contact-number="{{ assignment.driver.emergency_contact_number }}"
                             data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
                 </li>
                 {% endfor %}
@@ -785,6 +789,14 @@
                         <div class="mb-3" data-lto-license-field>
                             <label class="form-label fw-semibold" for="{{ operator_form.license_conditions.id_for_label }}">{{ operator_form.license_conditions.label }}</label>
                             {{ operator_form.license_conditions }}
+                        </div>
+                        <div class="mb-3" data-lto-license-field>
+                            <label class="form-label fw-semibold" for="{{ operator_form.emergency_contact_name.id_for_label }}">{{ operator_form.emergency_contact_name.label }}</label>
+                            {{ operator_form.emergency_contact_name }}
+                        </div>
+                        <div class="mb-3" data-lto-license-field>
+                            <label class="form-label fw-semibold" for="{{ operator_form.emergency_contact_number.id_for_label }}">{{ operator_form.emergency_contact_number.label }}</label>
+                            {{ operator_form.emergency_contact_number }}
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="{{ operator_form.license_expiry.id_for_label }}">{{ operator_form.license_expiry.label }}</label>

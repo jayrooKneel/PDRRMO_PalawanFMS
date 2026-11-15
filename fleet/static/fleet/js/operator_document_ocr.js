@@ -89,6 +89,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 "license_type",
                 "license_restrictions",
                 "license_conditions",
+                "emergency_contact_name",
+                "emergency_contact_number",
                 "license_expiry",
             ].forEach((name) => {
                 const field = formBody.querySelector(`[name='${name}']`);
@@ -99,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         "license_type",
                         "license_restrictions",
                         "license_conditions",
+                        "emergency_contact_name",
+                        "emergency_contact_number",
                         "license_expiry",
                     ].includes(name);
                 if (!field || !fields[name] || (field.value && !replaceValue)) return;

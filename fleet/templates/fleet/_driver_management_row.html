@@ -8,6 +8,9 @@
         <div class="small"><strong>Type:</strong> {{ driver.get_license_type_display|default:"Not identified" }}</div>
         {% if driver.license_restrictions %}<div class="small"><strong>Restrictions:</strong> {{ driver.license_restrictions }}</div>{% endif %}
         {% if driver.license_conditions %}<div class="small"><strong>Conditions:</strong> {{ driver.license_conditions }}</div>{% endif %}
+        {% if driver.emergency_contact_name or driver.emergency_contact_number %}
+        <div class="small"><strong>Emergency contact:</strong> {{ driver.emergency_contact_name|default:"Name not recorded" }} · {{ driver.emergency_contact_number|default:"Number not recorded" }}</div>
+        {% endif %}
         {% endif %}
     </td>
     <td class="{% if driver.license_expired %}text-danger fw-bold{% endif %}">
@@ -28,6 +31,8 @@
                 data-driver-license-type="{{ driver.license_type }}"
                 data-driver-restrictions="{{ driver.license_restrictions }}"
                 data-driver-conditions="{{ driver.license_conditions }}"
+                data-driver-emergency-contact-name="{{ driver.emergency_contact_name }}"
+                data-driver-emergency-contact-number="{{ driver.emergency_contact_number }}"
                 data-driver-phone="{{ driver.phone_number|default:'' }}">Edit</button>
         <form method="post" class="d-inline" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form onsubmit="return confirm('Archive {{ driver.name|escapejs }}?');">
             {% csrf_token %}

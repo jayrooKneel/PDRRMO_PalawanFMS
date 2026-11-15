@@ -32,6 +32,8 @@ class Driver(models.Model):
     license_type = models.CharField(max_length=20, choices=LICENSE_TYPE_CHOICES, blank=True)
     license_restrictions = models.CharField(max_length=255, blank=True)
     license_conditions = models.TextField(blank=True)
+    emergency_contact_name = models.CharField(max_length=100, blank=True)
+    emergency_contact_number = models.CharField(max_length=20, blank=True)
     license_expiry = models.DateField(blank=True, null=True)
     license_document = models.ImageField(
         upload_to='driver_licenses/',

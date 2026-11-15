@@ -822,6 +822,8 @@ class OperatorDetailsForm(forms.ModelForm):
             'license_type',
             'license_restrictions',
             'license_conditions',
+            'emergency_contact_name',
+            'emergency_contact_number',
             'license_expiry',
             'phone_number',
         )
@@ -844,6 +846,8 @@ class OperatorDetailsForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 2,
             }),
+            'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'emergency_contact_number': forms.TelInput(attrs={'class': 'form-control'}),
             'license_expiry': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date',
@@ -862,6 +866,8 @@ class OperatorDetailsForm(forms.ModelForm):
         self.fields['license_type'].label = 'Driver type'
         self.fields['license_restrictions'].label = 'License restrictions'
         self.fields['license_conditions'].label = 'License conditions'
+        self.fields['emergency_contact_name'].label = 'Emergency contact name'
+        self.fields['emergency_contact_number'].label = 'Emergency contact number'
         self.fields['license_expiry'].label = 'License expiry date'
         self.fields['phone_number'].label = 'Phone number'
 

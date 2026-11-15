@@ -747,6 +747,10 @@ II. CONDITIONS:
 3. DRIVE CUSTOMIZED MOTOR VEHICLE ONLY
 4. DAYLIGHT DRIVING ONLY
 5. HEARING AID REQUIRED
+IV. IN CASE OF EMERGENCY NOTIFY:
+Name: MARIA BALANSAY
+Address: PUERTO PRINCESA
+Tel. No.: 09171234567
 Serial Number
 522409374
 """
@@ -963,17 +967,23 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
             'WEAR CORRECTIVE LENSES; DRIVE ONLY WITH SPECIAL EQUIPMENT FOR UPPER/LOWER LIMBS; '
             'DRIVE CUSTOMIZED MOTOR VEHICLE ONLY; DAYLIGHT DRIVING ONLY; HEARING AID REQUIRED',
         )
+        self.assertEqual(fields['emergency_contact_name'], 'MARIA BALANSAY')
+        self.assertEqual(fields['emergency_contact_number'], '09171234567')
 
-    def test_identifies_professional_license_from_explicit_type_or_restriction_code(self):
+    def test_identifies_driver_type_from_np_and_pl_restriction_codes(self):
+        non_professional = extract_driver_fields_from_text(
+            'License No: D11-25-004594\nRestrictions: L1,L2-NP-MT/AT'
+        )
+        professional = extract_driver_fields_from_text(
+            'License No: D11-25-004594\nRestrictions: L1,L2-PL-MT/AT'
+        )
         explicit_type = extract_driver_fields_from_text(
             'License Type: Professional Driver\nLicense No: D11-25-004594'
         )
-        restriction_type = extract_driver_fields_from_text(
-            'License No: D11-25-004594\nRestrictions: M1-P-MT/AT'
-        )
 
+        self.assertEqual(non_professional['license_type'], 'NON_PROFESSIONAL')
+        self.assertEqual(professional['license_type'], 'PROFESSIONAL')
         self.assertEqual(explicit_type['license_type'], 'PROFESSIONAL')
-        self.assertEqual(restriction_type['license_type'], 'PROFESSIONAL')
 
     def test_extracts_marina_operator_certificate_and_expiry(self):
         fields = extract_driver_fields_from_text(self.MARINA_OPERATOR_TEXT)
@@ -1019,6 +1029,8 @@ YEAR MODEL YEAR REBUILT PISTON DISPLACEMENT MAX POWER
                 'license_type',
                 'license_restrictions',
                 'license_conditions',
+                'emergency_contact_name',
+                'emergency_contact_number',
             },
         )
         self.assertIn('image was not saved', response.json()['message'])
@@ -2246,6 +2258,8 @@ class DispatchDashboardAlignmentTests(TestCase):
                 'license_type': 'NON_PROFESSIONAL',
                 'license_restrictions': 'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT',
                 'license_conditions': 'WEAR CORRECTIVE LENSES; DAYLIGHT DRIVING ONLY',
+                'emergency_contact_name': 'Maria Balansay',
+                'emergency_contact_number': '09171234567',
                 'license_expiry': '2030-05-18',
                 'phone_number': '',
             },
@@ -2256,6 +2270,8 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(driver.license_type, 'NON_PROFESSIONAL')
         self.assertEqual(driver.license_restrictions, 'L1,L2,L3-NP-MT/AT; M1-NP-MT/AT')
         self.assertEqual(driver.license_conditions, 'WEAR CORRECTIVE LENSES; DAYLIGHT DRIVING ONLY')
+        self.assertEqual(driver.emergency_contact_name, 'Maria Balansay')
+        self.assertEqual(driver.emergency_contact_number, '09171234567')
 
     def test_driver_license_image_is_saved_viewable_editable_and_archivable(self):
         image_bytes = BytesIO()

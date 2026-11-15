@@ -72,6 +72,10 @@
         operatorForm.querySelector("[name='license_type']").value = operator.licenseType || "";
         operatorForm.querySelector("[name='license_restrictions']").value = operator.licenseRestrictions || "";
         operatorForm.querySelector("[name='license_conditions']").value = operator.licenseConditions || "";
+        operatorForm.querySelector("[name='emergency_contact_name']").value =
+            operator.emergencyContactName || "";
+        operatorForm.querySelector("[name='emergency_contact_number']").value =
+            operator.emergencyContactNumber || "";
         operatorForm.querySelector("[name='license_expiry']").value = operator.expiry || "";
         operatorForm.querySelector("[name='phone_number']").value = operator.phone || "";
         operatorModal.querySelector("[data-operator-ocr-status]").textContent =
@@ -102,6 +106,8 @@
                 licenseType: editButton.dataset.driverLicenseType,
                 licenseRestrictions: editButton.dataset.driverRestrictions,
                 licenseConditions: editButton.dataset.driverConditions,
+                emergencyContactName: editButton.dataset.driverEmergencyContactName,
+                emergencyContactNumber: editButton.dataset.driverEmergencyContactNumber,
                 expiry: editButton.dataset.driverExpiry,
                 phone: editButton.dataset.driverPhone,
                 replaceLicenseFieldsOnScan: editButton.dataset.licenseRefresh === "true",
