@@ -740,11 +740,11 @@
                 </div>
                 <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form>
                     {% csrf_token %}
-                    <input type="hidden" name="action" value="add_operator" data-operator-action>
+                    <input type="hidden" name="operator_action" value="add_operator" data-operator-action>
                     <input type="hidden" name="driver_id" value="" data-operator-id>
                     <input type="hidden" id="operatorCount" name="operator_count" value="1">
                     <div class="modal-body" id="operatorRegistrationForm" data-ocr-url="{% url 'dashboard_portal:logistics_operator_document_ocr' %}">
-                        <p class="text-muted small">Scan an LTO driver's license or MARINA license/certificate to suggest details. The first selected image is saved to the operator record for authorized logistics staff to view.</p>
+                        <p class="text-muted small">Scan an LTO driver's license or MARINA license/certificate to suggest details. Upload multiple images, such as the front and back of a license, to keep them together on the operator record.</p>
                         <div id="operatorRegistrationEntries">
                         <section class="operator-registration-entry border rounded p-3 mb-3" data-operator-entry>
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -768,7 +768,7 @@
                                 </button>
                             </div>
                             {{ operator_form.license_document_images }}
-                                <div class="form-text">Upload clear front and back images for this driver. The system suggests DL codes, professional status, restrictions, license number, and expiry. Review suggestions before saving; the first image is retained as the license record.</div>
+                            <div class="form-text">Upload up to 5 clear JPEG, PNG, or WebP images (10 MB each), including both front and back for best results. All selected images are retained with this operator. The system suggests DL codes, professional status, restrictions, license number, and expiry; review them before saving. Date of birth and address are not extracted.</div>
                             <div class="small mt-1" data-operator-ocr-status role="status" aria-live="polite"></div>
                         </div>
                         <div class="mb-3">
@@ -809,12 +809,6 @@
                         </div>
                         </section>
                         </div>
-                        <div class="border rounded p-3 mb-3" data-bulk-license-panel>
-                            <label class="form-label fw-semibold" for="bulkOperatorLicenseFiles">Upload multiple LTO licenses</label>
-                            <input class="form-control" id="bulkOperatorLicenseFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple data-bulk-operator-licenses>
-                            <div class="form-text">Select one clear LTO license image per driver (up to 20). Each image is scanned separately and creates a driver entry for you to review.</div>
-                            <div class="small mt-1" data-bulk-license-status role="status" aria-live="polite"></div>
-                        </div>
                         <button type="button" id="addOperatorEntry" class="btn btn-outline-primary w-100" data-add-operator-entry>
                             <i class="fa-solid fa-plus me-1"></i>Add another driver / operator
                         </button>
@@ -836,7 +830,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="small text-muted">Edit operator details, view the stored license image, or archive an operator. Archiving preserves the record and clears any eligible vehicle assignment.</p>
+                    <p class="small text-muted">Edit operator details, view stored license images, or archive an operator. Archiving preserves the record and clears any eligible vehicle assignment.</p>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
                             <thead><tr><th>Name</th><th>Type</th><th>License, DL class, restrictions</th><th>Expiry</th><th>Record</th><th>Actions</th></tr></thead>
@@ -1326,7 +1320,7 @@
             {% endfor %}
         ]
     </script>
-    <script id="fleet-assets-json" type="application/json">
+    <script id="fleet-assets-json" type="application/json" data-dashboard-refresh-text="logistics-fleet-assets-json">
         [
             {% for vehicle in management_assets %}
             {

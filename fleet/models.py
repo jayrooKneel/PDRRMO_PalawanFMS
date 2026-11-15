@@ -46,6 +46,19 @@ class Driver(models.Model):
         return self.name
 
 
+class DriverLicenseImage(models.Model):
+    driver = models.ForeignKey(
+        Driver,
+        on_delete=models.CASCADE,
+        related_name='additional_license_images',
+    )
+    file = models.ImageField(upload_to='driver_licenses/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Additional license image for {self.driver}"
+
+
 class VehicleAsset(models.Model):
     ASSET_TYPES = [
         ('LAND', 'Land Transportation'),

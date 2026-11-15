@@ -52,6 +52,7 @@ from .forms import (
 )
 from .models import (
     AccountSecurityProfile,
+    DriverLicenseImage,
     FleetIncident,
     Vehicle,
     VehicleRegistrationDocument,
@@ -128,6 +129,22 @@ def locked_account_message():
         'This account is temporarily disabled after five unsuccessful login attempts. '
         'Contact an administrator or try again in 15 minutes.'
     )
+
+
+def save_driver_license_images(driver, uploaded_images, replace=False):
+    if not uploaded_images:
+        return []
+
+    previous_images = list(driver.additional_license_images.all()) if replace else []
+    driver.license_document = uploaded_images[0]
+    driver.save()
+
+    if replace:
+        for image in previous_images:
+            image.file.delete(save=False)
+            image.delete()
+    for uploaded_image in uploaded_images[1:]:
+        DriverLicenseImage.objects.create(driver=driver, file=uploaded_image)
 
 
 def login_view(request):
@@ -1874,7 +1891,7 @@ def logistics_dashboard(request):
     move_overdue_vehicles_to_maintenance(request)
 
     if request.method == 'POST':
-        action = request.POST.get('action')
+        action = request.POST.get('action') or request.POST.get('operator_action')
         vehicle_id = request.POST.get('vehicle_id')
 
         if action == 'add_operator':
@@ -1903,7 +1920,7 @@ def logistics_dashboard(request):
                     ):
                         messages.error(
                             request,
-                            f'Driver / operator {index + 1}: wait for license scanning to finish before saving.',
+                            f'Driver / operator {index + 1}: wait for all license images to finish scanning before saving.',
                         )
                         return redirect('dashboard_portal:logistics_dashboard')
             else:
@@ -1913,7 +1930,7 @@ def logistics_dashboard(request):
                 ):
                     messages.error(
                         request,
-                        'Scan the selected license image and wait for OCR to finish before saving.',
+                        'Scan all selected license images and wait for OCR to finish before saving.',
                     )
                     return redirect('dashboard_portal:logistics_dashboard')
                 operator_forms = [OperatorDetailsForm(request.POST, request.FILES)]
@@ -1936,8 +1953,9 @@ def logistics_dashboard(request):
                             operator = form.save(commit=False)
                             uploaded_images = form.cleaned_data.get('license_document_images', [])
                             if uploaded_images:
-                                operator.license_document = uploaded_images[0]
-                            operator.save()
+                                save_driver_license_images(operator, uploaded_images)
+                            else:
+                                operator.save()
                             form.save_m2m()
                             log_action_to_admin(
                                 request,
@@ -1987,7 +2005,7 @@ def logistics_dashboard(request):
                 request.FILES.getlist(document_field)
                 and request.POST.get(scan_complete_field) != 'true'
             ):
-                messages.error(request, 'Scan the selected license image and wait for OCR to finish before saving.')
+                messages.error(request, 'Scan all selected license images and wait for OCR to finish before saving.')
                 return redirect('dashboard_portal:logistics_dashboard')
             form = OperatorDetailsForm(
                 request.POST,
@@ -1999,8 +2017,9 @@ def logistics_dashboard(request):
                 operator = form.save(commit=False)
                 uploaded_images = form.cleaned_data.get('license_document_images', [])
                 if uploaded_images:
-                    operator.license_document = uploaded_images[0]
-                operator.save()
+                    save_driver_license_images(operator, uploaded_images, replace=True)
+                else:
+                    operator.save()
                 form.save_m2m()
                 if (
                     uploaded_images
@@ -2375,7 +2394,9 @@ def logistics_dashboard(request):
     sea_maintenance = [c for c in sea_crafts if c.status in ['MAINTENANCE', 'PENDING_DISPOSAL']]
 
     today = timezone.localdate()
-    all_driver_records = list(Driver.objects.all())
+    all_driver_records = list(
+        Driver.objects.prefetch_related('additional_license_images')
+    )
     for driver in all_driver_records:
         driver.license_expired = driver_license_is_expired(driver, today)
         driver.license_expiring_soon = driver_license_expires_soon(driver, today)
@@ -2586,6 +2607,33 @@ def logistics_driver_license_document(request, driver_id):
         driver.license_document.open('rb'),
         content_type=content_type,
     )
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@login_required
+def logistics_driver_license_image(request, driver_id, image_id):
+    if not check_user_role(
+        request.user,
+        'Logistics Officers',
+        ['logistics', 'log', 'depot', 'fleet'],
+    ):
+        return HttpResponseForbidden('Access restricted to Logistics Depot management accounts.')
+
+    image = get_object_or_404(
+        DriverLicenseImage,
+        pk=image_id,
+        driver_id=driver_id,
+    )
+    if not image.file:
+        raise Http404
+    content_type = mimetypes.guess_type(image.file.name)[0] or 'application/octet-stream'
+    try:
+        file_handle = image.file.open('rb')
+    except FileNotFoundError as error:
+        raise Http404 from error
+    response = FileResponse(file_handle, content_type=content_type)
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
     return response

@@ -4,16 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const entries = document.getElementById("operatorRegistrationEntries");
     const operatorCount = document.getElementById("operatorCount");
     const addEntryButton = document.getElementById("addOperatorEntry");
-    const bulkLicenseInput = document.querySelector("[data-bulk-operator-licenses]");
-    const bulkLicenseStatus = document.querySelector("[data-bulk-license-status]");
-    if (!form || !formBody || !entries || !operatorCount || !addEntryButton
-        || !bulkLicenseInput || !bulkLicenseStatus) return;
-
-    function setBulkStatus(message, isError = false) {
-        bulkLicenseStatus.textContent = message;
-        bulkLicenseStatus.classList.toggle("text-danger", isError);
-        bulkLicenseStatus.classList.toggle("text-success", !isError && Boolean(message));
-    }
+    if (!form || !formBody || !entries || !operatorCount || !addEntryButton) return;
 
     function setStatus(entry, message, isError = false) {
         const status = entry.querySelector("[data-operator-ocr-status]");
@@ -57,39 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         operatorCount.value = operatorEntries.length;
         addEntryButton.disabled = operatorEntries.length >= 20;
-    }
-
-    function isBlankEntry(entry) {
-        const hasEnteredValue = Array.from(entry.querySelectorAll("input, select, textarea"))
-            .some((field) => {
-                if (field.type === "file" || field.type === "hidden") return false;
-                if (field.matches("[name$='-operator_type']")) return field.value !== "LAND";
-                return Boolean(field.value.trim());
-            });
-        const hasSelectedFiles = Array.from(entry.querySelectorAll("input[type='file']"))
-            .some((field) => field.files.length > 0);
-        return !hasEnteredValue && !hasSelectedFiles;
-    }
-
-    function createOperatorEntry() {
-        const operatorEntries = entries.querySelectorAll("[data-operator-entry]");
-        const clone = operatorEntries[operatorEntries.length - 1].cloneNode(true);
-        clone.querySelectorAll("input, select, textarea").forEach((field) => {
-            if (field.type === "checkbox" || field.type === "radio") {
-                field.checked = false;
-            } else {
-                field.value = "";
-            }
-        });
-        clone.querySelector("[name$='-operator_type']").value = "LAND";
-        clone.querySelector("[data-license-scan-complete]").value = "false";
-        delete clone.dataset.ocrRequestId;
-        delete clone.dataset.ocrInProgress;
-        delete clone.dataset.replaceLicenseFieldsOnScan;
-        setStatus(clone, "");
-        entries.appendChild(clone);
-        renumberEntries();
-        return clone;
     }
 
     async function readOperatorDocument(entry, input) {
@@ -160,17 +118,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let message = result.message;
             if (filledCount) {
-                message = `${filledCount} suggested field(s) filled. Review them before saving. The first selected image will be stored with this operator record.`;
+                message = `${filledCount} suggested field(s) filled. Review them before saving. All selected images will be stored with this operator record.`;
             } else if (suggestions.length) {
                 message = "License details were recognized, but existing values were kept. Clear a field to use its suggestion.";
             }
             setStatus(entry, message);
-            return true;
         } catch (error) {
             if (entry.dataset.ocrRequestId === requestId) {
                 setStatus(entry, error.message, true);
             }
-            return false;
         } finally {
             if (entry.dataset.ocrRequestId === requestId) {
                 delete entry.dataset.ocrInProgress;
@@ -209,49 +165,22 @@ document.addEventListener("DOMContentLoaded", () => {
     addEntryButton.addEventListener("click", () => {
         const operatorEntries = entries.querySelectorAll("[data-operator-entry]");
         if (operatorEntries.length >= 20) return;
-        createOperatorEntry();
-    });
-
-    bulkLicenseInput.addEventListener("change", async () => {
-        const files = Array.from(bulkLicenseInput.files || []);
-        if (!files.length) return;
-        const operatorEntries = Array.from(entries.querySelectorAll("[data-operator-entry]"));
-        const blankEntries = operatorEntries.filter(isBlankEntry);
-        const availableSlots = 20 - operatorEntries.length + blankEntries.length;
-        if (files.length > availableSlots) {
-            bulkLicenseInput.value = "";
-            setBulkStatus(`You can add ${availableSlots} more driver license(s); remove an entry or upload fewer files.`, true);
-            return;
-        }
-
-        bulkLicenseInput.disabled = true;
-        addEntryButton.disabled = true;
-        let nextBlankEntry = blankEntries.shift();
-        let failedScans = 0;
-        try {
-            for (const [index, file] of files.entries()) {
-                const entry = nextBlankEntry || createOperatorEntry();
-                nextBlankEntry = null;
-                const input = entry.querySelector("[data-operator-documents]");
-                const transfer = new DataTransfer();
-                transfer.items.add(file);
-                input.files = transfer.files;
-                setBulkStatus(`Scanning license ${index + 1} of ${files.length}…`);
-                if (!await readOperatorDocument(entry, input)) failedScans += 1;
+        const clone = operatorEntries[operatorEntries.length - 1].cloneNode(true);
+        clone.querySelectorAll("input, select, textarea").forEach((field) => {
+            if (field.type === "checkbox" || field.type === "radio") {
+                field.checked = false;
+            } else {
+                field.value = "";
             }
-            setBulkStatus(
-                failedScans
-                    ? `${files.length} driver entry/entries added; ${failedScans} scan(s) failed. Review each entry and rescan failed licenses before saving.`
-                    : `${files.length} driver license image(s) added as separate entries. Review each entry before saving.`,
-                failedScans > 0,
-            );
-        } catch (error) {
-            setBulkStatus(error instanceof Error ? error.message : "Could not add the selected licenses.", true);
-        } finally {
-            bulkLicenseInput.value = "";
-            bulkLicenseInput.disabled = false;
-            renumberEntries();
-        }
+        });
+        clone.querySelector("[name$='-operator_type']").value = "LAND";
+        clone.querySelector("[data-license-scan-complete]").value = "false";
+        delete clone.dataset.ocrRequestId;
+        delete clone.dataset.ocrInProgress;
+        delete clone.dataset.replaceLicenseFieldsOnScan;
+        setStatus(clone, "");
+        entries.appendChild(clone);
+        renumberEntries();
     });
 
     form.addEventListener("submit", (event) => {

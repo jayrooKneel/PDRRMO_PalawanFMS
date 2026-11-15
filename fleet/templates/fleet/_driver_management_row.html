@@ -18,8 +18,14 @@
     </td>
     <td>
         {% if driver.license_document %}
-        <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard_portal:logistics_driver_license_document' driver.pk %}" target="_blank" rel="noopener">View license</a>
-        {% else %}<span class="text-muted">No image</span>{% endif %}
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'dashboard_portal:logistics_driver_license_document' driver.pk %}" target="_blank" rel="noopener">View image 1</a>
+        {% endif %}
+        {% for image in driver.additional_license_images.all %}
+        <a class="btn btn-sm btn-outline-primary mt-1" href="{% url 'dashboard_portal:logistics_driver_license_image' driver.pk image.pk %}" target="_blank" rel="noopener">View image {{ forloop.counter|add:1 }}</a>
+        {% endfor %}
+        {% if not driver.license_document and not driver.additional_license_images.all %}
+        <span class="text-muted">No image</span>
+        {% endif %}
     </td>
     <td class="text-nowrap">
         {% if not archived %}

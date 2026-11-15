@@ -531,8 +531,9 @@ def extract_fields_from_text(text, is_seacraft=False):
 
 def extract_driver_fields_from_text(text):
     emergency_section = re.search(
-        r'(?:IV\.?\s*)?IN\s+CASE\s+OF\s+EMERGENCY\s+NOTIFY\s*[:：]?\s*(.*?)'
-        r'(?=(?:ORGAN\s+DONATION|$))',
+        r'(?:IV\.?\s*)?IN\s+CASE\s+OF\s+EMERGENCY'
+        r'(?:[\s,;:]+PLEASE)?\s+NOTIFY\s*[:：]?\s*(.*?)'
+        r'(?=(?:ORGAN\s+DONATION|SERIAL\s+NUMBER|$))',
         text,
         re.IGNORECASE | re.DOTALL,
     )
@@ -612,36 +613,41 @@ def extract_driver_fields_from_text(text):
     )
     dl_lines = [line.strip() for line in dl_text.splitlines() if line.strip()]
     code_token = r'(?:A1?|B[12]?|C|D|BE|CE)'
-    dl_code_found = False
+    dl_code_label_found = False
+    dl_codes = []
     for index, line in enumerate(dl_lines):
         label = re.search(r'\bDL\s*CODE(?:S)?\b', line, re.IGNORECASE)
         if not label:
             continue
+        dl_code_label_found = True
         candidates = [line[label.end():]]
-        candidates.extend(dl_lines[index + 1:index + 4])
+        candidates.extend(dl_lines[index + 1:index + 7])
         for candidate in candidates:
             candidate = re.split(
-                r'\b(?:CONDITIONS?|EXPIRATION\s*DATE|LICENSE\s*NO\.?)\b',
+                r'\b(?:CONDITIONS?|EXPIRATION\s*DATE|LICENSE\s*NO\.?|'
+                r'RESTRICTIONS?|IN\s+CASE\s+OF\s+EMERGENCY)\b',
                 candidate,
                 maxsplit=1,
                 flags=re.IGNORECASE,
             )[0].strip(' \t:;#.-_|')
-            codes = re.match(
-                rf'^({code_token}(?:\s*[,/]\s*{code_token})*)',
+            candidate = re.split(r'\b(?:NONE|MARKUS)\b', candidate, maxsplit=1, flags=re.IGNORECASE)[0]
+            if re.search(
+                r'\b(?:MOTORCYCLE|MOTORBIKE|UP\s+TO|GVW|KGS|SEATS?)\b',
                 candidate,
                 re.IGNORECASE,
-            )
-            if codes:
-                extracted['license_class'] = re.sub(
-                    r'\s*([,/])\s*',
-                    r'\1 ',
-                    codes.group(1),
-                ).upper()[:100]
-                dl_code_found = True
-                break
-        if dl_code_found:
-            break
-    if has_dl_code_legend and not dl_code_found:
+            ):
+                continue
+            for code in re.findall(
+                rf'(?<![A-Z0-9]){code_token}(?![A-Z0-9])',
+                candidate,
+                re.IGNORECASE,
+            ):
+                normalized_code = code.upper()
+                if normalized_code not in dl_codes:
+                    dl_codes.append(normalized_code)
+    if dl_codes:
+        extracted['license_class'] = ', '.join(dl_codes)[:100]
+    if (dl_code_label_found or has_dl_code_legend) and not dl_codes:
         extracted.pop('license_class', None)
 
     raw_restrictions = values.get('license_restrictions', '')
@@ -661,9 +667,9 @@ def extract_driver_fields_from_text(text):
     if emergency_section:
         contact_text = emergency_section.group(1)
         contact_name = re.search(
-            r'\bName\s*[:：]\s*(.*?)'
-            r'(?=\bAddress\s*[:：]|\bTel(?:ephone)?\.?\s*'
-            r'(?:(?:No|Number)\.?)?\s*[:：]|\bPhone(?:\s*(?:No|Number)\.?)?\s*[:：]|$)',
+            r'\b(?:Contact\s+)?Name\b\s*[:：]?\s*(.*?)'
+            r'(?=\bAddress\b|\b(?:Tel(?:ephone)?|Phone|Contact)\b'
+            r'(?:\s*(?:No|Number)\.?)?\s*[:：]?|$)',
             contact_text,
             re.IGNORECASE | re.DOTALL,
         )
@@ -674,8 +680,8 @@ def extract_driver_fields_from_text(text):
 
         contact_number = re.search(
             r'\b(?:Tel(?:ephone)?\.?\s*(?:(?:No|Number)\.?)?|'
-            r'Phone(?:\s*(?:No|Number)\.?)?)'
-            r'\s*[:：]\s*([+()\d][+()\d\s./-]*)',
+            r'Phone(?:\s*(?:No|Number)\.?)?|Contact\s*(?:No|Number)\.?)'
+            r'\s*[:：]?\s*([+()\d][+()\d\s./-]*)',
             contact_text,
             re.IGNORECASE,
         )
@@ -823,12 +829,25 @@ def extract_operator_document_fields(uploaded_files, is_seacraft=False):
             ) from error
 
         file_fields = extract_driver_fields_from_text(text)
-        if not is_seacraft and not {
-            'name',
-            'license_number',
-            'license_expiry',
-            'license_class',
-        }.issubset(file_fields):
+        if not is_seacraft and (
+            not {
+                'name',
+                'license_number',
+                'license_expiry',
+                'license_class',
+            }.issubset(file_fields)
+            or (
+                re.search(
+                    r'\b(?:EMERGENCY|NOTIFY|TEL(?:EPHONE)?)\b',
+                    text,
+                    re.IGNORECASE,
+                )
+                and not {
+                    'emergency_contact_name',
+                    'emergency_contact_number',
+                }.issubset(file_fields)
+            )
+        ):
             try:
                 layout_text = pytesseract.image_to_string(
                     image,
@@ -844,10 +863,17 @@ def extract_operator_document_fields(uploaded_files, is_seacraft=False):
                 raise RegistrationOcrError(
                     'Tesseract could not read the license layout. Try a sharper, well-lit photo.'
                 ) from error
-            for field, value in extract_driver_fields_from_text(layout_text).items():
+            layout_fields = extract_driver_fields_from_text(layout_text)
+            for field, value in layout_fields.items():
                 if field == 'license_restrictions':
                     if len(value) > len(file_fields.get(field, '')):
                         file_fields[field] = value
+                elif field in {
+                    'license_class',
+                    'emergency_contact_name',
+                    'emergency_contact_number',
+                }:
+                    file_fields[field] = value
                 else:
                     file_fields.setdefault(field, value)
 

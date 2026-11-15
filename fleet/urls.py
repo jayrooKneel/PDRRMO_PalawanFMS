@@ -25,6 +25,11 @@ urlpatterns = [
         name='logistics_driver_license_document',
     ),
     path(
+        'logistics/drivers/<int:driver_id>/license/images/<int:image_id>/',
+        views.logistics_driver_license_image,
+        name='logistics_driver_license_image',
+    ),
+    path(
         'logistics/vehicles/<int:vehicle_id>/driver/',
         views.logistics_assign_driver,
         name='logistics_assign_driver',

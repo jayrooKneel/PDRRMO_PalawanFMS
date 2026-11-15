@@ -55,8 +55,6 @@
         operatorForm.reset();
         document.getElementById("operatorCount").value = "1";
         document.getElementById("addOperatorEntry").hidden = Boolean(operator);
-        operatorForm.querySelector("[data-bulk-license-panel]").hidden = Boolean(operator);
-        operatorForm.querySelector("[data-bulk-license-status]").textContent = "";
         operatorForm.querySelector("[data-operator-action]").value =
             operator ? "update_operator" : "add_operator";
         operatorForm.querySelector("[data-operator-id]").value = operator?.id || "";
@@ -92,7 +90,7 @@
         firstEntry.querySelector("[data-operator-ocr-status]").textContent =
             operator.replaceLicenseFieldsOnScan
                 ? "Scan or upload the renewed license to replace its number, class, type, restrictions, and expiry; review them before saving."
-                : "Select a replacement license image to scan and store it; otherwise the saved image is kept.";
+                : "Select replacement license images to scan and store them; otherwise the saved images are kept.";
     }
 
     const manageOperatorsModal = document.getElementById("manageOperatorsModal");

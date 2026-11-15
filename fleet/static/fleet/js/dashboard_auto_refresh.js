@@ -145,8 +145,10 @@
         form.setAttribute("aria-busy", "true");
 
         try {
-            const response = await fetch(form.action || window.location.href, {
-                method: form.method || "POST",
+            const actionUrl = form.getAttribute("action") || window.location.href;
+            const requestMethod = form.getAttribute("method") || "POST";
+            const response = await fetch(actionUrl, {
+                method: requestMethod,
                 body: formData,
                 credentials: "same-origin",
                 cache: "no-store",

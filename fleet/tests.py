@@ -315,7 +315,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v11')
+        self.assertContains(response, 'pdrrmo-fms-shell-v18')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -411,9 +411,7 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-add-operator-entry')
         self.assertContains(response, 'name="operator-0-name"')
         self.assertContains(response, 'name="operator-0-license_scan_complete"')
-        self.assertContains(response, 'data-bulk-operator-licenses')
-        self.assertContains(response, 'multiple')
-        self.assertContains(response, 'one clear LTO license image per driver')
+        self.assertContains(response, 'name="operator_action" value="add_operator"')
         self.assertContains(response, 'data-edit-operator')
         self.assertContains(response, 'value="archive_operator"')
         self.assertContains(response, 'data-menu-action="add-asset"')
@@ -422,7 +420,7 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-menu-action="print"')
         self.assertContains(response, 'data-menu-action="view-incidents"')
         self.assertNotContains(response, 'id_license_authority')
-        self.assertContains(response, 'first selected image is saved to the operator record')
+        self.assertContains(response, 'Upload multiple images, such as the front and back of a license')
         self.assertContains(response, 'data-operator-documents')
         self.assertContains(response, 'data-operator-document-action="camera"')
         self.assertContains(response, 'data-operator-document-action="upload"')
@@ -990,6 +988,79 @@ II. CONDITIONS:
         )
         self.assertNotIn('license_class', extract_driver_fields_from_text(back_ocr))
 
+    def test_extracts_space_separated_dl_codes_and_emergency_contact_without_colons(self):
+        license_ocr = """\
+DL Codes
+A B1 C
+IN CASE OF EMERGENCY, PLEASE NOTIFY:
+Name MARIA BALANSAY
+Address PUERTO PRINCESA
+Tel No 09171234567
+Serial Number 522409374
+"""
+
+        fields = extract_driver_fields_from_text(license_ocr)
+
+        self.assertEqual(fields['license_class'], 'A, B1, C')
+        self.assertEqual(fields['emergency_contact_name'], 'MARIA BALANSAY')
+        self.assertEqual(fields['emergency_contact_number'], '09171234567')
+
+    def test_extracts_wrapped_dl_codes_without_the_category_description(self):
+        license_ocr = """\
+DL Codes Conditions
+A,A1,B,B1, NONE MARKUP. LACANILAO
+Signature of Licensee B2 Assistant Secretary
+"""
+        description_only_ocr = """\
+DL Codes
+MOTORCYCLE
+Conditions NONE
+"""
+
+        self.assertEqual(
+            extract_driver_fields_from_text(license_ocr)['license_class'],
+            'A, A1, B, B1, B2',
+        )
+        self.assertNotIn(
+            'license_class',
+            extract_driver_fields_from_text(description_only_ocr),
+        )
+
+    def test_operator_ocr_uses_layout_scan_for_dl_codes_and_emergency_contact(self):
+        self.client.force_login(self.user)
+        first_pass_text = """\
+NAME: JOHN REY CATOR BALANSAY
+LICENSE NO: D11-25-004594
+EXPIRY DATE: 2030/05/18
+DL Codes
+TEL. NO.
+"""
+        layout_text = """\
+DL Codes
+A B1 C
+IN CASE OF EMERGENCY, PLEASE NOTIFY:
+Name MARIA BALANSAY
+Address PUERTO PRINCESA
+Tel No 09171234567
+"""
+        with patch(
+            'fleet.vehicle_document_ocr.pytesseract.image_to_string',
+            side_effect=[first_pass_text, layout_text],
+        ):
+            response = self.client.post(
+                reverse('dashboard_portal:logistics_operator_document_ocr'),
+                {
+                    'operator_type': 'LAND',
+                    'documents': self.uploaded_image('license-back.png'),
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        fields = response.json()['fields']
+        self.assertEqual(fields['license_class'], 'A, B1, C')
+        self.assertEqual(fields['emergency_contact_name'], 'MARIA BALANSAY')
+        self.assertEqual(fields['emergency_contact_number'], '09171234567')
+
     def test_identifies_driver_type_from_np_and_pl_restriction_codes(self):
         non_professional = extract_driver_fields_from_text(
             'License No: D11-25-004594\nRestrictions: L1,L2-NP-MT/AT'
@@ -1163,39 +1234,6 @@ II. CONDITIONS:
         self.assertContains(response, 'View image 1')
         download.close()
 
-    def test_multiple_uploaded_lto_license_images_are_saved_to_separate_driver_records(self):
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse('dashboard_portal:logistics_dashboard'),
-            {
-                'action': 'add_operator',
-                'operator_count': '2',
-                'operator-0-operator_type': 'LAND',
-                'operator-0-name': 'First Batch LTO Driver',
-                'operator-0-license_number': 'D11-25-000101',
-                'operator-0-license_class': 'A, B',
-                'operator-0-license_expiry': '2030-05-18',
-                'operator-0-license_scan_complete': 'true',
-                'operator-0-license_document_images': self.uploaded_image('first-license.png'),
-                'operator-1-operator_type': 'LAND',
-                'operator-1-name': 'Second Batch LTO Driver',
-                'operator-1-license_number': 'D11-25-000102',
-                'operator-1-license_class': 'B',
-                'operator-1-license_expiry': '2031-06-19',
-                'operator-1-license_scan_complete': 'true',
-                'operator-1-license_document_images': self.uploaded_image('second-license.png'),
-            },
-            follow=True,
-        )
-
-        self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
-        self.assertContains(response, '2 drivers / operators were added.')
-        first_driver = Driver.objects.get(name='First Batch LTO Driver')
-        second_driver = Driver.objects.get(name='Second Batch LTO Driver')
-        self.assertTrue(first_driver.license_document.name.endswith('first-license.png'))
-        self.assertTrue(second_driver.license_document.name.endswith('second-license.png'))
-        self.assertNotEqual(first_driver.license_document.name, second_driver.license_document.name)
-
     def test_asset_registration_preserves_marina_fields(self):
         self.client.force_login(self.user)
         sea_type = VehicleType.objects.create(name='MARINE')
@@ -1268,6 +1306,7 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'id="editFleetAssetForm"')
         self.assertContains(response, 'name="edit-asset-model_name"')
         self.assertContains(response, 'data-edit-asset')
+        self.assertContains(response, 'data-dashboard-refresh-text="logistics-fleet-assets-json"')
         self.assertContains(response, 'data-open-maintenance-report=')
         self.assertContains(response, 'id="report-vehicle"')
         self.assertContains(response, 'All vehicles and seacraft')
@@ -2039,6 +2078,7 @@ class DispatchDashboardAlignmentTests(TestCase):
         ):
             with self.subTest(section=section):
                 self.assertContains(response, f'data-dashboard-refresh-content="{section}"')
+        self.assertContains(response, 'data-dashboard-refresh-text="logistics-fleet-assets-json"')
         for form_data in (
             'data-logistics-ajax-form',
             'data-driver-assignment-form',
@@ -2365,7 +2405,7 @@ class DispatchDashboardAlignmentTests(TestCase):
         response = self.client.post(
             reverse('dashboard_portal:logistics_dashboard'),
             {
-                'action': 'add_operator',
+                'operator_action': 'add_operator',
                 'operator_type': 'LAND',
                 'name': 'LTO Details Driver',
                 'license_number': 'D11-25-004594',
@@ -2387,13 +2427,15 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(driver.emergency_contact_number, '09171234567')
 
     def test_driver_license_image_is_saved_viewable_editable_and_archivable(self):
-        image_bytes = BytesIO()
-        Image.new('RGB', (12, 12), color='blue').save(image_bytes, format='PNG')
-        image_file = SimpleUploadedFile(
-            'license.png',
-            image_bytes.getvalue(),
-            content_type='image/png',
-        )
+        def make_license_image(name, color):
+            image_bytes = BytesIO()
+            Image.new('RGB', (12, 12), color=color).save(image_bytes, format='PNG')
+            return SimpleUploadedFile(
+                name,
+                image_bytes.getvalue(),
+                content_type='image/png',
+            )
+
         self.client.force_login(self.logistics_user)
         dashboard_url = reverse('dashboard_portal:logistics_dashboard')
 
@@ -2410,12 +2452,18 @@ class DispatchDashboardAlignmentTests(TestCase):
                         'license_expiry': '2032-05-01',
                         'phone_number': '09170000000',
                         'license_scan_complete': 'true',
-                        'license_document_images': image_file,
+                        'license_document_images': [
+                            make_license_image('license-front.png', 'blue'),
+                            make_license_image('license-back.png', 'green'),
+                        ],
                     },
                 )
                 self.assertRedirects(create_response, dashboard_url)
                 operator = Driver.objects.get(name='Stored License Operator')
                 self.assertTrue(operator.license_document.name.startswith('driver_licenses/'))
+                self.assertEqual(operator.additional_license_images.count(), 1)
+                additional_image = operator.additional_license_images.get()
+                old_additional_image_name = additional_image.file.name
                 license_response = self.client.get(
                     reverse(
                         'dashboard_portal:logistics_driver_license_document',
@@ -2427,10 +2475,21 @@ class DispatchDashboardAlignmentTests(TestCase):
                 self.assertEqual(license_response['Cache-Control'], 'private, no-store')
                 license_response.close()
 
+                additional_response = self.client.get(
+                    reverse(
+                        'dashboard_portal:logistics_driver_license_image',
+                        args=[operator.pk, additional_image.pk],
+                    )
+                )
+                self.assertEqual(additional_response.status_code, 200)
+                self.assertEqual(additional_response['Content-Type'], 'image/png')
+                self.assertEqual(additional_response['Cache-Control'], 'private, no-store')
+                additional_response.close()
+
                 update_response = self.client.post(
                     dashboard_url,
                     {
-                        'action': 'update_operator',
+                        'operator_action': 'update_operator',
                         'driver_id': operator.pk,
                         'operator_type': 'LAND',
                         'name': 'Updated License Operator',
@@ -2444,6 +2503,30 @@ class DispatchDashboardAlignmentTests(TestCase):
                 operator.refresh_from_db()
                 self.assertEqual(operator.name, 'Updated License Operator')
                 self.assertTrue(operator.license_document)
+                self.assertEqual(operator.additional_license_images.count(), 1)
+
+                replacement_response = self.client.post(
+                    dashboard_url,
+                    {
+                        'operator_action': 'update_operator',
+                        'driver_id': operator.pk,
+                        'operator_type': 'LAND',
+                        'name': 'Updated License Operator',
+                        'license_number': 'LTO-STORE-003',
+                        'license_class': 'A, B, C',
+                        'license_expiry': '2034-05-01',
+                        'phone_number': '09170000001',
+                        'license_scan_complete': 'true',
+                        'license_document_images': [
+                            make_license_image('replacement-front.png', 'red'),
+                            make_license_image('replacement-back.png', 'yellow'),
+                        ],
+                    },
+                )
+                self.assertRedirects(replacement_response, dashboard_url)
+                operator.refresh_from_db()
+                self.assertEqual(operator.additional_license_images.count(), 1)
+                self.assertFalse(operator.license_document.storage.exists(old_additional_image_name))
 
                 vehicle = self.create_vehicle(
                     model_name='Operator Archive Test Vehicle',
@@ -2515,7 +2598,7 @@ class DispatchDashboardAlignmentTests(TestCase):
 
         self.assertRedirects(response, reverse('dashboard_portal:logistics_dashboard'))
         self.assertFalse(Driver.objects.filter(name='Unscanned License Operator').exists())
-        self.assertContains(response, 'Scan the selected license image and wait for OCR to finish before saving.')
+        self.assertContains(response, 'Scan all selected license images and wait for OCR to finish before saving.')
 
     def test_logistics_sets_authority_from_operator_type_without_user_input(self):
         self.client.force_login(self.logistics_user)
