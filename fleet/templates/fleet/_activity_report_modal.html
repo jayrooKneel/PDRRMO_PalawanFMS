@@ -9,6 +9,7 @@
             </div>
             <form method="get" action="{% url 'dashboard_portal:fleet_activity_report' %}" id="generateReportForm">
                 <div class="modal-body">
+                    <input type="hidden" name="fleet_wide" id="report-fleet-wide" value="">
                     <div class="mb-3">
                         <label for="report-kind" class="form-label fw-semibold">Report</label>
                         <select id="report-kind" name="report_kind" class="form-select" required>
@@ -16,6 +17,7 @@
                             <option value="maintenance">Maintenance</option>
                             <option value="damage">Damage and fault reports</option>
                             <option value="incident">Incident reports</option>
+                            {% if can_generate_fleet_inventory_report %}<option value="inventory">Fleet inventory</option>{% endif %}
                             {% if can_generate_driver_report %}<option value="drivers">Drivers and operators</option>{% endif %}
                         </select>
                     </div>

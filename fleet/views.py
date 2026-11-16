@@ -1222,15 +1222,32 @@ def logistics_generate_report(request):
         return redirect('dashboard_portal:homepage')
 
     is_logistics = permissions['is_logistics']
+    is_seacraft_dispatch = permissions['is_seacraft_dispatch']
     allowed_divisions = permissions['allowed_divisions']
 
     report_format = request.GET.get('format', '').lower()
     report_kind = request.GET.get('report_kind', 'activity').lower()
+    fleet_wide = request.GET.get('fleet_wide') == 'true'
+    if fleet_wide and not (is_logistics or is_seacraft_dispatch):
+        return HttpResponse(
+            "Fleet-wide reports are restricted to Logistics Officers and Seacraft Dispatch.",
+            status=403,
+        )
     maintenance_category = request.GET.get('maintenance_category', 'all').lower()
-    if report_kind not in {'activity', 'maintenance', 'damage', 'incident', 'drivers'}:
-        return HttpResponse("Choose an activity, maintenance, damage, incident, or driver report.", status=400)
+    if report_kind not in {'activity', 'maintenance', 'damage', 'incident', 'inventory', 'drivers'}:
+        return HttpResponse(
+            "Choose an activity, maintenance, damage, incident, inventory, or driver report.",
+            status=400,
+        )
     if report_kind == 'drivers' and not is_logistics:
         return HttpResponse("Driver reports are restricted to Logistics Officers.", status=403)
+    if report_kind == 'inventory' and not (
+        is_logistics or (is_seacraft_dispatch and fleet_wide)
+    ):
+        return HttpResponse(
+            "Fleet inventory reports are restricted to Logistics Officers and Seacraft Dispatch.",
+            status=403,
+        )
     if maintenance_category not in {'all', 'regular', 'other'}:
         return HttpResponse("Choose all, regular, or other maintenance.", status=400)
 
@@ -1246,6 +1263,9 @@ def logistics_generate_report(request):
     elif report_kind == 'drivers':
         report_title = 'Driver and Operator Report'
         report_heading = 'Driver and Operator Roster'
+    elif report_kind == 'inventory':
+        report_title = 'Fleet Inventory Report'
+        report_heading = 'Fleet Inventory'
     else:
         report_title = 'PDRRMO Fleet Deployment Report'
         report_heading = 'Deployment Activity Report'
@@ -1386,6 +1406,9 @@ def logistics_generate_report(request):
                 driver.phone_number or 'Not recorded',
                 emergency_contact,
             ])
+    elif report_kind == 'inventory':
+        period_label = f"Inventory as of {today:%B %d, %Y}"
+        start_date = end_date = today
     else:
         period = request.GET.get('period', '')
         try:
@@ -1424,7 +1447,7 @@ def logistics_generate_report(request):
             return HttpResponse("Choose a valid fleet asset for the maintenance report.", status=400)
         is_seacraft = report_vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
         division = 'Seacraft' if is_seacraft else 'Land Asset'
-        if not is_logistics and division not in allowed_divisions:
+        if not is_logistics and not fleet_wide and division not in allowed_divisions:
             return HttpResponse("You are not authorized to report on this fleet asset.", status=403)
         report_title = f'{report_title} - {report_vehicle.model_name}'
         report_heading = f'{report_heading} - {report_vehicle.model_name}'
@@ -1463,6 +1486,45 @@ def logistics_generate_report(request):
         ]
         rows = driver_rows
         event_query = event_query.none()
+    elif report_kind == 'inventory':
+        headers = [
+            'Division',
+            'Asset',
+            'Category',
+            'Make',
+            'Year',
+            'Plate / hull ID',
+            'Status',
+            'Assigned operator',
+            'Engine number',
+            'Chassis / hull number',
+            'Registration expiry',
+            'Inspection expiry',
+        ]
+        inventory_vehicles = Vehicle.objects.select_related(
+            'vehicle_type',
+            'assigned_driver',
+        ).order_by('vehicle_type__name', 'model_name', 'pk')
+        rows = [
+            [
+                'Seacraft'
+                if vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
+                else 'Land Asset',
+                vehicle.model_name,
+                vehicle.vehicle_category or vehicle.vehicle_type.name,
+                vehicle.make or 'Not recorded',
+                vehicle.model_year or 'Not recorded',
+                vehicle.plate_number,
+                vehicle.get_status_display(),
+                vehicle.assigned_driver.name if vehicle.assigned_driver else 'Unassigned',
+                vehicle.engine_number or 'Not recorded',
+                vehicle.chassis_number or 'Not recorded',
+                vehicle.registration_expiry.isoformat() if vehicle.registration_expiry else 'Not recorded',
+                vehicle.inspection_expiry.isoformat() if vehicle.inspection_expiry else 'Not recorded',
+            ]
+            for vehicle in inventory_vehicles
+        ]
+        event_query = event_query.none()
     elif report_kind == 'incident':
         incident_query = FleetIncident.objects.filter(
             occurred_at__gte=start_datetime,
@@ -1477,7 +1539,7 @@ def logistics_generate_report(request):
             except ValueError:
                 return HttpResponse("Choose a valid incident report.", status=400)
             incident_query = incident_query.filter(pk=incident_id)
-        if not is_logistics:
+        if not is_logistics and not fleet_wide:
             incident_division_filter = Q(pk__in=[])
             if 'Land Asset' in allowed_divisions:
                 incident_division_filter |= ~seacraft_vehicle_type_filter()
@@ -1572,7 +1634,7 @@ def logistics_generate_report(request):
         division = 'Seacraft' if (
             vehicle and vehicle.vehicle_type.name.strip().casefold() in {'marine', 'maritime'}
         ) else 'Land Asset'
-        if not is_logistics and division not in allowed_divisions:
+        if not is_logistics and not fleet_wide and division not in allowed_divisions:
             continue
         if report_kind == 'maintenance':
             if event.change_message.startswith('Scheduled maintenance due: '):
@@ -1598,7 +1660,13 @@ def logistics_generate_report(request):
         ])
 
     safe_period = f"{start_date:%Y%m%d}-{end_date:%Y%m%d}"
-    if report_kind != 'drivers':
+    if fleet_wide and report_kind == 'inventory':
+        report_title = 'All-Fleet Inventory Report'
+        report_heading = 'All-Fleet Inventory'
+    elif fleet_wide:
+        report_title = f"All-Fleet {report_title}"
+        report_heading = f"All-Fleet {report_heading}"
+    if report_kind not in {'drivers', 'inventory'}:
         headers = [
             'Date & Time',
             'Activity',
@@ -1637,7 +1705,11 @@ def logistics_generate_report(request):
                 'generated_at': timezone.localtime(),
                 'report_heading': report_heading,
                 'report_title': report_title,
-                'report_record_label': 'operator(s)' if report_kind == 'drivers' else 'recorded event(s)',
+                'report_record_label': (
+                    'operator(s)' if report_kind == 'drivers'
+                    else 'asset(s)' if report_kind == 'inventory'
+                    else 'recorded event(s)'
+                ),
             },
         )
 
@@ -1667,11 +1739,12 @@ def logistics_generate_report(request):
         for cell in sheet[2]:
             cell.font = Font(bold=True, color='FFFFFF')
             cell.fill = PatternFill('solid', fgColor='2563EB')
-        column_widths = (
-            (26, 20, 16, 32, 24, 24, 24, 30, 18, 24, 32, 22, 38)
-            if report_kind == 'drivers'
-            else (20, 20, 16, 34, 90, 24, 24)
-        )
+        if report_kind == 'drivers':
+            column_widths = (26, 20, 16, 32, 24, 24, 24, 30, 18, 24, 32, 22, 38)
+        elif report_kind == 'inventory':
+            column_widths = (16, 32, 24, 20, 10, 22, 18, 28, 24, 26, 18, 18)
+        else:
+            column_widths = (20, 20, 16, 34, 90, 24, 24)
         for column_index, width in enumerate(column_widths, start=1):
             sheet.column_dimensions[get_column_letter(column_index)].width = width
         output = io.BytesIO()
@@ -1712,18 +1785,23 @@ def logistics_generate_report(request):
         [Paragraph(escape(str(value)), body_style) for value in row]
         for row in rows
     ])
-    pdf_column_widths = (
-        [
+    if report_kind == 'drivers':
+        pdf_column_widths = [
             1.0 * inch, 0.65 * inch, 0.58 * inch, 0.68 * inch, 0.85 * inch,
             0.68 * inch, 0.62 * inch, 0.72 * inch, 0.7 * inch, 0.75 * inch,
             0.85 * inch, 0.95 * inch, 1.0 * inch,
         ]
-        if report_kind == 'drivers'
-        else [
+    elif report_kind == 'inventory':
+        pdf_column_widths = [
+            0.75 * inch, 1.15 * inch, 0.85 * inch, 0.7 * inch, 0.45 * inch,
+            0.95 * inch, 0.75 * inch, 1.05 * inch, 0.95 * inch, 1.1 * inch,
+            0.75 * inch, 0.75 * inch,
+        ]
+    else:
+        pdf_column_widths = [
             0.9 * inch, 0.85 * inch, 0.7 * inch, 1.15 * inch, 4.3 * inch,
             0.8 * inch, 1.0 * inch,
         ]
-    )
     table = Table(
         report_data,
         repeatRows=1,

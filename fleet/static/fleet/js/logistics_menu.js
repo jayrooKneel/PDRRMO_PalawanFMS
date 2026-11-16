@@ -201,6 +201,32 @@
             showModal("addVehicleModal");
         } else if (action === "generate-report") {
             showModal("generateReportModal");
+        } else if (action === "fleet-report") {
+            const reportKind = document.getElementById("report-kind");
+            const reportVehicle = document.getElementById("report-vehicle");
+            const fleetWideInput = document.getElementById("report-fleet-wide");
+            if (!reportKind || !reportVehicle || !fleetWideInput) {
+                throw new Error("Fleet-wide report controls were not found.");
+            }
+            fleetWideInput.dataset.fleetWideShortcut = "true";
+            reportKind.value = "activity";
+            reportKind.dispatchEvent(new Event("change", { bubbles: true }));
+            reportVehicle.value = "";
+            fleetWideInput.value = "true";
+            showModal("generateReportModal");
+        } else if (action === "inventory-report") {
+            const reportKind = document.getElementById("report-kind");
+            const reportVehicle = document.getElementById("report-vehicle");
+            const fleetWideInput = document.getElementById("report-fleet-wide");
+            if (!reportKind || !reportVehicle || !fleetWideInput) {
+                throw new Error("Fleet inventory report controls were not found.");
+            }
+            fleetWideInput.dataset.fleetWideShortcut = "true";
+            reportKind.value = "inventory";
+            reportKind.dispatchEvent(new Event("change", { bubbles: true }));
+            reportVehicle.value = "";
+            fleetWideInput.value = "true";
+            showModal("generateReportModal");
         } else if (action === "driver-report") {
             const reportKind = document.getElementById("report-kind");
             if (!reportKind) throw new Error("Report selection was not found.");

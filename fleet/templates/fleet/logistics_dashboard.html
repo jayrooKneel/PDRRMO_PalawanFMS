@@ -137,6 +137,12 @@
             <button type="button" class="btn btn-outline-primary text-start fw-semibold logistics-menu-action" data-menu-action="manage-assets">
                 <i class="fa-solid fa-truck-ramp-box me-2"></i>Manage Fleet Assets
             </button>
+            <button type="button" class="btn btn-outline-success text-start fw-semibold logistics-menu-action" data-menu-action="fleet-report">
+                <i class="fa-solid fa-file-export me-2"></i>Fleet-wide Report
+            </button>
+            <button type="button" class="btn btn-outline-info text-start fw-semibold logistics-menu-action" data-menu-action="inventory-report">
+                <i class="fa-solid fa-warehouse me-2"></i>Fleet Inventory Report
+            </button>
             <button type="button" class="btn btn-teal text-white text-start fw-semibold logistics-menu-action" data-menu-action="operators">
                 <i class="fa-solid fa-user-gear me-2"></i>Assign Drivers to Assets
             </button>
@@ -183,7 +189,7 @@
         </div>
     </div>
 
-    {% include "fleet/_activity_report_modal.html" with can_generate_driver_report=True %}
+    {% include "fleet/_activity_report_modal.html" with can_generate_driver_report=True can_generate_fleet_inventory_report=True %}
 
     {% include "fleet/_account_security_prompt.html" %}
 

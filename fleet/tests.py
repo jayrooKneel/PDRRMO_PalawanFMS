@@ -419,6 +419,8 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'id="manageAssetsModal"')
         self.assertContains(response, 'data-menu-action="print"')
         self.assertContains(response, 'data-menu-action="view-incidents"')
+        self.assertContains(response, 'data-menu-action="fleet-report"')
+        self.assertContains(response, 'name="fleet_wide"')
         self.assertNotContains(response, 'id_license_authority')
         self.assertContains(response, 'Upload multiple images, such as the front and back of a license')
         self.assertContains(response, 'data-operator-documents')
@@ -438,6 +440,8 @@ class SystemConsoleTests(TestCase):
         drawer_order = (
             'data-menu-action="add-asset"',
             'data-menu-action="manage-assets"',
+            'data-menu-action="fleet-report"',
+            'data-menu-action="inventory-report"',
             'data-menu-action="operators"',
             'data-menu-action="add-operator"',
             'data-menu-action="file-incident"',
@@ -1310,6 +1314,11 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'data-open-maintenance-report=')
         self.assertContains(response, 'id="report-vehicle"')
         self.assertContains(response, 'All vehicles and seacraft')
+        self.assertContains(response, 'data-menu-action="fleet-report"')
+        self.assertContains(response, 'data-menu-action="inventory-report"')
+        self.assertContains(response, 'Fleet Inventory Report')
+        self.assertContains(response, 'name="fleet_wide"')
+        self.assertContains(response, 'value="inventory">Fleet inventory')
         self.assertContains(response, 'View more vehicle details')
 
     def test_dashboard_prompts_users_without_recovery_settings(self):
@@ -1478,6 +1487,7 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'name="maintenance_category"')
         self.assertContains(response, 'value="damage">Damage and fault reports')
         self.assertContains(response, 'value="incident">Incident reports')
+        self.assertContains(response, 'value="inventory">Fleet inventory')
         self.assertContains(response, 'Report a fleet incident')
         self.assertContains(response, 'name="injury_status"')
         self.assertContains(response, 'name="witnesses"')
@@ -1809,6 +1819,11 @@ class LogisticsReportExportTests(TestCase):
             plate_number='SEA-REPORT-01',
             vehicle_type=sea_type,
         )
+        land_vehicle = Vehicle.objects.create(
+            model_name='Report Land Asset',
+            plate_number='LAND-REPORT-02',
+            vehicle_type=self.land_type,
+        )
         LogEntry.objects.create(
             user=self.user,
             content_type=ContentType.objects.get_for_model(Vehicle),
@@ -1816,6 +1831,14 @@ class LogisticsReportExportTests(TestCase):
             object_repr=str(sea_vehicle),
             action_flag=CHANGE,
             change_message='Deployed asset unit to Honda Bay for Search and Rescue.',
+        )
+        LogEntry.objects.create(
+            user=self.user,
+            content_type=ContentType.objects.get_for_model(Vehicle),
+            object_id=str(land_vehicle.pk),
+            object_repr=str(land_vehicle),
+            action_flag=CHANGE,
+            change_message='Deployed asset unit to Puerto Princesa for Search and Rescue.',
         )
         self.client.force_login(dispatch_user)
 
@@ -1827,6 +1850,131 @@ class LogisticsReportExportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Report Seacraft', response.content)
         self.assertNotIn(b'Report Land Vehicle', response.content)
+        self.assertNotIn(b'Report Land Asset', response.content)
+
+        fleet_wide_response = self.client.get(
+            reverse('dashboard_portal:fleet_activity_report'),
+            {
+                'format': 'csv',
+                'period': 'day',
+                'day': timezone.localdate().isoformat(),
+                'fleet_wide': 'true',
+            },
+        )
+
+        self.assertEqual(fleet_wide_response.status_code, 200)
+        self.assertIn(b'Report Seacraft', fleet_wide_response.content)
+        self.assertIn(b'Report Land Asset', fleet_wide_response.content)
+        self.assertIn(b'All-Fleet', fleet_wide_response.content)
+
+        technician = User.objects.create_user(username='land_technician_report_user')
+        technician.groups.add(Group.objects.create(name='Technicians'))
+        self.client.force_login(technician)
+        restricted_response = self.client.get(
+            reverse('dashboard_portal:fleet_activity_report'),
+            {
+                'format': 'csv',
+                'period': 'day',
+                'day': timezone.localdate().isoformat(),
+                'fleet_wide': 'true',
+            },
+        )
+        self.assertEqual(restricted_response.status_code, 403)
+
+    def test_inventory_report_exports_all_fleet_assets_with_status_and_access_control(self):
+        today = timezone.localdate()
+        sea_type = VehicleType.objects.create(name='MARINE')
+        archived_vehicle = Vehicle.objects.create(
+            model_name='Archived Inventory Truck',
+            plate_number='LAND-INVENTORY-01',
+            vehicle_type=self.land_type,
+            make='Test Motors',
+            model_year=2018,
+            engine_number='ENGINE-INV-01',
+            chassis_number='CHASSIS-INV-01',
+            registration_expiry=today + timedelta(days=30),
+            status='ARCHIVED',
+        )
+        sea_vehicle = Vehicle.objects.create(
+            model_name='Inventory Patrol Craft',
+            plate_number='SEA-INVENTORY-01',
+            vehicle_type=sea_type,
+            make='Marine Works',
+            model_year=2022,
+            engine_number='ENGINE-SEA-01',
+            chassis_number='HULL-SEA-01',
+            inspection_expiry=today + timedelta(days=60),
+        )
+        dispatch_user = User.objects.create_user(username='inventory_dispatch_user')
+        dispatch_user.groups.add(Group.objects.create(name='Seacraft Dispatch'))
+        report_url = reverse('dashboard_portal:fleet_activity_report')
+
+        for export_format in ('print', 'csv', 'xlsx', 'pdf'):
+            with self.subTest(export_format=export_format):
+                response = self.client.get(
+                    report_url,
+                    {
+                        'format': export_format,
+                        'report_kind': 'inventory',
+                        'fleet_wide': 'true',
+                    },
+                )
+                self.assertEqual(response.status_code, 200)
+                if export_format == 'print':
+                    self.assertContains(response, 'All-Fleet Inventory')
+                    self.assertContains(response, 'asset(s)')
+                    self.assertContains(response, archived_vehicle.model_name)
+                    self.assertContains(response, sea_vehicle.model_name)
+                    self.assertContains(response, 'Archived')
+                elif export_format == 'csv':
+                    self.assertIn(b'All-Fleet Inventory Report', response.content)
+                    self.assertIn(b'Archived Inventory Truck', response.content)
+                    self.assertIn(b'Inventory Patrol Craft', response.content)
+                    self.assertIn(b'Archived', response.content)
+                    self.assertIn(b'ENGINE-INV-01', response.content)
+                    self.assertIn(b'HULL-SEA-01', response.content)
+                elif export_format == 'xlsx':
+                    from openpyxl import load_workbook
+
+                    workbook = load_workbook(BytesIO(response.content), read_only=True)
+                    exported_rows = list(workbook.active.iter_rows(values_only=True))
+                    self.assertEqual(
+                        exported_rows[1],
+                        (
+                            'Division', 'Asset', 'Category', 'Make', 'Year',
+                            'Plate / hull ID', 'Status', 'Assigned operator',
+                            'Engine number', 'Chassis / hull number',
+                            'Registration expiry', 'Inspection expiry',
+                        ),
+                    )
+                    self.assertTrue(any(row[1] == archived_vehicle.model_name for row in exported_rows[2:]))
+                    self.assertTrue(any(row[1] == sea_vehicle.model_name for row in exported_rows[2:]))
+                else:
+                    self.assertEqual(response['Content-Type'], 'application/pdf')
+                    self.assertTrue(response.content.startswith(b'%PDF'))
+
+        self.client.force_login(dispatch_user)
+        without_fleet_scope = self.client.get(
+            report_url,
+            {'format': 'csv', 'report_kind': 'inventory'},
+        )
+        self.assertEqual(without_fleet_scope.status_code, 403)
+        fleet_scope = self.client.get(
+            report_url,
+            {'format': 'csv', 'report_kind': 'inventory', 'fleet_wide': 'true'},
+        )
+        self.assertEqual(fleet_scope.status_code, 200)
+        self.assertIn(b'Archived Inventory Truck', fleet_scope.content)
+        self.assertIn(b'Inventory Patrol Craft', fleet_scope.content)
+
+        technician = User.objects.create_user(username='inventory_technician_user')
+        technician.groups.add(Group.objects.create(name='Technicians'))
+        self.client.force_login(technician)
+        denied = self.client.get(
+            report_url,
+            {'format': 'csv', 'report_kind': 'inventory', 'fleet_wide': 'true'},
+        )
+        self.assertEqual(denied.status_code, 403)
 
     def test_logistics_can_submit_and_export_fleet_incident_report(self):
         assigned_driver = Driver.objects.create(
@@ -3502,6 +3650,8 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(dashboard, '#addSeacraftModal .modal-content > form > .modal-body')
         drawer_order = (
             'data-menu-action="add-seacraft"',
+            'data-menu-action="fleet-report"',
+            'data-menu-action="inventory-report"',
             'data-menu-action="add-operator"',
             'data-menu-action="file-incident"',
             'data-menu-action="print-incident"',
@@ -3901,7 +4051,12 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, 'Log Out')
         self.assertContains(response, 'aria-label="Open seacraft dispatch menu"')
         self.assertContains(response, 'data-menu-action="generate-report"')
+        self.assertContains(response, 'data-menu-action="fleet-report"')
+        self.assertContains(response, 'data-menu-action="inventory-report"')
+        self.assertContains(response, 'name="fleet_wide"')
         self.assertContains(response, 'Generate Fleet Report')
+        self.assertContains(response, 'Fleet Inventory Report')
+        self.assertContains(response, 'value="inventory">Fleet inventory')
 
     def test_seacraft_dispatch_can_reassign_operator_between_operational_vessels(self):
         source_craft = self.create_vehicle(

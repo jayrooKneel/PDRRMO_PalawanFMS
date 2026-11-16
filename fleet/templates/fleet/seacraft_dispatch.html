@@ -152,8 +152,15 @@
             <div class="small text-muted border rounded bg-white p-3 mb-2">
                 <i class="fa-solid fa-tower-cell text-success me-2"></i>Connected to Dispatch Server
             </div>
+            <div class="logistics-menu-heading fw-bold px-1">FLEET MANAGEMENT</div>
             <button type="button" class="btn btn-outline-info text-start fw-semibold seacraft-menu-action" data-menu-action="add-seacraft">
                 <i class="fa-solid fa-ship me-2"></i>Add Seacraft
+            </button>
+            <button type="button" class="btn btn-outline-success text-start fw-semibold seacraft-menu-action" data-menu-action="fleet-report">
+                <i class="fa-solid fa-file-export me-2"></i>Fleet-wide Report
+            </button>
+            <button type="button" class="btn btn-outline-info text-start fw-semibold seacraft-menu-action" data-menu-action="inventory-report">
+                <i class="fa-solid fa-warehouse me-2"></i>Fleet Inventory Report
             </button>
             <button type="button" class="btn btn-outline-primary text-start fw-semibold seacraft-menu-action" data-menu-action="add-operator">
                 <i class="fa-solid fa-user-plus me-2"></i>Add Seacraft Operator
@@ -331,7 +338,7 @@
         </div>
     </div>
 
-    {% include "fleet/_activity_report_modal.html" %}
+    {% include "fleet/_activity_report_modal.html" with can_generate_fleet_inventory_report=True %}
 
     <main class="container-fluid py-5 px-4" style="max-width: 1600px;">
         {% include "fleet/_account_security_prompt.html" %}
@@ -1007,6 +1014,34 @@
                         const assignmentDrawer = document.getElementById('seacraftOperatorAssignmentDrawer');
                         bootstrap.Offcanvas.getOrCreateInstance(assignmentDrawer).show();
                     } else if (action === 'generate-report') {
+                        const modal = document.getElementById('generateReportModal');
+                        bootstrap.Modal.getOrCreateInstance(modal).show();
+                    } else if (action === 'fleet-report') {
+                        const reportKind = document.getElementById('report-kind');
+                        const reportVehicle = document.getElementById('report-vehicle');
+                        const fleetWideInput = document.getElementById('report-fleet-wide');
+                        if (!reportKind || !reportVehicle || !fleetWideInput) {
+                            throw new Error('Fleet-wide report controls were not found.');
+                        }
+                        fleetWideInput.dataset.fleetWideShortcut = 'true';
+                        reportKind.value = 'activity';
+                        reportKind.dispatchEvent(new Event('change', { bubbles: true }));
+                        reportVehicle.value = '';
+                        fleetWideInput.value = 'true';
+                        const modal = document.getElementById('generateReportModal');
+                        bootstrap.Modal.getOrCreateInstance(modal).show();
+                    } else if (action === 'inventory-report') {
+                        const reportKind = document.getElementById('report-kind');
+                        const reportVehicle = document.getElementById('report-vehicle');
+                        const fleetWideInput = document.getElementById('report-fleet-wide');
+                        if (!reportKind || !reportVehicle || !fleetWideInput) {
+                            throw new Error('Fleet inventory report controls were not found.');
+                        }
+                        fleetWideInput.dataset.fleetWideShortcut = 'true';
+                        reportKind.value = 'inventory';
+                        reportKind.dispatchEvent(new Event('change', { bubbles: true }));
+                        reportVehicle.value = '';
+                        fleetWideInput.value = 'true';
                         const modal = document.getElementById('generateReportModal');
                         bootstrap.Modal.getOrCreateInstance(modal).show();
                     } else if (action === 'file-incident') {
