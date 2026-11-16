@@ -1227,8 +1227,10 @@ def logistics_generate_report(request):
     report_format = request.GET.get('format', '').lower()
     report_kind = request.GET.get('report_kind', 'activity').lower()
     maintenance_category = request.GET.get('maintenance_category', 'all').lower()
-    if report_kind not in {'activity', 'maintenance', 'damage', 'incident'}:
-        return HttpResponse("Choose an activity, maintenance, damage, or incident report.", status=400)
+    if report_kind not in {'activity', 'maintenance', 'damage', 'incident', 'drivers'}:
+        return HttpResponse("Choose an activity, maintenance, damage, incident, or driver report.", status=400)
+    if report_kind == 'drivers' and not is_logistics:
+        return HttpResponse("Driver reports are restricted to Logistics Officers.", status=403)
     if maintenance_category not in {'all', 'regular', 'other'}:
         return HttpResponse("Choose all, regular, or other maintenance.", status=400)
 
@@ -1241,40 +1243,177 @@ def logistics_generate_report(request):
     elif report_kind == 'incident':
         report_title = 'Fleet Incident Report'
         report_heading = 'Incident Report'
+    elif report_kind == 'drivers':
+        report_title = 'Driver and Operator Report'
+        report_heading = 'Driver and Operator Roster'
     else:
         report_title = 'PDRRMO Fleet Deployment Report'
         report_heading = 'Deployment Activity Report'
 
-    period = request.GET.get('period', '')
-    try:
-        if period == 'month':
-            selected = datetime.strptime(request.GET.get('month', ''), '%Y-%m').date()
-            start_date = selected.replace(day=1)
-            next_month = (start_date.replace(day=28) + timedelta(days=4)).replace(day=1)
-            end_date = next_month - timedelta(days=1)
-            period_label = start_date.strftime('%B %Y')
-        elif period == 'week':
-            year, week = request.GET.get('week', '').split('-W')
-            start_date = date.fromisocalendar(int(year), int(week), 1)
-            end_date = start_date + timedelta(days=6)
-            period_label = f"Week {int(week):02d}, {year}"
-        elif period == 'day':
-            start_date = date.fromisoformat(request.GET.get('day', ''))
-            end_date = start_date
-            period_label = start_date.strftime('%B %d, %Y')
-        elif period == 'custom':
-            start_date = date.fromisoformat(request.GET.get('start_date', ''))
-            end_date = date.fromisoformat(request.GET.get('end_date', ''))
-            if start_date > end_date:
-                raise ValueError("Start date must be on or before end date.")
-            period_label = f"{start_date:%b %d, %Y} to {end_date:%b %d, %Y}"
-        else:
-            raise ValueError("Choose a report period.")
-    except (TypeError, ValueError) as error:
-        return HttpResponse(f"Invalid report period: {escape(str(error))}", status=400)
-
     if report_format not in {'print', 'csv', 'xlsx', 'pdf'}:
         return HttpResponse("Choose Print, CSV, Excel, or PDF as the export format.", status=400)
+
+    driver_rows = []
+    today = timezone.localdate()
+    if report_kind == 'drivers':
+        operator_type = request.GET.get('operator_type', 'all').lower()
+        record_status = request.GET.get('record_status', 'active').lower()
+        license_status = request.GET.get('license_status', 'all').lower()
+        driver_type = request.GET.get('driver_type', 'all').lower()
+        assignment_status = request.GET.get('assignment_status', 'all').lower()
+        if operator_type not in {'all', 'land', 'sea'}:
+            return HttpResponse("Choose all, land, or seacraft operators.", status=400)
+        if record_status not in {'all', 'active', 'archived'}:
+            return HttpResponse("Choose all, active, or archived operator records.", status=400)
+        if license_status not in {'all', 'valid', 'expiring', 'expired', 'missing'}:
+            return HttpResponse("Choose a valid license status filter.", status=400)
+        if driver_type not in {'all', 'professional', 'non_professional', 'unknown'}:
+            return HttpResponse("Choose a valid driver type filter.", status=400)
+        if assignment_status not in {'all', 'assigned', 'unassigned'}:
+            return HttpResponse("Choose all, assigned, or unassigned operators.", status=400)
+
+        expiry_start_value = request.GET.get('expiry_start', '').strip()
+        expiry_end_value = request.GET.get('expiry_end', '').strip()
+        expiry_start = parse_date(expiry_start_value) if expiry_start_value else None
+        expiry_end = parse_date(expiry_end_value) if expiry_end_value else None
+        if expiry_start_value and expiry_start is None:
+            return HttpResponse("Enter a valid license expiry start date.", status=400)
+        if expiry_end_value and expiry_end is None:
+            return HttpResponse("Enter a valid license expiry end date.", status=400)
+        if expiry_start and expiry_end and expiry_start > expiry_end:
+            return HttpResponse("Expiry start date must be on or before expiry end date.", status=400)
+
+        search = request.GET.get('search', '').strip()
+        if len(search) > 100:
+            return HttpResponse("Search text must be 100 characters or fewer.", status=400)
+
+        driver_query = Driver.objects.select_related('assigned_vehicle').order_by(
+            'name', 'pk',
+        )
+        if record_status == 'active':
+            driver_query = driver_query.filter(is_active=True)
+        elif record_status == 'archived':
+            driver_query = driver_query.filter(is_active=False)
+        if operator_type == 'sea':
+            driver_query = driver_query.filter(
+                Q(license_authority='MARINA') | Q(license_number__istartswith='MAR-')
+            )
+        elif operator_type == 'land':
+            driver_query = driver_query.exclude(
+                Q(license_authority='MARINA') | Q(license_number__istartswith='MAR-')
+            )
+        if driver_type == 'professional':
+            driver_query = driver_query.filter(license_type='PROFESSIONAL')
+        elif driver_type == 'non_professional':
+            driver_query = driver_query.filter(license_type='NON_PROFESSIONAL')
+        elif driver_type == 'unknown':
+            driver_query = driver_query.filter(license_type='')
+        if assignment_status == 'assigned':
+            driver_query = driver_query.filter(assigned_vehicle__isnull=False)
+        elif assignment_status == 'unassigned':
+            driver_query = driver_query.filter(assigned_vehicle__isnull=True)
+        if license_status == 'valid':
+            driver_query = driver_query.filter(license_expiry__gt=today + timedelta(days=30))
+        elif license_status == 'expiring':
+            driver_query = driver_query.filter(
+                license_expiry__gte=today,
+                license_expiry__lte=today + timedelta(days=30),
+            )
+        elif license_status == 'expired':
+            driver_query = driver_query.filter(license_expiry__lt=today)
+        elif license_status == 'missing':
+            driver_query = driver_query.filter(license_expiry__isnull=True)
+        if expiry_start:
+            driver_query = driver_query.filter(license_expiry__gte=expiry_start)
+        if expiry_end:
+            driver_query = driver_query.filter(license_expiry__lte=expiry_end)
+        if search:
+            driver_query = driver_query.filter(
+                Q(name__icontains=search) | Q(license_number__icontains=search)
+            )
+
+        filter_labels = [
+            f"Type: {operator_type.title() if operator_type != 'all' else 'All'}",
+            f"Record: {record_status.title() if record_status != 'all' else 'All'}",
+            f"License: {license_status.title() if license_status != 'all' else 'All'}",
+            f"Driver type: {driver_type.replace('_', ' ').title() if driver_type != 'all' else 'All'}",
+            f"Assignment: {assignment_status.title() if assignment_status != 'all' else 'All'}",
+        ]
+        if expiry_start or expiry_end:
+            filter_labels.append(
+                f"Expiry: {expiry_start or 'Any'} to {expiry_end or 'Any'}"
+            )
+        if search:
+            filter_labels.append(f"Search: {search}")
+        period_label = f"As of {today:%B %d, %Y} | " + " | ".join(filter_labels)
+        start_date = end_date = today
+
+        for driver in driver_query:
+            is_sea_operator = (
+                driver.license_authority == 'MARINA'
+                or (driver.license_number or '').strip().upper().startswith('MAR-')
+            )
+            try:
+                assigned_vehicle = driver.assigned_vehicle
+            except Vehicle.DoesNotExist:
+                assigned_vehicle = None
+            if not driver.license_expiry:
+                status_label = 'Not recorded'
+            elif driver.license_expiry < today:
+                status_label = 'Expired'
+            elif driver.license_expiry <= today + timedelta(days=30):
+                status_label = 'Expiring within 30 days'
+            else:
+                status_label = 'Valid'
+            emergency_contact = ' · '.join(
+                value for value in (
+                    driver.emergency_contact_name,
+                    driver.emergency_contact_number,
+                ) if value
+            ) or 'Not recorded'
+            driver_rows.append([
+                driver.name,
+                'Seacraft operator' if is_sea_operator else 'Land driver',
+                'Active' if driver.is_active else 'Archived',
+                driver.get_license_authority_display(),
+                driver.license_number or 'Not recorded',
+                driver.license_class or 'Not recorded',
+                driver.get_license_type_display() if driver.license_type else 'Not identified',
+                driver.license_restrictions or 'None recorded',
+                driver.license_expiry.isoformat() if driver.license_expiry else 'Not recorded',
+                status_label,
+                assigned_vehicle.model_name if assigned_vehicle else 'Unassigned',
+                driver.phone_number or 'Not recorded',
+                emergency_contact,
+            ])
+    else:
+        period = request.GET.get('period', '')
+        try:
+            if period == 'month':
+                selected = datetime.strptime(request.GET.get('month', ''), '%Y-%m').date()
+                start_date = selected.replace(day=1)
+                next_month = (start_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+                end_date = next_month - timedelta(days=1)
+                period_label = start_date.strftime('%B %Y')
+            elif period == 'week':
+                year, week = request.GET.get('week', '').split('-W')
+                start_date = date.fromisocalendar(int(year), int(week), 1)
+                end_date = start_date + timedelta(days=6)
+                period_label = f"Week {int(week):02d}, {year}"
+            elif period == 'day':
+                start_date = date.fromisoformat(request.GET.get('day', ''))
+                end_date = start_date
+                period_label = start_date.strftime('%B %d, %Y')
+            elif period == 'custom':
+                start_date = date.fromisoformat(request.GET.get('start_date', ''))
+                end_date = date.fromisoformat(request.GET.get('end_date', ''))
+                if start_date > end_date:
+                    raise ValueError("Start date must be on or before end date.")
+                period_label = f"{start_date:%b %d, %Y} to {end_date:%b %d, %Y}"
+            else:
+                raise ValueError("Choose a report period.")
+        except (TypeError, ValueError) as error:
+            return HttpResponse(f"Invalid report period: {escape(str(error))}", status=400)
 
     report_vehicle = None
     vehicle_id = request.GET.get('vehicle_id', '').strip()
@@ -1306,7 +1445,25 @@ def logistics_generate_report(request):
     )
     rows = []
     incident_records = []
-    if report_kind == 'incident':
+    if report_kind == 'drivers':
+        headers = [
+            'Name',
+            'Operator Type',
+            'Record Status',
+            'License Authority',
+            'License Number',
+            'DL Codes / Rank',
+            'Driver Type',
+            'Restrictions',
+            'License Expiry',
+            'License Status',
+            'Assigned Asset',
+            'Phone Number',
+            'Emergency Contact',
+        ]
+        rows = driver_rows
+        event_query = event_query.none()
+    elif report_kind == 'incident':
         incident_query = FleetIncident.objects.filter(
             occurred_at__gte=start_datetime,
             occurred_at__lt=end_datetime,
@@ -1441,15 +1598,16 @@ def logistics_generate_report(request):
         ])
 
     safe_period = f"{start_date:%Y%m%d}-{end_date:%Y%m%d}"
-    headers = [
-        'Date & Time',
-        'Activity',
-        'Division',
-        'Fleet Asset',
-        'Activity Details',
-        'Recorded By',
-        'Last Assigned Driver',
-    ]
+    if report_kind != 'drivers':
+        headers = [
+            'Date & Time',
+            'Activity',
+            'Division',
+            'Fleet Asset',
+            'Activity Details',
+            'Recorded By',
+            'Last Assigned Driver',
+        ]
     spreadsheet_safe_rows = [
         [
             "'" + value if isinstance(value, str) and value.startswith(('=', '+', '-', '@')) else value
@@ -1479,6 +1637,7 @@ def logistics_generate_report(request):
                 'generated_at': timezone.localtime(),
                 'report_heading': report_heading,
                 'report_title': report_title,
+                'report_record_label': 'operator(s)' if report_kind == 'drivers' else 'recorded event(s)',
             },
         )
 
@@ -1508,7 +1667,12 @@ def logistics_generate_report(request):
         for cell in sheet[2]:
             cell.font = Font(bold=True, color='FFFFFF')
             cell.fill = PatternFill('solid', fgColor='2563EB')
-        for column_index, width in enumerate((20, 20, 16, 34, 90, 24, 24), start=1):
+        column_widths = (
+            (26, 20, 16, 32, 24, 24, 24, 30, 18, 24, 32, 22, 38)
+            if report_kind == 'drivers'
+            else (20, 20, 16, 34, 90, 24, 24)
+        )
+        for column_index, width in enumerate(column_widths, start=1):
             sheet.column_dimensions[get_column_letter(column_index)].width = width
         output = io.BytesIO()
         workbook.save(output)
@@ -1548,10 +1712,22 @@ def logistics_generate_report(request):
         [Paragraph(escape(str(value)), body_style) for value in row]
         for row in rows
     ])
+    pdf_column_widths = (
+        [
+            1.0 * inch, 0.65 * inch, 0.58 * inch, 0.68 * inch, 0.85 * inch,
+            0.68 * inch, 0.62 * inch, 0.72 * inch, 0.7 * inch, 0.75 * inch,
+            0.85 * inch, 0.95 * inch, 1.0 * inch,
+        ]
+        if report_kind == 'drivers'
+        else [
+            0.9 * inch, 0.85 * inch, 0.7 * inch, 1.15 * inch, 4.3 * inch,
+            0.8 * inch, 1.0 * inch,
+        ]
+    )
     table = Table(
         report_data,
         repeatRows=1,
-        colWidths=[0.9 * inch, 0.85 * inch, 0.7 * inch, 1.15 * inch, 4.3 * inch, 0.8 * inch, 1.0 * inch],
+        colWidths=pdf_column_widths,
     )
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1A365D')),

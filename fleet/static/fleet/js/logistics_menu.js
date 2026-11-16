@@ -159,6 +159,12 @@
             showModal("addVehicleModal");
         } else if (action === "generate-report") {
             showModal("generateReportModal");
+        } else if (action === "driver-report") {
+            const reportKind = document.getElementById("report-kind");
+            if (!reportKind) throw new Error("Report selection was not found.");
+            reportKind.value = "drivers";
+            reportKind.dispatchEvent(new Event("change", { bubbles: true }));
+            showModal("generateReportModal");
         } else if (action === "file-incident") {
             showModal("fleetIncidentModal");
         } else if (action === "print-incident") {

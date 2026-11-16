@@ -315,7 +315,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v19')
+        self.assertContains(response, 'pdrrmo-fms-shell-v20')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -1447,6 +1447,17 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'value="day">Daily')
         self.assertContains(response, 'value="custom">Custom date range')
         self.assertContains(response, 'name="report_kind"')
+        self.assertContains(response, 'value="drivers">Drivers and operators')
+        self.assertContains(response, 'id="driver-report-filters"')
+        self.assertContains(response, 'name="operator_type"')
+        self.assertContains(response, 'name="record_status"')
+        self.assertContains(response, 'name="license_status"')
+        self.assertContains(response, 'name="driver_type"')
+        self.assertContains(response, 'name="assignment_status"')
+        self.assertContains(response, 'name="expiry_start"')
+        self.assertContains(response, 'name="expiry_end"')
+        self.assertContains(response, 'name="search"')
+        self.assertContains(response, 'data-menu-action="driver-report"')
         self.assertContains(response, 'name="maintenance_category"')
         self.assertContains(response, 'value="damage">Damage and fault reports')
         self.assertContains(response, 'value="incident">Incident reports')
@@ -1465,6 +1476,92 @@ class LogisticsReportExportTests(TestCase):
             rendered.index('</form>', rendered.index('id="generateReportForm"')),
             rendered.index('action="/fleet/reports/incidents/"'),
         )
+
+    def test_driver_report_applies_operator_record_license_date_and_search_filters(self):
+        today = timezone.localdate()
+        valid_land = Driver.objects.create(
+            name='Report Filter Land Driver',
+            license_number='LAND-REPORT-FILTER-01',
+            license_expiry=today + timedelta(days=90),
+        )
+        Driver.objects.create(
+            name='Report Filter Sea Operator',
+            license_authority='MARINA',
+            license_number='MAR-REPORT-FILTER-01',
+            license_expiry=today - timedelta(days=1),
+        )
+        Driver.objects.create(
+            name='Archived Report Driver',
+            license_number='LAND-REPORT-ARCHIVED',
+            is_active=False,
+        )
+        vehicle = Vehicle.objects.create(
+            model_name='Report Assigned Unit',
+            plate_number='LAND-REPORT-ASSIGN',
+            vehicle_type=self.land_type,
+            assigned_driver=valid_land,
+        )
+
+        response = self.client.get(
+            reverse('dashboard_portal:fleet_activity_report'),
+            {
+                'report_kind': 'drivers',
+                'format': 'csv',
+                'operator_type': 'land',
+                'record_status': 'active',
+                'license_status': 'valid',
+                'driver_type': 'unknown',
+                'assignment_status': 'assigned',
+                'expiry_start': (today + timedelta(days=90)).isoformat(),
+                'expiry_end': (today + timedelta(days=90)).isoformat(),
+                'search': 'FILTER-01',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        csv_report = response.content.decode()
+        self.assertIn('Driver and Operator Report', csv_report)
+        self.assertIn('Emergency Contact', csv_report)
+        self.assertIn('Report Filter Land Driver', csv_report)
+        self.assertIn(vehicle.model_name, csv_report)
+        self.assertNotIn('Report Filter Sea Operator', csv_report)
+        self.assertNotIn('Archived Report Driver', csv_report)
+
+    def test_driver_report_supports_all_export_formats_and_logs_only_for_logistics(self):
+        Driver.objects.create(
+            name='Driver Export Format Record',
+            license_number='LAND-EXPORT-01',
+            license_expiry=timezone.localdate() + timedelta(days=10),
+            phone_number='555-0123',
+            emergency_contact_name='Emergency Contact',
+            emergency_contact_number='555-0456',
+        )
+        report_url = reverse('dashboard_portal:fleet_activity_report')
+        for report_format in ('print', 'csv', 'xlsx', 'pdf'):
+            with self.subTest(format=report_format):
+                response = self.client.get(
+                    report_url,
+                    {'report_kind': 'drivers', 'format': report_format},
+                )
+                self.assertEqual(response.status_code, 200)
+                if report_format in {'print', 'csv'}:
+                    self.assertIn('Driver Export Format Record', response.content.decode())
+                if report_format == 'xlsx':
+                    self.assertIn(
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        response['Content-Type'],
+                    )
+                elif report_format == 'pdf':
+                    self.assertEqual(response['Content-Type'], 'application/pdf')
+
+        non_logistics_user = User.objects.create_user(username='driver_report_dispatch')
+        non_logistics_user.groups.add(Group.objects.create(name='Seacraft Dispatch'))
+        self.client.force_login(non_logistics_user)
+        denied = self.client.get(
+            report_url,
+            {'report_kind': 'drivers', 'format': 'csv'},
+        )
+        self.assertEqual(denied.status_code, 403)
 
     def test_logistics_dashboard_lists_filed_incidents_with_per_report_actions(self):
         incident = FleetIncident.objects.create(

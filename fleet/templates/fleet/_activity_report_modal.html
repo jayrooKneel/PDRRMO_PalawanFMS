@@ -16,7 +16,68 @@
                             <option value="maintenance">Maintenance</option>
                             <option value="damage">Damage and fault reports</option>
                             <option value="incident">Incident reports</option>
+                            {% if can_generate_driver_report %}<option value="drivers">Drivers and operators</option>{% endif %}
                         </select>
+                    </div>
+                    <div class="border rounded p-3 mb-3 d-none" id="driver-report-filters">
+                        <div class="fw-semibold mb-2">Driver report filters</div>
+                        <div class="mb-3">
+                            <label for="driver-report-type" class="form-label">Operator type</label>
+                            <select id="driver-report-type" name="operator_type" class="form-select" disabled>
+                                <option value="all">All land and seacraft operators</option>
+                                <option value="land">Land drivers</option>
+                                <option value="sea">Seacraft operators</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="driver-report-record-status" class="form-label">Record status</label>
+                            <select id="driver-report-record-status" name="record_status" class="form-select" disabled>
+                                <option value="active" selected>Active only</option>
+                                <option value="archived">Archived only</option>
+                                <option value="all">Active and archived</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="driver-report-license-status" class="form-label">License status</label>
+                            <select id="driver-report-license-status" name="license_status" class="form-select" disabled>
+                                <option value="all">All license statuses</option>
+                                <option value="valid">Valid</option>
+                                <option value="expiring">Expiring within 30 days</option>
+                                <option value="expired">Expired</option>
+                                <option value="missing">Expiry date not recorded</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="driver-report-driver-type" class="form-label">Driver type</label>
+                            <select id="driver-report-driver-type" name="driver_type" class="form-select" disabled>
+                                <option value="all">All driver types</option>
+                                <option value="professional">Professional</option>
+                                <option value="non_professional">Non-Professional</option>
+                                <option value="unknown">Not identified</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="driver-report-assignment" class="form-label">Vehicle assignment</label>
+                            <select id="driver-report-assignment" name="assignment_status" class="form-select" disabled>
+                                <option value="all">All operators</option>
+                                <option value="assigned">Assigned to an asset</option>
+                                <option value="unassigned">Unassigned</option>
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col">
+                                <label for="driver-report-expiry-start" class="form-label">Expiry from</label>
+                                <input type="date" id="driver-report-expiry-start" name="expiry_start" class="form-control" disabled>
+                            </div>
+                            <div class="col">
+                                <label for="driver-report-expiry-end" class="form-label">Expiry to</label>
+                                <input type="date" id="driver-report-expiry-end" name="expiry_end" class="form-control" disabled>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="driver-report-search" class="form-label">Search name or license number</label>
+                            <input type="search" id="driver-report-search" name="search" class="form-control" maxlength="100" disabled>
+                        </div>
                     </div>
                     <div class="mb-3 d-none" id="maintenance-category-field">
                         <label for="maintenance-category" class="form-label fw-semibold">Maintenance type</label>
@@ -36,6 +97,7 @@
                         </select>
                         <div class="form-text">Choose one asset for its maintenance history, or leave all assets selected.</div>
                     </div>
+                    <div id="report-period-controls">
                     <div class="mb-3">
                         <label for="report-period" class="form-label fw-semibold">Reporting period</label>
                         <select id="report-period" name="period" class="form-select" required>
@@ -66,6 +128,7 @@
                             <label for="report-end-date" class="form-label fw-semibold">End date</label>
                             <input type="date" id="report-end-date" name="end_date" class="form-control" disabled>
                         </div>
+                    </div>
                     </div>
                     <div class="border-top pt-3 mt-3">
                         <button type="button" class="btn btn-outline-danger" data-open-incident-report>

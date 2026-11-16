@@ -24,7 +24,7 @@
         </div>
         <div class="text-end small text-secondary">
             <div>Generated {{ generated_at|date:"M d, Y H:i" }}</div>
-            <div>{{ report_rows|length }} recorded event(s)</div>
+            <div>{{ report_rows|length }} {{ report_record_label|default:"recorded event(s)" }}</div>
         </div>
     </header>
     <table class="table table-sm table-bordered align-middle">
@@ -35,7 +35,7 @@
             {% for row in report_rows %}
             <tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center py-4 text-secondary">No activity was recorded for this report type and period.</td></tr>
+            <tr><td colspan="{{ headers|length }}" class="text-center py-4 text-secondary">No records matched this report type and filters.</td></tr>
             {% endfor %}
         </tbody>
     </table>

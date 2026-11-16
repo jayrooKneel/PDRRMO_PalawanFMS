@@ -3,14 +3,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const maintenanceCategoryField = document.getElementById('maintenance-category-field');
     const reportVehicleField = document.getElementById('report-vehicle-field');
     const reportVehicle = document.getElementById('report-vehicle');
+    const driverReportFilters = document.getElementById('driver-report-filters');
+    const reportPeriodControls = document.getElementById('report-period-controls');
+    const reportPeriod = document.getElementById('report-period');
+    const updateReportKindFields = () => {
+        if (!reportKind) return;
+        const isDriverReport = reportKind.value === 'drivers';
+        maintenanceCategoryField?.classList.toggle(
+            'd-none',
+            isDriverReport || reportKind.value !== 'maintenance',
+        );
+        reportVehicleField?.classList.toggle(
+            'd-none',
+            isDriverReport || reportKind.value !== 'maintenance',
+        );
+        if (reportVehicle) reportVehicle.disabled = isDriverReport || reportKind.value !== 'maintenance';
+        driverReportFilters?.classList.toggle('d-none', !isDriverReport);
+        driverReportFilters?.querySelectorAll('input, select').forEach((field) => {
+            field.disabled = !isDriverReport;
+        });
+        reportPeriodControls?.classList.toggle('d-none', isDriverReport);
+        if (reportPeriod) {
+            reportPeriod.disabled = isDriverReport;
+            reportPeriod.required = !isDriverReport;
+        }
+        document.querySelectorAll('.report-date-field input').forEach((field) => {
+            if (isDriverReport) {
+                field.disabled = true;
+                field.required = false;
+            }
+        });
+        if (!isDriverReport) updateReportDateFields();
+    };
     if (reportKind && maintenanceCategoryField && reportVehicleField && reportVehicle) {
-        const updateMaintenanceCategory = () => {
-            maintenanceCategoryField.classList.toggle('d-none', reportKind.value !== 'maintenance');
-            reportVehicleField.classList.toggle('d-none', reportKind.value !== 'maintenance');
-            reportVehicle.disabled = reportKind.value !== 'maintenance';
-        };
-        reportKind.addEventListener('change', updateMaintenanceCategory);
-        updateMaintenanceCategory();
+        reportKind.addEventListener('change', updateReportKindFields);
     }
 
     const reportModal = document.getElementById('generateReportModal');
@@ -25,12 +51,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    const reportPeriod = document.getElementById('report-period');
-    if (!reportPeriod) {
-        return;
-    }
-
-    const updateReportDateFields = () => {
+    function updateReportDateFields() {
+        if (!reportPeriod || reportKind?.value === 'drivers') return;
         document.querySelectorAll('.report-date-field').forEach(field => {
             const active = field.dataset.period === reportPeriod.value;
             field.classList.toggle('d-none', !active);
@@ -39,8 +61,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.required = active;
             });
         });
-    };
+    }
 
-    reportPeriod.addEventListener('change', updateReportDateFields);
+    reportPeriod?.addEventListener('change', updateReportDateFields);
+    updateReportKindFields();
     updateReportDateFields();
 });
