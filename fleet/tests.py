@@ -315,7 +315,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v22')
+        self.assertContains(response, 'pdrrmo-fms-shell-v23')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -420,6 +420,12 @@ class SystemConsoleTests(TestCase):
         self.assertContains(response, 'data-menu-action="print"')
         self.assertContains(response, 'data-menu-action="view-incidents"')
         self.assertContains(response, 'data-menu-action="fleet-report"')
+        self.assertContains(response, 'Fleet Management')
+        self.assertContains(response, 'Fleet Reports')
+        self.assertContains(response, 'Operators')
+        self.assertContains(response, 'Incident Reports')
+        self.assertContains(response, 'Dashboard')
+        self.assertContains(response, 'Account')
         self.assertContains(response, 'name="fleet_wide"')
         self.assertNotContains(response, 'id_license_authority')
         self.assertContains(response, 'Upload multiple images, such as the front and back of a license')
@@ -442,15 +448,36 @@ class SystemConsoleTests(TestCase):
             'data-menu-action="manage-assets"',
             'data-menu-action="fleet-report"',
             'data-menu-action="inventory-report"',
+            'data-menu-action="maintenance-report"',
+            'data-menu-action="generate-report"',
+            'data-menu-action="driver-report"',
             'data-menu-action="operators"',
             'data-menu-action="add-operator"',
+            'data-menu-action="manage-operators"',
             'data-menu-action="file-incident"',
             'data-menu-action="print-incident"',
-            'data-menu-action="generate-report"',
+            'data-menu-action="view-incidents"',
             'data-menu-action="print"',
         )
         drawer_positions = [response.content.index(action.encode()) for action in drawer_order]
         self.assertEqual(drawer_positions, sorted(drawer_positions))
+        menu_start = response.content.index(b'id="logisticsMenuDrawer"')
+        section_order = (
+            b'Fleet Management',
+            b'data-menu-action="add-asset"',
+            b'Fleet Reports',
+            b'data-menu-action="fleet-report"',
+            b'Operators',
+            b'data-menu-action="operators"',
+            b'Incident Reports',
+            b'data-menu-action="file-incident"',
+            b'Dashboard',
+            b'data-menu-action="print"',
+            b'Account',
+            b'Password Recovery Settings',
+        )
+        section_positions = [response.content.index(item, menu_start) for item in section_order]
+        self.assertEqual(section_positions, sorted(section_positions))
         self.assertEqual(response.content.count(b'class="asset-grid logistics-asset-grid"'), 6)
         self.assertContains(response, 'Add a fleet asset')
         onboarding_modal_start = response.content.index(b'id="addVehicleModal"')
@@ -3652,14 +3679,35 @@ class DispatchDashboardAlignmentTests(TestCase):
             'data-menu-action="add-seacraft"',
             'data-menu-action="fleet-report"',
             'data-menu-action="inventory-report"',
+            'data-menu-action="generate-report"',
             'data-menu-action="add-operator"',
+            'data-menu-action="operators"',
             'data-menu-action="file-incident"',
             'data-menu-action="print-incident"',
-            'data-menu-action="generate-report"',
+            'data-menu-action="view-incidents"',
             'data-menu-action="print"',
         )
         drawer_positions = [dashboard.content.index(action.encode()) for action in drawer_order]
         self.assertEqual(drawer_positions, sorted(drawer_positions))
+        menu_start = dashboard.content.index(b'id="seacraftMenuDrawer"')
+        section_order = (
+            b'Fleet Management',
+            b'data-menu-action="add-seacraft"',
+            b'Fleet Reports',
+            b'data-menu-action="fleet-report"',
+            b'Operators',
+            b'data-menu-action="add-operator"',
+            b'Incident Reports',
+            b'data-menu-action="file-incident"',
+            b'Dashboard',
+            b'data-menu-action="print"',
+            b'Account',
+            b'Password Recovery Settings',
+        )
+        section_positions = [dashboard.content.index(item, menu_start) for item in section_order]
+        self.assertEqual(section_positions, sorted(section_positions))
+        for category in ('Fleet Management', 'Fleet Reports', 'Operators', 'Incident Reports', 'Dashboard', 'Account'):
+            self.assertContains(dashboard, category)
         self.assertContains(dashboard, f'value="{self.marine_type.pk}">MARINE</option>')
         self.assertNotContains(dashboard, f'value="{self.land_type.pk}">LAND</option>')
         for field_name in (
@@ -4053,6 +4101,8 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, 'data-menu-action="generate-report"')
         self.assertContains(response, 'data-menu-action="fleet-report"')
         self.assertContains(response, 'data-menu-action="inventory-report"')
+        for category in ('Fleet Management', 'Fleet Reports', 'Operators', 'Incident Reports', 'Dashboard', 'Account'):
+            self.assertContains(response, category)
         self.assertContains(response, 'name="fleet_wide"')
         self.assertContains(response, 'Generate Fleet Report')
         self.assertContains(response, 'Fleet Inventory Report')
@@ -4728,6 +4778,10 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 self.assertContains(response, 'aria-label="Open mechanic menu"')
                 self.assertContains(response, 'Maintenance Menu')
                 self.assertContains(response, 'Maintenance Workbench')
+                self.assertContains(response, 'Incident Reports')
+                self.assertContains(response, 'Fleet Reports')
+                self.assertContains(response, 'Dashboard')
+                self.assertContains(response, 'Account')
                 self.assertContains(response, 'data-maintenance-schedule-form')
                 self.assertContains(response, 'Oil replacement interval')
                 self.assertContains(response, 'data-menu-action="print"')
@@ -4735,11 +4789,25 @@ class MechanicMaintenanceWorkflowTests(TestCase):
                 drawer_order = (
                     'data-menu-action="file-incident"',
                     'data-menu-action="print-incident"',
+                    'data-menu-action="view-incidents"',
                     'data-menu-action="generate-report"',
                     'data-menu-action="print"',
                 )
                 drawer_positions = [response.content.index(action.encode()) for action in drawer_order]
                 self.assertEqual(drawer_positions, sorted(drawer_positions))
+                menu_start = response.content.index(b'id="mechanicMenuDrawer"')
+                section_order = (
+                    b'Incident Reports',
+                    b'data-menu-action="file-incident"',
+                    b'Fleet Reports',
+                    b'data-menu-action="generate-report"',
+                    b'Dashboard',
+                    b'data-menu-action="print"',
+                    b'Account',
+                    b'Password Recovery Settings',
+                )
+                section_positions = [response.content.index(item, menu_start) for item in section_order]
+                self.assertEqual(section_positions, sorted(section_positions))
                 self.assertContains(response, 'Log Out')
                 self.assertContains(response, 'Generate Fleet Report')
                 self.assertContains(response, 'value="custom">Custom date range')
