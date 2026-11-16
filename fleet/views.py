@@ -32,7 +32,7 @@ from django.db.models import Case, When, Value, IntegerField, Q, Count
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.template.loader import render_to_string
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from .forms import (
@@ -932,7 +932,27 @@ def homepage(request):
     sea_deployed_count = sea_crafts.filter(status='DEPLOYED').count()
     land_maintenance_count = land_vehicles.filter(status='MAINTENANCE').count()
     sea_maintenance_count = sea_crafts.filter(status='MAINTENANCE').count()
-    active_drivers = Driver.objects.filter(is_active=True)
+    personnel_counts = {
+        'land': {'total': 0, 'available': 0, 'deployed': 0, 'unavailable': 0},
+        'sea': {'total': 0, 'available': 0, 'deployed': 0, 'unavailable': 0},
+    }
+    active_drivers = Driver.objects.filter(is_active=True).select_related('assigned_vehicle')
+    for driver in active_drivers:
+        category = (
+            'sea'
+            if driver.license_authority == 'MARINA'
+            or (driver.license_number or '').strip().upper().startswith('MAR-')
+            else 'land'
+        )
+        counts = personnel_counts[category]
+        counts['total'] += 1
+        assigned_vehicle = getattr(driver, 'assigned_vehicle', None)
+        if assigned_vehicle and assigned_vehicle.status == 'DEPLOYED':
+            counts['deployed'] += 1
+        elif driver_license_is_expired(driver) or assigned_vehicle:
+            counts['unavailable'] += 1
+        else:
+            counts['available'] += 1
 
     context = {
         'total_fleet': total_fleet,
@@ -961,12 +981,14 @@ def homepage(request):
             {'name': item['vehicle_type__name'], 'count': item['deployed']}
             for item in fleet_type_counts if item['deployed']
         ],
-        'available_land_driver_count': active_drivers.exclude(
-            seacraft_operator_filter()
-        ).count(),
-        'available_seacraft_operator_count': active_drivers.filter(
-            seacraft_operator_filter()
-        ).count(),
+        'available_land_driver_count': personnel_counts['land']['available'],
+        'available_seacraft_operator_count': personnel_counts['sea']['available'],
+        'total_land_driver_count': personnel_counts['land']['total'],
+        'total_seacraft_operator_count': personnel_counts['sea']['total'],
+        'deployed_land_driver_count': personnel_counts['land']['deployed'],
+        'deployed_seacraft_operator_count': personnel_counts['sea']['deployed'],
+        'unavailable_land_driver_count': personnel_counts['land']['unavailable'],
+        'unavailable_seacraft_operator_count': personnel_counts['sea']['unavailable'],
         'total_count': all_vehicles.count(),
         'operational_count': all_vehicles.filter(status='OPERATIONAL').count(),
         'maintenance_count': all_vehicles.filter(status='MAINTENANCE').count(),
@@ -2000,6 +2022,45 @@ def logistics_dashboard(request):
                                 messages.error(request, f"Driver / operator {index} — {label}: {error}")
             return redirect('dashboard_portal:logistics_dashboard')
 
+        if action == 'update_operator_license_batch':
+            selected_ids = list(dict.fromkeys(request.POST.getlist('driver_ids')))
+            expiry_date = parse_date(request.POST.get('license_expiry', ''))
+            if not selected_ids:
+                messages.error(request, 'Select at least one driver / operator to update.')
+                return redirect('dashboard_portal:logistics_dashboard')
+            if len(selected_ids) > 100:
+                messages.error(request, 'Update no more than 100 driver / operator licenses at a time.')
+                return redirect('dashboard_portal:logistics_dashboard')
+            if expiry_date is None or expiry_date < timezone.localdate():
+                messages.error(request, 'Enter a valid license expiry date that is today or later.')
+                return redirect('dashboard_portal:logistics_dashboard')
+
+            operators = list(
+                Driver.objects.filter(pk__in=selected_ids, is_active=True).order_by('pk')
+            )
+            if len(operators) != len(selected_ids):
+                messages.error(
+                    request,
+                    'One or more selected drivers / operators are no longer active. Refresh and try again.',
+                )
+                return redirect('dashboard_portal:logistics_dashboard')
+
+            with transaction.atomic():
+                for operator in operators:
+                    operator.license_expiry = expiry_date
+                    operator.save(update_fields=['license_expiry'])
+                    log_action_to_admin(
+                        request,
+                        operator,
+                        CHANGE,
+                        f"Updated license expiry for {operator.name} by batch.",
+                    )
+            messages.success(
+                request,
+                f"License expiry updated for {len(operators)} drivers / operators.",
+            )
+            return redirect('dashboard_portal:logistics_dashboard')
+
         if action == 'update_operator':
             operator = get_object_or_404(
                 Driver,
@@ -2432,7 +2493,9 @@ def logistics_dashboard(request):
 
     today = timezone.localdate()
     all_driver_records = list(
-        Driver.objects.prefetch_related('additional_license_images')
+        Driver.objects.select_related('assigned_vehicle').prefetch_related(
+            'additional_license_images'
+        )
     )
     for driver in all_driver_records:
         driver.license_expired = driver_license_is_expired(driver, today)
@@ -2441,6 +2504,9 @@ def logistics_dashboard(request):
         (driver for driver in all_driver_records if driver.is_active),
         key=lambda driver: driver.name.casefold(),
     )
+    expired_active_drivers = [
+        driver for driver in all_drivers if driver.license_expired
+    ]
     sea_drivers = sorted([
         driver for driver in all_drivers
         if driver.license_authority == 'MARINA'
@@ -2498,13 +2564,14 @@ def logistics_dashboard(request):
         'active_driver_total': len(all_drivers),
         'land_driver_total': len(land_drivers),
         'sea_operator_total': len(sea_drivers),
-        'license_alert_total': len(expired_assigned_drivers) + len(expiring_assigned_drivers),
+        'license_alert_total': len(expired_active_drivers) + len(expiring_assigned_drivers),
         'archived_drivers': [
             driver for driver in all_driver_records if not driver.is_active
         ],
         'assigned_driver_ids': assigned_driver_ids,
         'assigned_driver_map': assigned_driver_map,
         'expired_assigned_drivers': expired_assigned_drivers,
+        'expired_active_drivers': expired_active_drivers,
         'expiring_assigned_drivers': expiring_assigned_drivers,
         'operator_form': OperatorDetailsForm(prefix='operator-0'),
         'asset_registration_forms': [

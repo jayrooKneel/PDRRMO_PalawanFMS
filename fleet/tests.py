@@ -315,7 +315,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v18')
+        self.assertContains(response, 'pdrrmo-fms-shell-v19')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -2309,6 +2309,75 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, 'Seacraft Operators')
         self.assertContains(response, 'Heavy Equipment:')
 
+    def test_public_homepage_breaks_personnel_down_by_deployment_availability(self):
+        land_available = Driver.objects.create(name='Public Available Land Driver')
+        land_deployed = Driver.objects.create(name='Public Deployed Land Driver')
+        land_assigned = Driver.objects.create(name='Public Assigned Land Driver')
+        land_expired = Driver.objects.create(
+            name='Public Expired Land Driver',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        sea_available = Driver.objects.create(
+            name='Public Available Sea Operator',
+            license_authority='MARINA',
+        )
+        sea_deployed = Driver.objects.create(
+            name='Public Deployed Sea Operator',
+            license_authority='MARINA',
+        )
+        sea_assigned = Driver.objects.create(
+            name='Public Assigned Sea Operator',
+            license_authority='MARINA',
+        )
+        sea_expired = Driver.objects.create(
+            name='Public Expired Sea Operator',
+            license_authority='MARINA',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        self.create_vehicle(
+            model_name='Public Deployed Land Unit',
+            plate_number='PUBLIC-LAND-DEPLOYED',
+            vehicle_type=self.land_type,
+            status='DEPLOYED',
+            assigned_driver=land_deployed,
+        )
+        self.create_vehicle(
+            model_name='Public Assigned Land Unit',
+            plate_number='PUBLIC-LAND-ASSIGNED',
+            vehicle_type=self.land_type,
+            status='MAINTENANCE',
+            assigned_driver=land_assigned,
+        )
+        self.create_vehicle(
+            model_name='Public Deployed Sea Unit',
+            plate_number='PUBLIC-SEA-DEPLOYED',
+            vehicle_type=self.maritime_type,
+            status='DEPLOYED',
+            assigned_driver=sea_deployed,
+        )
+        self.create_vehicle(
+            model_name='Public Assigned Sea Unit',
+            plate_number='PUBLIC-SEA-ASSIGNED',
+            vehicle_type=self.maritime_type,
+            status='MAINTENANCE',
+            assigned_driver=sea_assigned,
+        )
+
+        response = self.client.get(reverse('dashboard_portal:homepage'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['available_land_driver_count'], 1)
+        self.assertEqual(response.context['deployed_land_driver_count'], 1)
+        self.assertEqual(response.context['unavailable_land_driver_count'], 2)
+        self.assertEqual(response.context['total_land_driver_count'], 4)
+        self.assertEqual(response.context['available_seacraft_operator_count'], 2)
+        self.assertEqual(response.context['deployed_seacraft_operator_count'], 1)
+        self.assertEqual(response.context['unavailable_seacraft_operator_count'], 2)
+        self.assertEqual(response.context['total_seacraft_operator_count'], 5)
+        self.assertContains(response, 'Available for deployment')
+        self.assertContains(response, 'Deployed:')
+        self.assertContains(response, 'Not available:')
+
     def test_logistics_can_add_land_drivers_and_seacraft_operators(self):
         self.client.force_login(self.logistics_user)
         for name, operator_type, license_number, expected_authority in (
@@ -2987,13 +3056,114 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, 'id="expired-license-alert"')
         self.assertContains(response, 'id="expiring-license-alert"')
         self.assertContains(response, 'data-bs-dismiss="alert"')
-        self.assertEqual(response.content.count(b'data-license-refresh="true">Fix now!</button>'), 2)
+        self.assertEqual(response.content.count(b'data-license-refresh="true">Fix now</a>'), 2)
         self.assertContains(response, 'Expired Land Operator')
         self.assertContains(response, 'Expiring Land Operator')
         self.assertContains(
             response,
             'class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled selected',
         )
+
+    def test_expired_unassigned_operator_is_in_license_alert_with_fix_link(self):
+        expired_driver = Driver.objects.create(
+            name='Expired Unassigned Operator',
+            license_number='LAND-UNASSIGNED-EXPIRED',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expired_driver, response.context['expired_active_drivers'])
+        self.assertContains(response, 'Expired Unassigned Operator')
+        self.assertContains(response, 'data-driver-id="{}"'.format(expired_driver.pk))
+        self.assertContains(response, '>Fix now</a>')
+        self.assertContains(response, 'name="driver_ids"')
+        self.assertContains(response, 'name="license_expiry"')
+
+    def test_batch_license_update_changes_only_selected_active_operators(self):
+        today = timezone.localdate()
+        renewed_expiry = today + timedelta(days=365)
+        selected = [
+            Driver.objects.create(
+                name=f'Batch Renewed Operator {index}',
+                license_number=f'LAND-BATCH-{index}',
+                license_expiry=today - timedelta(days=1),
+            )
+            for index in range(2)
+        ]
+        unselected = Driver.objects.create(
+            name='Unselected Expired Operator',
+            license_number='LAND-BATCH-UNSELECTED',
+            license_expiry=today - timedelta(days=1),
+        )
+        self.client.force_login(self.logistics_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'update_operator_license_batch',
+                'driver_ids': [str(operator.pk) for operator in selected],
+                'license_expiry': renewed_expiry.isoformat(),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('dashboard_portal:logistics_dashboard'),
+            fetch_redirect_response=False,
+        )
+        for operator in selected:
+            operator.refresh_from_db()
+            self.assertEqual(operator.license_expiry, renewed_expiry)
+        unselected.refresh_from_db()
+        self.assertEqual(unselected.license_expiry, today - timedelta(days=1))
+        self.assertContains(
+            self.client.get(reverse('dashboard_portal:logistics_dashboard')),
+            'License expiry updated for 2 drivers / operators.',
+        )
+
+    def test_batch_license_update_rejects_inactive_operators_and_past_expiry(self):
+        today = timezone.localdate()
+        inactive = Driver.objects.create(
+            name='Archived Batch Operator',
+            license_number='LAND-BATCH-ARCHIVED',
+            license_expiry=today - timedelta(days=1),
+            is_active=False,
+        )
+        active = Driver.objects.create(
+            name='Active Batch Operator',
+            license_number='LAND-BATCH-ACTIVE',
+            license_expiry=today - timedelta(days=1),
+        )
+        self.client.force_login(self.logistics_user)
+
+        inactive_response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'update_operator_license_batch',
+                'driver_ids': [str(inactive.pk)],
+                'license_expiry': (today + timedelta(days=365)).isoformat(),
+            },
+            follow=True,
+        )
+        self.assertContains(inactive_response, 'no longer active')
+        inactive.refresh_from_db()
+        self.assertEqual(inactive.license_expiry, today - timedelta(days=1))
+
+        past_expiry_response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'update_operator_license_batch',
+                'driver_ids': [str(active.pk)],
+                'license_expiry': (today - timedelta(days=1)).isoformat(),
+            },
+            follow=True,
+        )
+        self.assertContains(past_expiry_response, 'today or later')
+        active.refresh_from_db()
+        self.assertEqual(active.license_expiry, today - timedelta(days=1))
 
     def test_expired_operator_cannot_be_assigned_or_dispatched(self):
         expired_driver = Driver.objects.create(

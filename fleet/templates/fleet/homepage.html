@@ -358,6 +358,12 @@
                                     <i class="fa-solid fa-id-card me-2 text-primary"></i>Land Drivers
                                 </div>
                                 <div class="stat-massive-num font-monospace">{{ available_land_driver_count }}</div>
+                                <div class="small text-muted">Available for deployment</div>
+                                <div class="small mt-2">
+                                    <span class="me-2">Total active: <strong>{{ total_land_driver_count }}</strong></span>
+                                    <span class="me-2">Deployed: <strong>{{ deployed_land_driver_count }}</strong></span>
+                                    <span>Not available: <strong>{{ unavailable_land_driver_count }}</strong></span>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -366,7 +372,16 @@
                                     <i class="fa-solid fa-ship me-2 text-info"></i>Seacraft Operators
                                 </div>
                                 <div class="stat-massive-num font-monospace">{{ available_seacraft_operator_count }}</div>
+                                <div class="small text-muted">Available for deployment</div>
+                                <div class="small mt-2">
+                                    <span class="me-2">Total active: <strong>{{ total_seacraft_operator_count }}</strong></span>
+                                    <span class="me-2">Deployed: <strong>{{ deployed_seacraft_operator_count }}</strong></span>
+                                    <span>Not available: <strong>{{ unavailable_seacraft_operator_count }}</strong></span>
+                                </div>
                             </div>
+                        </div>
+                        <div class="col-12 small text-muted">
+                            Not available personnel have an expired license or are assigned to a non-deployed asset.
                         </div>
                     </div>
                 </div>

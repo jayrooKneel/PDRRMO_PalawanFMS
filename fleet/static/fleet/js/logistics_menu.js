@@ -106,6 +106,7 @@
         if (!(event.target instanceof Element)) return;
         const editButton = event.target.closest("[data-edit-operator]");
         if (editButton) {
+            event.preventDefault();
             const operator = {
                 id: editButton.dataset.driverId,
                 type: editButton.dataset.driverType,

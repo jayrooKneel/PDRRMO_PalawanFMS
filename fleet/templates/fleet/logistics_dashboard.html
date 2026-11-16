@@ -181,7 +181,7 @@
                 <div class="col-6 col-xl-2"><div class="card readiness-card is-active h-100"><div class="card-body"><div class="small text-muted">Deployed</div><div class="fs-3 fw-bold text-primary">{{ deployed_total }}</div><div class="small text-muted">Active field missions</div></div></div></div>
                 <div class="col-6 col-xl-2"><div class="card readiness-card is-alert h-100"><div class="card-body"><div class="small text-muted">Maintenance</div><div class="fs-3 fw-bold text-danger">{{ maintenance_total }}</div><div class="small text-muted">Including disposal review</div></div></div></div>
                 <div class="col-6 col-xl-2"><div class="card readiness-card h-100"><div class="card-body"><div class="small text-muted">Active operators</div><div class="fs-3 fw-bold">{{ active_driver_total }}</div><div class="small text-muted">{{ land_driver_total }} drivers · {{ sea_operator_total }} seacraft</div></div></div></div>
-                <div class="col-6 col-xl-2"><div class="card readiness-card {% if expired_assigned_drivers %}is-alert{% endif %} h-100"><div class="card-body"><div class="small text-muted">License alerts</div><div class="fs-3 fw-bold {% if expired_assigned_drivers %}text-danger{% endif %}">{{ license_alert_total }}</div><div class="small text-muted">Expired or expiring while assigned</div></div></div></div>
+                <div class="col-6 col-xl-2"><div class="card readiness-card {% if expired_active_drivers %}is-alert{% endif %} h-100"><div class="card-body"><div class="small text-muted">License alerts</div><div class="fs-3 fw-bold {% if expired_active_drivers %}text-danger{% endif %}">{{ license_alert_total }}</div><div class="small text-muted">Expired licenses or expiring while assigned</div></div></div></div>
             </div>
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <button type="button" class="btn btn-orange" data-dashboard-action="add-asset"><i class="fa-solid fa-plus me-1"></i>Add fleet asset</button>
@@ -192,25 +192,45 @@
             </div>
         </section>
         <div data-dashboard-refresh-content="logistics-license-alerts">
-        {% if expired_assigned_drivers %}
+        {% if expired_active_drivers %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert" id="expired-license-alert">
             <h5 class="alert-heading"><i class="fa-solid fa-triangle-exclamation me-2"></i>Expired operator licenses</h5>
-            <ul class="mb-0">
-                {% for assignment in expired_assigned_drivers %}
+            <p>Select operators with renewed licenses to apply a shared expiry date. Individual license numbers and other details will not change.</p>
+            <form method="post" action="{% url 'dashboard_portal:logistics_dashboard' %}" data-logistics-ajax-form>
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_operator_license_batch">
+                <ul class="mb-3">
+                {% for driver in expired_active_drivers %}
                 <li class="mb-2">
-                    <strong>{{ assignment.driver.name }}</strong> has an expired license ({{ assignment.driver.license_expiry|date:"M j, Y" }}) and is assigned to {{ assignment.vehicle.model_name }}.
-                    <button type="button" class="btn btn-sm btn-danger ms-2" data-edit-operator
-                            data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
-                            data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
-                            data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
-                            data-driver-license-type="{{ assignment.driver.license_type }}"
-                            data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
-                            data-driver-emergency-contact-name="{{ assignment.driver.emergency_contact_name }}"
-                            data-driver-emergency-contact-number="{{ assignment.driver.emergency_contact_number }}"
-                            data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
+                    <label>
+                        <input type="checkbox" name="driver_ids" value="{{ driver.pk }}">
+                        <strong>{{ driver.name }}</strong> has an expired license ({{ driver.license_expiry|date:"M j, Y" }}).
+                        {% with assigned_vehicle=driver.assigned_vehicle %}
+                        {% if assigned_vehicle %}Currently assigned to {{ assigned_vehicle.model_name }}.{% endif %}
+                        {% endwith %}
+                    </label>
+                    <a href="#addOperatorModal" role="button" class="link-danger ms-2" data-edit-operator
+                       data-driver-id="{{ driver.pk }}" data-driver-type="{{ driver.license_authority }}"
+                       data-driver-name="{{ driver.name }}" data-driver-license="{{ driver.license_number|default:'' }}"
+                       data-driver-class="{{ driver.license_class }}" data-driver-expiry="{{ driver.license_expiry|date:'Y-m-d' }}"
+                       data-driver-license-type="{{ driver.license_type }}"
+                       data-driver-restrictions="{{ driver.license_restrictions }}"
+                       data-driver-emergency-contact-name="{{ driver.emergency_contact_name }}"
+                       data-driver-emergency-contact-number="{{ driver.emergency_contact_number }}"
+                       data-driver-phone="{{ driver.phone_number|default:'' }}" data-license-refresh="true">Fix now</a>
                 </li>
                 {% endfor %}
-            </ul>
+                </ul>
+                <div class="row g-2 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label fw-semibold mb-1" for="batchLicenseExpiry">New license expiry date</label>
+                        <input type="date" class="form-control" id="batchLicenseExpiry" name="license_expiry" min="{{ today|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-danger">Update selected licenses</button>
+                    </div>
+                </div>
+            </form>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close expired license alerts"></button>
         </div>
         {% endif %}
@@ -221,15 +241,15 @@
                 {% for assignment in expiring_assigned_drivers %}
                 <li class="mb-2">
                     <strong>{{ assignment.driver.name }}</strong>'s license expires {{ assignment.driver.license_expiry|date:"M j, Y" }} (within 30 days); currently assigned to {{ assignment.vehicle.model_name }}.
-                    <button type="button" class="btn btn-sm btn-warning ms-2" data-edit-operator
-                            data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
-                            data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
-                            data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
-                            data-driver-license-type="{{ assignment.driver.license_type }}"
-                            data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
-                            data-driver-emergency-contact-name="{{ assignment.driver.emergency_contact_name }}"
-                            data-driver-emergency-contact-number="{{ assignment.driver.emergency_contact_number }}"
-                            data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now!</button>
+                    <a href="#addOperatorModal" role="button" class="link-warning ms-2" data-edit-operator
+                       data-driver-id="{{ assignment.driver.pk }}" data-driver-type="{{ assignment.driver.license_authority }}"
+                       data-driver-name="{{ assignment.driver.name }}" data-driver-license="{{ assignment.driver.license_number|default:'' }}"
+                       data-driver-class="{{ assignment.driver.license_class }}" data-driver-expiry="{{ assignment.driver.license_expiry|date:'Y-m-d' }}"
+                       data-driver-license-type="{{ assignment.driver.license_type }}"
+                       data-driver-restrictions="{{ assignment.driver.license_restrictions }}"
+                       data-driver-emergency-contact-name="{{ assignment.driver.emergency_contact_name }}"
+                       data-driver-emergency-contact-number="{{ assignment.driver.emergency_contact_number }}"
+                       data-driver-phone="{{ assignment.driver.phone_number|default:'' }}" data-license-refresh="true">Fix now</a>
                 </li>
                 {% endfor %}
             </ul>

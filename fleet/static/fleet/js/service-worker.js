@@ -1,4 +1,4 @@
-const CACHE_NAME = "pdrrmo-fms-shell-v18";
+const CACHE_NAME = "pdrrmo-fms-shell-v19";
 const APP_SHELL = [
     "/static/fleet/css/pwa.css",
     "/static/fleet/images/pwa-icon-192.png",
