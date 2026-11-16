@@ -1310,6 +1310,7 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'data-open-maintenance-report=')
         self.assertContains(response, 'id="report-vehicle"')
         self.assertContains(response, 'All vehicles and seacraft')
+        self.assertContains(response, 'View more vehicle details')
 
     def test_dashboard_prompts_users_without_recovery_settings(self):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))

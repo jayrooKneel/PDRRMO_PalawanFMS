@@ -1,5 +1,7 @@
 {% if craft.make or craft.model_year or craft.color or craft.hull_type or craft.chassis_number or craft.engine_number or craft.home_port or craft.length_m or craft.gross_tonnage or craft.net_tonnage or craft.engine_power_hp or craft.passenger_capacity or craft.engine_details or craft.fuel_type or craft.registration_date or craft.registration_expiry or craft.inspection_expiry %}
-<div class="small text-muted mt-1">
+<details class="vehicle-details small mt-1">
+    <summary class="text-primary text-decoration-underline">View more vehicle details</summary>
+    <div class="text-muted mt-1">
     {% if craft.make %}{{ craft.make }}{% endif %}
     {% if craft.model_year %}{% if craft.make %} · {% endif %}{{ craft.model_year }}{% endif %}
     {% if craft.color %}{% if craft.make or craft.model_year %} · {% endif %}{{ craft.color }}{% endif %}
@@ -17,5 +19,6 @@
     {% if craft.registration_date %}<br>Registered {{ craft.registration_date|date:"M Y" }}{% endif %}
     {% if craft.registration_expiry %}<br>Registration due {{ craft.registration_expiry|date:"M Y" }}{% endif %}
     {% if craft.inspection_expiry %}{% if craft.registration_expiry %} · {% else %}<br>{% endif %}Inspection due {{ craft.inspection_expiry|date:"M Y" }}{% endif %}
-</div>
+    </div>
+</details>
 {% endif %}

@@ -70,39 +70,42 @@
                                     {{ vehicle.get_status_display }}
                                 </span>
                             </div>
-                            <dl class="row mt-3 mb-3">
-                                <dt class="col-4 text-secondary">Purpose</dt>
-                                <dd class="col-8">
-                                    {% if vehicle.active_request %}{{ vehicle.active_request.get_purpose_display }}
-                                    {% elif vehicle.deployment_purpose %}{{ vehicle.get_deployment_purpose_display }}
-                                    {% else %}—{% endif %}
-                                </dd>
-                                <dt class="col-4 text-secondary">Destination</dt>
-                                <dd class="col-8">
-                                    {% if vehicle.active_request %}{{ vehicle.active_request.destination }}
-                                    {% elif vehicle.deployment_destination %}{{ vehicle.deployment_destination }}
-                                    {% else %}—{% endif %}
-                                </dd>
-                            </dl>
+                            <details class="vehicle-details mt-3">
+                                <summary class="text-primary text-decoration-underline">View more trip and maintenance details</summary>
+                                <dl class="row mt-3 mb-3">
+                                    <dt class="col-4 text-secondary">Purpose</dt>
+                                    <dd class="col-8">
+                                        {% if vehicle.active_request %}{{ vehicle.active_request.get_purpose_display }}
+                                        {% elif vehicle.deployment_purpose %}{{ vehicle.get_deployment_purpose_display }}
+                                        {% else %}—{% endif %}
+                                    </dd>
+                                    <dt class="col-4 text-secondary">Destination</dt>
+                                    <dd class="col-8">
+                                        {% if vehicle.active_request %}{{ vehicle.active_request.destination }}
+                                        {% elif vehicle.deployment_destination %}{{ vehicle.deployment_destination }}
+                                        {% else %}—{% endif %}
+                                    </dd>
+                                </dl>
 
-                            <section class="border rounded p-3 mb-3" aria-label="Recent maintenance logs for {{ vehicle.model_name }}">
-                                <h4 class="h6 fw-bold mb-2">
-                                    <i class="fa-solid fa-screwdriver-wrench me-1 text-warning" aria-hidden="true"></i>
-                                    Recent maintenance
-                                </h4>
-                                {% for log in vehicle.recent_maintenance_logs %}
-                                    <article class="{% if not forloop.first %}border-top pt-2 mt-2{% endif %}">
-                                        <div class="fw-semibold">{{ log.service_item }}</div>
-                                        {% if log.details %}<p class="small text-secondary mb-1">{{ log.details }}</p>{% endif %}
-                                        <div class="small text-muted">
-                                            {{ log.logged_at|date:"M j, Y g:i A" }}
-                                            {% if log.logged_by %}· {{ log.logged_by.get_full_name|default:log.logged_by.username }}{% endif %}
-                                        </div>
-                                    </article>
-                                {% empty %}
-                                    <p class="small text-secondary mb-0">No maintenance logs recorded for this unit yet.</p>
-                                {% endfor %}
-                            </section>
+                                <section class="border rounded p-3 mb-3" aria-label="Recent maintenance logs for {{ vehicle.model_name }}">
+                                    <h4 class="h6 fw-bold mb-2">
+                                        <i class="fa-solid fa-screwdriver-wrench me-1 text-warning" aria-hidden="true"></i>
+                                        Recent maintenance
+                                    </h4>
+                                    {% for log in vehicle.recent_maintenance_logs %}
+                                        <article class="{% if not forloop.first %}border-top pt-2 mt-2{% endif %}">
+                                            <div class="fw-semibold">{{ log.service_item }}</div>
+                                            {% if log.details %}<p class="small text-secondary mb-1">{{ log.details }}</p>{% endif %}
+                                            <div class="small text-muted">
+                                                {{ log.logged_at|date:"M j, Y g:i A" }}
+                                                {% if log.logged_by %}· {{ log.logged_by.get_full_name|default:log.logged_by.username }}{% endif %}
+                                            </div>
+                                        </article>
+                                    {% empty %}
+                                        <p class="small text-secondary mb-0">No maintenance logs recorded for this unit yet.</p>
+                                    {% endfor %}
+                                </section>
+                            </details>
 
                             {% if vehicle.status == 'DEPLOYED' %}
                             <details>
