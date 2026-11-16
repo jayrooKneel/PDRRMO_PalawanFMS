@@ -1,4 +1,46 @@
 (() => {
+    const manageAssetsModal = document.getElementById("manageAssetsModal");
+    const assetForm = document.getElementById("editFleetAssetForm");
+    const assetModal = document.getElementById("editVehicleModal");
+    let pendingAssetEdit = null;
+
+    function openAssetEdit() {
+        if (!pendingAssetEdit || !assetForm || !assetModal) {
+            throw new Error("The selected fleet asset could not be opened for editing.");
+        }
+        assetForm.reset();
+        assetForm.querySelector("[data-edit-vehicle-id]").value = pendingAssetEdit.id;
+        Object.entries(pendingAssetEdit).forEach(([name, value]) => {
+            const field = assetForm.querySelector(`[name="edit-asset-${name}"]`);
+            if (field && field.type !== "file") field.value = value;
+        });
+        window.bootstrap.Modal.getOrCreateInstance(assetModal).show();
+        pendingAssetEdit = null;
+    }
+
+    document.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) return;
+        const button = event.target.closest("[data-edit-asset]");
+        if (!button) return;
+
+        const assetsElement = document.getElementById("fleet-assets-json");
+        if (!assetsElement || !manageAssetsModal) {
+            throw new Error("Fleet asset editing controls were not found.");
+        }
+        const assets = JSON.parse(assetsElement.textContent || "[]");
+        pendingAssetEdit = assets.find((asset) => String(asset.id) === button.dataset.assetId);
+        if (!pendingAssetEdit) {
+            throw new Error(`Fleet asset ${button.dataset.assetId} was not found.`);
+        }
+
+        if (!manageAssetsModal.classList.contains("show")) {
+            openAssetEdit();
+            return;
+        }
+        manageAssetsModal.addEventListener("hidden.bs.modal", openAssetEdit, { once: true });
+        window.bootstrap.Modal.getOrCreateInstance(manageAssetsModal).hide();
+    });
+
     const menuDrawer = document.getElementById("logisticsMenuDrawer");
     if (!menuDrawer) return;
 

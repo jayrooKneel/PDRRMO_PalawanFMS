@@ -315,7 +315,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v21')
+        self.assertContains(response, 'pdrrmo-fms-shell-v22')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 

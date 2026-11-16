@@ -81,6 +81,21 @@
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
+        #editVehicleModal #editFleetAssetForm {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        #editVehicleModal #editFleetAssetForm .modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+        }
+        #editVehicleModal #editFleetAssetForm .modal-footer {
+            flex-shrink: 0;
+        }
     </style>
     <link rel="stylesheet" href="{% static 'fleet/css/dashboard_theme.css' %}">
     {% include "fleet/_pwa_head.html" %}
@@ -1425,32 +1440,6 @@
         document.addEventListener("DOMContentLoaded", function() {
             const operatorForm = document.querySelector("#addOperatorModal form");
             const operatorType = operatorForm.querySelector("[name='operator_type']");
-
-            const assetForm = document.getElementById("editFleetAssetForm");
-            const assetModal = document.getElementById("editVehicleModal");
-            let pendingAssetEdit = null;
-            document.addEventListener("click", (event) => {
-                if (!(event.target instanceof Element)) return;
-                const button = event.target.closest("[data-edit-asset]");
-                if (!button) return;
-                const assets = JSON.parse(document.getElementById("fleet-assets-json").textContent || "[]");
-                pendingAssetEdit = assets.find((asset) => String(asset.id) === button.dataset.assetId);
-                if (!pendingAssetEdit) {
-                    throw new Error(`Fleet asset ${button.dataset.assetId} was not found.`);
-                }
-                bootstrap.Modal.getOrCreateInstance(document.getElementById("manageAssetsModal")).hide();
-            });
-            document.getElementById("manageAssetsModal").addEventListener("hidden.bs.modal", () => {
-                if (!pendingAssetEdit) return;
-                assetForm.reset();
-                assetForm.querySelector("[data-edit-vehicle-id]").value = pendingAssetEdit.id;
-                Object.entries(pendingAssetEdit).forEach(([name, value]) => {
-                    const field = assetForm.querySelector(`[name="edit-asset-${name}"]`);
-                    if (field && field.type !== "file") field.value = value;
-                });
-                bootstrap.Modal.getOrCreateInstance(assetModal).show();
-                pendingAssetEdit = null;
-            });
 
             const savedScroll = localStorage.getItem('logistics_dashboard_scroll');
             if (savedScroll !== null) {
