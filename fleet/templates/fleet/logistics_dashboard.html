@@ -32,6 +32,26 @@
         .readiness-card.is-alert { border-left-color: #dc3545; }
         .dashboard-section-label { letter-spacing: .08em; font-size: .75rem; }
         .logistics-menu-heading { color: #64748b; font-size: .72rem; letter-spacing: .08em; }
+        .notification-ribbon {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 1090;
+            display: flex;
+            flex-direction: column;
+            gap: .75rem;
+            width: min(350px, calc(100vw - 2rem));
+            pointer-events: none;
+        }
+        .notification-ribbon-message {
+            margin: 0;
+            border-radius: 12px;
+            background-color: rgba(255, 255, 255, .96);
+            backdrop-filter: blur(6px);
+            pointer-events: auto;
+            transition: opacity .5s ease, transform .5s ease;
+        }
+        .notification-ribbon-message:not(.show) { transform: translateY(12px); }
         @media (max-width: 576px) {
             .logistics-asset-grid > .asset-card { flex-basis: min(84vw, 320px); }
         }
@@ -153,17 +173,25 @@
     {% include "fleet/_account_security_prompt.html" %}
 
     <div class="container-fluid px-4" data-logistics-dashboard>
-        <div id="floating-alert-container" data-dashboard-refresh-content="logistics-alerts" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 450px;">
+        <div id="floating-alert-container" class="notification-ribbon" data-dashboard-refresh-content="logistics-alerts" aria-live="polite">
             {% if messages %}
             {% for msg in messages %}
-            <div class="alert alert-success alert-dismissible fade show shadow-lg border-0 mb-2 p-3 text-white bg-dark d-flex align-items-center justify-content-between" 
-                 role="alert" 
-                 style="border-left: 5px solid #EA580C !important; border-radius: 6px;">
+            <div class="alert alert-dismissible fade show shadow-lg border d-flex align-items-center justify-content-between notification-ribbon-message {% if 'error' in msg.tags %}alert-danger border-danger{% elif 'warning' in msg.tags %}alert-warning border-warning{% elif 'info' in msg.tags %}alert-info border-info{% else %}alert-success border-success{% endif %}"
+                 role="{% if 'error' in msg.tags %}alert{% else %}status{% endif %}"
+                 data-notification-message>
                 <div class="d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-circle-check text-warning"></i>
+                    {% if 'error' in msg.tags %}
+                    <i class="fa-solid fa-circle-exclamation text-danger"></i>
+                    {% elif 'warning' in msg.tags %}
+                    <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                    {% elif 'info' in msg.tags %}
+                    <i class="fa-solid fa-circle-info text-info"></i>
+                    {% else %}
+                    <i class="fa-solid fa-circle-check text-success"></i>
+                    {% endif %}
                     <span class="fw-semibold font-monospace small" data-message-tags="{{ msg.tags }}">{{ msg }}</span>
                 </div>
-                <button type="button" class="btn-close btn-close-white m-0 p-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                <button type="button" class="btn-close m-0 p-2" data-bs-dismiss="alert" aria-label="Dismiss notification"></button>
             </div>
             {% endfor %}
             {% endif %}
@@ -1459,13 +1487,23 @@
             });
 
             const alertContainer = document.getElementById("floating-alert-container");
+            const notificationTimers = new WeakSet();
+            const scheduleNotificationDismissal = () => {
+                alertContainer?.querySelectorAll("[data-notification-message]").forEach((notification) => {
+                    if (notificationTimers.has(notification)) return;
+                    notificationTimers.add(notification);
+                    setTimeout(() => {
+                        notification.classList.remove("show");
+                        setTimeout(() => notification.remove(), 500);
+                    }, 4000);
+                });
+            };
             if (alertContainer) {
-                setTimeout(() => {
-                    alertContainer.style.transition = "all 0.5s ease";
-                    alertContainer.style.opacity = "0";
-                    alertContainer.style.transform = "translateY(20px)";
-                    setTimeout(() => { alertContainer.replaceChildren(); }, 500);
-                }, 3000);
+                scheduleNotificationDismissal();
+                new MutationObserver(scheduleNotificationDismissal).observe(
+                    alertContainer,
+                    { childList: true },
+                );
             }
 
             document.addEventListener('click', function(event) {

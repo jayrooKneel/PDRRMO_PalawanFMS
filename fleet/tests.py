@@ -315,7 +315,7 @@ class ProgressiveWebAppTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Service-Worker-Allowed'], '/')
-        self.assertContains(response, 'pdrrmo-fms-shell-v20')
+        self.assertContains(response, 'pdrrmo-fms-shell-v21')
         self.assertContains(response, 'requestUrl.pathname.startsWith("/static/")')
 
 
@@ -1316,6 +1316,22 @@ class LogisticsReportExportTests(TestCase):
 
         self.assertContains(response, 'Secure your account:')
         self.assertContains(response, 'Set up account security')
+
+    def test_logistics_notifications_match_other_dashboard_toast_behavior(self):
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {'action': 'update_operator_license_batch'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="floating-alert-container" class="notification-ribbon"')
+        self.assertContains(response, 'notification-ribbon-message')
+        self.assertContains(response, 'alert-danger border-danger')
+        self.assertContains(response, 'role="alert"')
+        self.assertContains(response, 'aria-label="Dismiss notification"')
+        self.assertContains(response, 'scheduleNotificationDismissal')
+        self.assertContains(response, '}, 4000);')
 
     def test_asset_management_shows_archived_assets_filters_and_vehicle_details(self):
         archived_vehicle = Vehicle.objects.create(

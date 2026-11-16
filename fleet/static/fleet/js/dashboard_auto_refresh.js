@@ -80,8 +80,10 @@
             return;
         }
         const alert = document.createElement("div");
-        alert.className = "alert alert-danger alert-dismissible fade show shadow-lg";
+        alert.className = "alert alert-danger alert-dismissible fade show shadow-lg border d-flex align-items-center justify-content-between notification-ribbon-message";
         alert.setAttribute("role", "alert");
+        alert.dataset.notificationMessage = "";
+        alert.dataset.messageTags = "error";
         alert.append(document.createTextNode(message));
         const closeButton = document.createElement("button");
         closeButton.type = "button";
