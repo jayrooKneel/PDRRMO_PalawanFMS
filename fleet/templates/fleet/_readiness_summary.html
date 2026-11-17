@@ -1,0 +1,17 @@
+<section class="mb-4" aria-labelledby="readinessSummaryTitle" {% if readiness_refresh_key %}data-dashboard-refresh-content="{{ readiness_refresh_key }}"{% endif %}>
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+        <div>
+            <div class="dashboard-section-label text-uppercase fw-bold text-primary">Operational picture</div>
+            <h2 class="h4 mb-0" id="readinessSummaryTitle">{{ readiness_heading }}</h2>
+        </div>
+        <span class="small text-muted">{{ readiness_status_label }} · {{ today|date:"M j, Y" }}</span>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-xl-2"><div class="card readiness-card h-100"><div class="card-body"><div class="small text-muted">Total assets</div><div class="fs-3 fw-bold">{{ readiness_asset_total }}</div><div class="small text-muted">{{ readiness_assets_caption }}</div></div></div></div>
+        <div class="col-6 col-xl-2"><div class="card readiness-card is-ready h-100"><div class="card-body"><div class="small text-muted">Operational</div><div class="fs-3 fw-bold text-success">{{ readiness_operational_total }}</div><div class="small text-muted">Ready for dispatch</div></div></div></div>
+        <div class="col-6 col-xl-2"><div class="card readiness-card is-active h-100"><div class="card-body"><div class="small text-muted">Deployed</div><div class="fs-3 fw-bold text-primary">{{ readiness_deployed_total }}</div><div class="small text-muted">Active field missions</div></div></div></div>
+        <div class="col-6 col-xl-2"><div class="card readiness-card is-alert h-100"><div class="card-body"><div class="small text-muted">Maintenance</div><div class="fs-3 fw-bold text-danger">{{ readiness_maintenance_total }}</div><div class="small text-muted">Including disposal review</div></div></div></div>
+        <div class="col-6 col-xl-2"><div class="card readiness-card h-100"><div class="card-body"><div class="small text-muted">Active operators</div><div class="fs-3 fw-bold">{{ readiness_operator_total }}</div><div class="small text-muted">{{ readiness_operators_caption }}</div></div></div></div>
+        <div class="col-6 col-xl-2"><div class="card readiness-card {% if readiness_license_alert_total %}is-alert{% endif %} h-100"><div class="card-body"><div class="small text-muted">License alerts</div><div class="fs-3 fw-bold {% if readiness_license_alert_total %}text-danger{% endif %}">{{ readiness_license_alert_total }}</div><div class="small text-muted">Expired licenses or expiring while assigned</div></div></div></div>
+    </div>
+</section>

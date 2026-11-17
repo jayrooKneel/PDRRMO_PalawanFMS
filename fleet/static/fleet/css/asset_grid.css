@@ -46,6 +46,22 @@
     background-image: url("../images/seacraft.svg");
 }
 
+.asset-grid-table tbody tr[data-illustration="ambulance"]::before {
+    background-image: url("../images/ambulance.svg");
+}
+
+.asset-grid-table tbody tr[data-illustration="motorcycle"]::before {
+    background-image: url("../images/motorcycle.svg");
+}
+
+.asset-grid-table tbody tr[data-illustration="truck"]::before {
+    background-image: url("../images/truck.svg");
+}
+
+.asset-grid-table tbody tr[data-illustration="rubber-boat"]::before {
+    background-image: url("../images/rubber-boat.svg");
+}
+
 .asset-grid-table tbody td {
     display: block;
     width: 100%;

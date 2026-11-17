@@ -153,10 +153,16 @@
                 <i class="fa-solid fa-tower-cell text-success me-2"></i>Connected to Dispatch Server
             </div>
             <h6 class="dashboard-menu-category">Fleet Management</h6>
+            <button type="button" class="btn btn-outline-primary text-start fw-semibold seacraft-menu-action" data-menu-action="manage-seacraft">
+                <i class="fa-solid fa-list-check me-2"></i>Manage Seacraft
+            </button>
             <button type="button" class="btn btn-outline-info text-start fw-semibold seacraft-menu-action" data-menu-action="add-seacraft">
                 <i class="fa-solid fa-ship me-2"></i>Add Seacraft
             </button>
             <h6 class="dashboard-menu-category">Fleet Reports</h6>
+            <button type="button" class="btn btn-outline-primary text-start fw-semibold seacraft-menu-action" data-menu-action="maintenance-report">
+                <i class="fa-solid fa-screwdriver-wrench me-2"></i>Maintenance report
+            </button>
             <button type="button" class="btn btn-outline-success text-start fw-semibold seacraft-menu-action" data-menu-action="fleet-report">
                 <i class="fa-solid fa-file-export me-2"></i>Fleet-wide Report
             </button>
@@ -224,32 +230,32 @@
                     <div id="seacraftOperatorAssignmentList" class="accordion-collapse collapse show">
                         <div class="accordion-body bg-white p-3">
                             {% for craft in sea_crafts %}
-                            <div class="border-bottom pb-3 mb-3">
+                            <div class="border-bottom pb-3 mb-3" data-driver-assignment-row>
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <strong class="text-dark small">{{ craft.model_name }}</strong>
                                     <span class="badge bg-secondary font-monospace">{{ craft.plate_number }}</span>
                                 </div>
-                                <form action="{% url 'dashboard_portal:seacraft_dispatch' %}" method="post" class="d-flex gap-2">
+                                <form action="{% url 'dashboard_portal:seacraft_assign_driver' craft.pk %}" method="post" class="d-flex gap-2" data-driver-assignment-form>
                                     {% csrf_token %}
-                                    <input type="hidden" name="action" value="set_driver">
                                     <input type="hidden" name="vehicle_id" value="{{ craft.id }}">
-                                    <select name="driver_id" class="form-select form-select-sm" data-craft-name="{{ craft.model_name }}" aria-label="Assign operator to {{ craft.model_name }}" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' %}disabled{% endif %}>
+                                    <select name="driver_id" class="form-select form-select-sm" data-current-driver="{{ craft.assigned_driver_id|default:'' }}" data-craft-name="{{ craft.model_name }}" aria-label="Assign operator to {{ craft.model_name }}" {% if craft.status == 'DEPLOYED' or craft.status == 'PENDING_DISPOSAL' or craft.status == 'ARCHIVED' or craft.status == 'DISPOSED' %}disabled{% endif %}>
                                         <option value="">-- Standby / Unassigned --</option>
                                         {% for driver in drivers %}
                                             {% if driver.license_expired %}
-                                                <option value="{{ driver.id }}" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="true" class="text-danger fw-bold" style="color: #dc3545; font-weight: 700;" disabled {% if craft.assigned_driver and craft.assigned_driver.id == driver.id %}selected{% endif %}>⚠ {{ driver.name }} · License expired {{ driver.license_expiry|date:"M j, Y" }}{% if craft.assigned_driver and craft.assigned_driver.id == driver.id %} (Currently assigned){% endif %}</option>
                                             {% elif craft.assigned_driver and craft.assigned_driver.id == driver.id %}
-                                                <option value="{{ driver.id }}" style="color: #8a6d00; font-weight: 700;" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" selected>👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} (Assigned)</option>
                                             {% elif driver.reassignment_source_vehicle and driver.reassignment_source_vehicle.is_seacraft and driver.reassignment_source_vehicle.status == 'OPERATIONAL' %}
-                                                <option value="{{ driver.id }}" style="color: #8a6d00; font-weight: 700;">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Reassign from {{ driver.reassignment_source_vehicle.model_name }}]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Reassign from {{ driver.reassignment_source_vehicle.model_name }}]</option>
                                             {% elif driver.id not in assigned_driver_ids %}
-                                                <option value="{{ driver.id }}">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false">👤 {{ driver.name }} · {{ driver.get_license_authority_display }} · {{ driver.license_number|default:"No license recorded" }} [Available]</option>
                                             {% else %}
-                                                <option value="{{ driver.id }}" style="color: #8a6d00; font-weight: 700;" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
+                                                <option value="{{ driver.id }}" data-driver-id="{{ driver.id }}" data-license-expired="false" style="color: #8a6d00; font-weight: 700;" disabled>👤 {{ driver.name }} [Assigned to Active Fleet]</option>
                                             {% endif %}
                                         {% endfor %}
                                     </select>
                                 </form>
+                                <span class="small d-block mt-1" role="status" aria-live="polite" data-assignment-status></span>
                             </div>
                             {% empty %}
                             <div class="small text-muted">No seacrafts registered.</div>
@@ -343,6 +349,93 @@
         </div>
     </div>
 
+    <div class="modal fade" id="manageSeacraftModal" tabindex="-1" aria-labelledby="manageSeacraftModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header text-white" style="background-color:#1A365D">
+                    <h5 class="modal-title" id="manageSeacraftModalLabel">Fleet Asset Management</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted">Update seacraft details, review assignments, or select an operator. Active deployments remain visible in the operational dashboard.</p>
+                    <div class="row g-2 mb-3">
+                        <div class="col-sm-6">
+                            <label class="form-label small mb-1" for="seacraft-management-status-filter">Vehicle status</label>
+                            <select class="form-select form-select-sm" id="seacraft-management-status-filter">
+                                <option value="active">All seacraft (not including archived)</option>
+                                <option value="all">All seacraft including archived</option>
+                                <option value="DEPLOYED">Deployed</option>
+                                <option value="OPERATIONAL">Operational</option>
+                                <option value="MAINTENANCE">Under maintenance</option>
+                                <option value="ARCHIVED">Archived</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label small mb-1" for="seacraft-management-category-filter">Vehicle category</label>
+                            <select class="form-select form-select-sm" id="seacraft-management-category-filter">
+                                <option value="">All categories</option>
+                                {% for category in seacraft_categories %}
+                                <option value="{{ category|lower }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead><tr><th>Asset</th><th>Vehicle details</th><th>Status</th><th>Assigned operator</th><th>Management</th></tr></thead>
+                            <tbody id="seacraft-management-rows">
+                                {% for craft in management_sea_assets %}
+                                {% include "fleet/_seacraft_management_row.html" with craft=craft drivers=drivers assigned_driver_ids=assigned_driver_ids %}
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted py-4">No seacrafts registered.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-info" data-open-add-seacraft><i class="fa-solid fa-plus me-1"></i>Add Seacraft</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editSeacraftModal" tabindex="-1" aria-labelledby="editSeacraftModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header text-white" style="background-color:#1A365D">
+                    <h5 class="modal-title" id="editSeacraftModalLabel">Modify Seacraft</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" enctype="multipart/form-data" action="{% url 'dashboard_portal:seacraft_dispatch' %}" id="editSeacraftForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_seacraft">
+                    <input type="hidden" name="vehicle_id" value="" data-edit-seacraft-id>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            {% for field in seacraft_update_form %}
+                                <div class="{% if field.name == 'registration_documents' %}col-12{% else %}col-md-6{% endif %}">
+                                <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                    {% if field.name == 'registration_documents' %}
+                                    <div class="form-text">New registration images are added to the existing seacraft documents.</div>
+                                    {% endif %}
+                                {% for error in field.errors %}<div class="small text-danger">{{ error }}</div>{% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                            <div class="form-text mt-3">Seacraft type choices are restricted to maritime assets.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Save seacraft changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {% include "fleet/_activity_report_modal.html" with can_generate_fleet_inventory_report=True %}
 
     <main class="container-fluid py-5 px-4" style="max-width: 1600px;">
@@ -356,6 +449,14 @@
                 </ol>
             </nav>
             <h2 class="fw-bold m-0" style="letter-spacing: -0.03em; color: var(--brand-blue);">Seacraft Command Center</h2>
+        </div>
+
+        {% include "fleet/_readiness_summary.html" with readiness_heading="Seacraft Fleet Readiness Summary" readiness_status_label="Current maritime status" readiness_asset_total=readiness_asset_total readiness_assets_caption=readiness_assets_caption readiness_operational_total=readiness_operational_total readiness_deployed_total=readiness_deployed_total readiness_maintenance_total=readiness_maintenance_total readiness_operator_total=readiness_operator_total readiness_operators_caption=readiness_operators_caption readiness_license_alert_total=readiness_license_alert_total %}
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#manageSeacraftModal"><i class="fa-solid fa-list-check me-1"></i>Manage Seacraft</button>
+            <button type="button" class="btn btn-info text-white" data-bs-toggle="modal" data-bs-target="#addSeacraftModal"><i class="fa-solid fa-plus me-1"></i>Add Seacraft</button>
+            <button type="button" class="btn btn-outline-dark" data-bs-toggle="offcanvas" data-bs-target="#seacraftOperatorAssignmentDrawer" aria-controls="seacraftOperatorAssignmentDrawer"><i class="fa-solid fa-user-gear me-1"></i>Assign Operators</button>
+            <button type="button" class="btn btn-outline-success" data-open-maintenance-report=""><i class="fa-solid fa-screwdriver-wrench me-1"></i>Maintenance report</button>
         </div>
 
         <div class="card shadow-sm border-0 mb-5">
@@ -395,7 +496,7 @@
                             </thead>
                             <tbody>
                                 {% for craft in sea_standby %}
-                                <tr>
+                                <tr data-illustration="{{ craft.illustration_category }}">
                                     <td>
                                         <strong>{{ craft.model_name }}</strong>
                                         <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
@@ -440,9 +541,9 @@
                                     </td>
                                     <td>
                                         {% if craft.assigned_driver %}
-                                            <span class="fw-semibold text-dark"><i class="fa-solid fa-anchor text-info me-1"></i>{{ craft.assigned_driver.name }}</span>
+                                            <span class="fw-semibold text-dark" data-assigned-vehicle-id="{{ craft.id }}"><i class="fa-solid fa-anchor text-info me-1"></i>{{ craft.assigned_driver.name }}</span>
                                         {% else %}
-                                            <span class="text-muted"><i class="fa-solid fa-user-slash me-1"></i>Standby / Unassigned</span>
+                                            <span class="text-muted" data-assigned-vehicle-id="{{ craft.id }}"><i class="fa-solid fa-user-slash me-1"></i>Standby / Unassigned</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -514,7 +615,7 @@
                             </thead>
                             <tbody>
                                 {% for craft in sea_deployed %}
-                                    <tr>
+                                    <tr data-illustration="{{ craft.illustration_category }}">
                                         <td>
                                             <strong>{{ craft.model_name }}</strong>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
@@ -530,7 +631,7 @@
                                         <td><span class="badge bg-secondary font-monospace">{{ craft.plate_number }}</span></td>
                                         <td><span class="badge bg-primary">DEPLOYED</span></td>
                                         <td>
-                                            <div class="fw-bold text-dark"><i class="fa-solid fa-anchor text-info me-1"></i> {{ craft.assigned_driver.name|default:"Unassigned Operator" }}</div>
+                                            <div class="fw-bold text-dark" data-assigned-vehicle-id="{{ craft.id }}"><i class="fa-solid fa-anchor text-info me-1"></i> {{ craft.assigned_driver.name|default:"Unassigned Operator" }}</div>
                                         </td>
                                         <td>
                                             <form action="{% url 'dashboard_portal:seacraft_dispatch' %}" method="post" class="m-0">
@@ -563,7 +664,7 @@
                             </thead>
                             <tbody>
                                 {% for craft in sea_maintenance %}
-                                    <tr>
+                                    <tr data-illustration="{{ craft.illustration_category }}">
                                         <td>
                                             <strong>{{ craft.model_name }}</strong>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
@@ -607,9 +708,9 @@
                                         </td>
                                         <td>
                                             {% if craft.assigned_driver %}
-                                                <span class="fw-semibold text-dark"><i class="fa-solid fa-anchor text-info me-1"></i>{{ craft.assigned_driver.name }}</span>
+                                                <span class="fw-semibold text-dark" data-assigned-vehicle-id="{{ craft.id }}"><i class="fa-solid fa-anchor text-info me-1"></i>{{ craft.assigned_driver.name }}</span>
                                             {% else %}
-                                                <span class="text-muted"><i class="fa-solid fa-user-slash me-1"></i>Standby / Unassigned</span>
+                                                <span class="text-muted" data-assigned-vehicle-id="{{ craft.id }}"><i class="fa-solid fa-user-slash me-1"></i>Standby / Unassigned</span>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -896,11 +997,50 @@
             {% endfor %}
         ]
     </script>
+    <script id="seacraft-assets-json" type="application/json">
+        [
+            {% for craft in management_sea_assets %}
+            {
+                "id": "{{ craft.pk }}",
+                "model_name": "{{ craft.model_name|escapejs }}",
+                "plate_number": "{{ craft.plate_number|escapejs }}",
+                "vehicle_type": "{{ craft.vehicle_type_id }}",
+                "make": "{{ craft.make|escapejs }}",
+                "chassis_number": "{{ craft.chassis_number|escapejs }}",
+                "engine_number": "{{ craft.engine_number|escapejs }}",
+                "mv_file_number": "{{ craft.mv_file_number|escapejs }}",
+                "vehicle_category": "{{ craft.vehicle_category|escapejs }}",
+                "body_type": "{{ craft.body_type|escapejs }}",
+                "vehicle_classification": "{{ craft.vehicle_classification|escapejs }}",
+                "aircon_type": "{{ craft.aircon_type|escapejs }}",
+                "home_port": "{{ craft.home_port|escapejs }}",
+                "model_year": "{{ craft.model_year|default_if_none:'' }}",
+                "color": "{{ craft.color|escapejs }}",
+                "engine_details": "{{ craft.engine_details|escapejs }}",
+                "fuel_type": "{{ craft.fuel_type|escapejs }}",
+                "passenger_capacity": "{{ craft.passenger_capacity|default_if_none:'' }}",
+                "odometer_km": "{{ craft.odometer_km|default_if_none:'' }}",
+                "gross_vehicle_weight": "{{ craft.gross_vehicle_weight|default_if_none:'' }}",
+                "net_capacity": "{{ craft.net_capacity|default_if_none:'' }}",
+                "engine_displacement_cc": "{{ craft.engine_displacement_cc|default_if_none:'' }}",
+                "engine_power_hp": "{{ craft.engine_power_hp|default_if_none:'' }}",
+                "registration_date": "{{ craft.registration_date|date:'Y-m-d' }}",
+                "registration_expiry": "{{ craft.registration_expiry|date:'Y-m-d' }}",
+                "inspection_expiry": "{{ craft.inspection_expiry|date:'Y-m-d' }}",
+                "hull_type": "{{ craft.hull_type|escapejs }}",
+                "length_m": "{{ craft.length_m|default_if_none:'' }}",
+                "gross_tonnage": "{{ craft.gross_tonnage|default_if_none:'' }}",
+                "net_tonnage": "{{ craft.net_tonnage|default_if_none:'' }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'fleet/js/dashboard_print.js' %}"></script>
     <script src="{% static 'fleet/js/activity_report.js' %}"></script>
     <script src="{% static 'fleet/js/deployment_location_search.js' %}"></script>
+    <script src="{% static 'fleet/js/operator_assignment.js' %}"></script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -965,34 +1105,115 @@
                 });
             }
 
-            document.querySelectorAll('#seacraftOperatorAssignmentDrawer select[name="driver_id"]').forEach(select => {
-                select.dataset.previousValue = select.value;
-                select.addEventListener('change', function () {
-                    const previousOption = Array.from(this.options).find(option => option.value === this.dataset.previousValue);
-                    const nextOption = this.options[this.selectedIndex];
-                    const craftName = this.dataset.craftName;
-                    const confirmed = window.confirm(
-                        `Confirm operator assignment change for ${craftName}?\n\n` +
-                        `From: ${previousOption ? previousOption.textContent.trim() : 'Unassigned'}\n` +
-                        `To: ${nextOption ? nextOption.textContent.trim() : 'Unassigned'}`
-                    );
-
-                    if (!confirmed) {
-                        this.value = this.dataset.previousValue;
-                        return;
-                    }
-
-                    this.form.submit();
-                });
-            });
-
             document.querySelectorAll('form').forEach(form => {
+                if (form.matches('[data-driver-assignment-form]')) return;
                 form.addEventListener('submit', function () {
                     localStorage.setItem(dispatchScrollStorageKey, window.scrollY);
                 });
             });
 
             const menuDrawer = document.getElementById('seacraftMenuDrawer');
+            const manageSeacraftModal = document.getElementById('manageSeacraftModal');
+            const seacraftRows = document.getElementById('seacraft-management-rows');
+            const seacraftStatusFilter = document.getElementById('seacraft-management-status-filter');
+            const seacraftCategoryFilter = document.getElementById('seacraft-management-category-filter');
+            if (seacraftRows && seacraftStatusFilter && seacraftCategoryFilter) {
+                const applySeacraftStatusFilter = function () {
+                    const selectedStatus = seacraftStatusFilter.value;
+                    const selectedCategory = seacraftCategoryFilter.value.trim().toLowerCase();
+                    seacraftRows.querySelectorAll('[data-seacraft-management-row]').forEach(row => {
+                        const status = row.dataset.vehicleStatus;
+                        const category = row.dataset.vehicleCategory.trim().toLowerCase();
+                        const isArchived = status === 'ARCHIVED' || status === 'DISPOSED';
+                        const matchesStatus = selectedStatus === 'all'
+                            || (selectedStatus === 'active' && !isArchived)
+                            || (selectedStatus === 'ARCHIVED' && isArchived)
+                            || (selectedStatus === 'MAINTENANCE' && (status === 'MAINTENANCE' || status === 'PENDING_DISPOSAL'))
+                            || status === selectedStatus;
+                        row.hidden = !matchesStatus
+                            || (selectedCategory !== '' && category !== selectedCategory);
+                    });
+                };
+                seacraftStatusFilter.addEventListener('change', applySeacraftStatusFilter);
+                seacraftCategoryFilter.addEventListener('change', applySeacraftStatusFilter);
+                applySeacraftStatusFilter();
+            }
+
+            function openSeacraftEdit(button) {
+                const editForm = document.getElementById('editSeacraftForm');
+                const editModal = document.getElementById('editSeacraftModal');
+                const assetsElement = document.getElementById('seacraft-assets-json');
+                if (!editForm || !editModal || !assetsElement) {
+                    throw new Error('Seacraft editing controls were not found.');
+                }
+                const asset = JSON.parse(assetsElement.textContent || '[]')
+                    .find(item => String(item.id) === button.dataset.assetId);
+                if (!asset) {
+                    throw new Error(`Seacraft ${button.dataset.assetId} was not found.`);
+                }
+                editForm.reset();
+                editForm.querySelector('[data-edit-seacraft-id]').value = asset.id;
+                Object.entries(asset).forEach(([name, value]) => {
+                    const field = editForm.querySelector(`[name="edit-craft-${name}"]`);
+                    if (field && field.type !== 'file') field.value = value || '';
+                });
+                bootstrap.Modal.getOrCreateInstance(editModal).show();
+            }
+
+            document.addEventListener('click', function (event) {
+                if (!(event.target instanceof Element)) return;
+                const editButton = event.target.closest('[data-edit-seacraft]');
+                if (!editButton) return;
+                if (manageSeacraftModal?.classList.contains('show')) {
+                    manageSeacraftModal.addEventListener('hidden.bs.modal', function () {
+                        openSeacraftEdit(editButton);
+                    }, { once: true });
+                    bootstrap.Modal.getOrCreateInstance(manageSeacraftModal).hide();
+                } else {
+                    openSeacraftEdit(editButton);
+                }
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!(event.target instanceof Element)) return;
+                const addSeacraftButton = event.target.closest('[data-open-add-seacraft]');
+                if (!addSeacraftButton) return;
+                if (!manageSeacraftModal) {
+                    throw new Error('The seacraft management panel was not found.');
+                }
+                manageSeacraftModal.addEventListener('hidden.bs.modal', function () {
+                    const addModal = document.getElementById('addSeacraftModal');
+                    if (!addModal) throw new Error('The seacraft registration form was not found.');
+                    bootstrap.Modal.getOrCreateInstance(addModal).show();
+                }, { once: true });
+                bootstrap.Modal.getOrCreateInstance(manageSeacraftModal).hide();
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!(event.target instanceof Element)) return;
+                const maintenanceButton = event.target.closest('[data-open-maintenance-report]');
+                if (!maintenanceButton) return;
+                const reportKind = document.getElementById('report-kind');
+                const reportVehicle = document.getElementById('report-vehicle');
+                const reportModal = document.getElementById('generateReportModal');
+                if (!reportKind || !reportVehicle || !reportModal) {
+                    throw new Error('Maintenance report controls were not found.');
+                }
+                reportKind.value = 'maintenance';
+                reportKind.dispatchEvent(new Event('change', { bubbles: true }));
+                reportVehicle.value = maintenanceButton.dataset.openMaintenanceReport;
+                const parentModal = maintenanceButton.closest('.modal');
+                const openReport = function () {
+                    bootstrap.Modal.getOrCreateInstance(reportModal).show();
+                };
+                if (parentModal?.classList.contains('show')) {
+                    parentModal.addEventListener('hidden.bs.modal', openReport, { once: true });
+                    bootstrap.Modal.getOrCreateInstance(parentModal).hide();
+                } else {
+                    openReport();
+                }
+            });
+
             if (menuDrawer) {
                 menuDrawer.querySelectorAll('[data-menu-action]').forEach(button => {
                     button.addEventListener('click', function () {
@@ -1009,6 +1230,22 @@
                         window.print();
                     } else if (action === 'view-incidents') {
                         document.getElementById('filedIncidentReports').scrollIntoView({ behavior: 'smooth' });
+                    } else if (action === 'manage-seacraft') {
+                        if (!manageSeacraftModal) throw new Error('The seacraft management panel was not found.');
+                        bootstrap.Modal.getOrCreateInstance(manageSeacraftModal).show();
+                    } else if (action === 'maintenance-report') {
+                        const reportKind = document.getElementById('report-kind');
+                        const reportVehicle = document.getElementById('report-vehicle');
+                        const fleetWideInput = document.getElementById('report-fleet-wide');
+                        const reportModal = document.getElementById('generateReportModal');
+                        if (!reportKind || !reportVehicle || !fleetWideInput || !reportModal) {
+                            throw new Error('Maintenance report controls were not found.');
+                        }
+                        reportKind.value = 'maintenance';
+                        reportKind.dispatchEvent(new Event('change', { bubbles: true }));
+                        reportVehicle.value = '';
+                        fleetWideInput.value = 'true';
+                        bootstrap.Modal.getOrCreateInstance(reportModal).show();
                     } else if (action === 'add-operator') {
                         const modal = document.getElementById('addSeacraftOperatorModal');
                         bootstrap.Modal.getOrCreateInstance(modal).show();

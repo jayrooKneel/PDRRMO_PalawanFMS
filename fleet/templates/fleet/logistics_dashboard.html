@@ -26,11 +26,6 @@
         .asset-card { border: 1px solid #dee2e6; border-top: 4px solid #1A365D; border-radius: .5rem; background: #fff; height: 100%; }
         .asset-card-maritime { border-top-color: #0284C7; }
         .asset-card-image { display: block; width: 100%; height: 72px; object-fit: contain; background: #f1f5f9; border-radius: .35rem; }
-        .readiness-card { border: 0; border-left: 5px solid #1A365D; min-height: 112px; }
-        .readiness-card.is-ready { border-left-color: #198754; }
-        .readiness-card.is-active { border-left-color: #0d6efd; }
-        .readiness-card.is-alert { border-left-color: #dc3545; }
-        .dashboard-section-label { letter-spacing: .08em; font-size: .75rem; }
         .notification-ribbon {
             position: fixed;
             right: 24px;
@@ -221,22 +216,7 @@
         </div>
 
         <h3 class="fw-bold mb-4" style="color: #1A365D;">Personnel Deployment & Fleet Control Registry</h3>
-        <section class="mb-4" aria-labelledby="readinessSummaryTitle" data-dashboard-refresh-content="logistics-summary">
-            <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
-                <div>
-                    <div class="dashboard-section-label text-uppercase fw-bold text-primary">Operational picture</div>
-                    <h2 class="h4 mb-0" id="readinessSummaryTitle">Fleet Readiness Summary</h2>
-                </div>
-                <span class="small text-muted">Current logistics status · {{ today|date:"M j, Y" }}</span>
-            </div>
-            <div class="row g-3">
-                <div class="col-6 col-xl-2"><div class="card readiness-card h-100"><div class="card-body"><div class="small text-muted">Total assets</div><div class="fs-3 fw-bold">{{ fleet_total }}</div><div class="small text-muted">{{ land_vehicles|length }} land · {{ sea_crafts|length }} seacraft</div></div></div></div>
-                <div class="col-6 col-xl-2"><div class="card readiness-card is-ready h-100"><div class="card-body"><div class="small text-muted">Operational</div><div class="fs-3 fw-bold text-success">{{ operational_total }}</div><div class="small text-muted">Ready for dispatch</div></div></div></div>
-                <div class="col-6 col-xl-2"><div class="card readiness-card is-active h-100"><div class="card-body"><div class="small text-muted">Deployed</div><div class="fs-3 fw-bold text-primary">{{ deployed_total }}</div><div class="small text-muted">Active field missions</div></div></div></div>
-                <div class="col-6 col-xl-2"><div class="card readiness-card is-alert h-100"><div class="card-body"><div class="small text-muted">Maintenance</div><div class="fs-3 fw-bold text-danger">{{ maintenance_total }}</div><div class="small text-muted">Including disposal review</div></div></div></div>
-                <div class="col-6 col-xl-2"><div class="card readiness-card h-100"><div class="card-body"><div class="small text-muted">Active operators</div><div class="fs-3 fw-bold">{{ active_driver_total }}</div><div class="small text-muted">{{ land_driver_total }} drivers · {{ sea_operator_total }} seacraft</div></div></div></div>
-                <div class="col-6 col-xl-2"><div class="card readiness-card {% if expired_active_drivers %}is-alert{% endif %} h-100"><div class="card-body"><div class="small text-muted">License alerts</div><div class="fs-3 fw-bold {% if expired_active_drivers %}text-danger{% endif %}">{{ license_alert_total }}</div><div class="small text-muted">Expired licenses or expiring while assigned</div></div></div></div>
-            </div>
+        {% include "fleet/_readiness_summary.html" with readiness_refresh_key="logistics-summary" readiness_heading="Fleet Readiness Summary" readiness_status_label="Current logistics status" readiness_asset_total=fleet_total readiness_assets_caption=readiness_assets_caption readiness_operational_total=operational_total readiness_deployed_total=deployed_total readiness_maintenance_total=maintenance_total readiness_operator_total=active_driver_total readiness_operators_caption=readiness_operators_caption readiness_license_alert_total=license_alert_total %}
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <button type="button" class="btn btn-orange" data-dashboard-action="add-asset"><i class="fa-solid fa-plus me-1"></i>Add fleet asset</button>
                 <button type="button" class="btn btn-outline-primary" data-dashboard-action="manage-assets"><i class="fa-solid fa-list-check me-1"></i>Manage fleet</button>
@@ -244,7 +224,6 @@
                 <button type="button" class="btn btn-outline-success" data-dashboard-action="maintenance-report"><i class="fa-solid fa-file-lines me-1"></i>Maintenance report</button>
                 <button type="button" class="btn btn-outline-danger" data-dashboard-action="file-incident"><i class="fa-solid fa-triangle-exclamation me-1"></i>Add incident</button>
             </div>
-        </section>
         <div data-dashboard-refresh-content="logistics-license-alerts">
         {% if expired_active_drivers %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert" id="expired-license-alert">
@@ -345,7 +324,7 @@
                             {% for vehicle in land_standby %}
                             <article class="asset-card shadow-sm">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
-                                    <img src="{% static 'fleet/images/land-vehicle.svg' %}" alt="Land vehicle" class="asset-card-image mb-2">
+                                    {% include "fleet/_vehicle_category_image.html" with asset=vehicle %}
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ vehicle.model_name }}</h5>
@@ -390,7 +369,7 @@
                             {% for vehicle in land_deployed %}
                             <article class="asset-card shadow-sm border-primary">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
-                                    <img src="{% static 'fleet/images/land-vehicle.svg' %}" alt="Land vehicle" class="asset-card-image mb-2">
+                                    {% include "fleet/_vehicle_category_image.html" with asset=vehicle %}
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ vehicle.model_name }}</h5>
@@ -446,7 +425,7 @@
                                         </select>
                                         <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Set priority</button>
                                     </form>
-                                    <img src="{% static 'fleet/images/land-vehicle.svg' %}" alt="Land vehicle" class="asset-card-image mb-2">
+                                    {% include "fleet/_vehicle_category_image.html" with asset=vehicle %}
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ vehicle.model_name }}</h5>
@@ -543,7 +522,7 @@
                             {% for craft in sea_standby %}
                             <article class="asset-card asset-card-maritime shadow-sm">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
-                                    <img src="{% static 'fleet/images/seacraft.svg' %}" alt="Seacraft" class="asset-card-image mb-2">
+                                    {% include "fleet/_vehicle_category_image.html" with asset=craft %}
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ craft.model_name }}</h5>
@@ -588,7 +567,7 @@
                             {% for craft in sea_deployed %}
                             <article class="asset-card asset-card-maritime shadow-sm border-primary">
                                 <div class="asset-card-content p-3 d-flex flex-column h-100">
-                                    <img src="{% static 'fleet/images/seacraft.svg' %}" alt="Seacraft" class="asset-card-image mb-2">
+                                    {% include "fleet/_vehicle_category_image.html" with asset=craft %}
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ craft.model_name }}</h5>
@@ -644,7 +623,7 @@
                                         </select>
                                         <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">Set priority</button>
                                     </form>
-                                    <img src="{% static 'fleet/images/seacraft.svg' %}" alt="Seacraft" class="asset-card-image mb-2">
+                                    {% include "fleet/_vehicle_category_image.html" with asset=craft %}
                                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                         <div>
                                             <h5 class="fs-6 fw-bold mb-0" style="color: #1A365D;">{{ craft.model_name }}</h5>
@@ -1441,6 +1420,7 @@
     <script src="{% static 'fleet/js/dashboard_auto_refresh.js' %}"></script>
     <script src="{% static 'fleet/js/fleet_asset_registration.js' %}"></script>
     <script src="{% static 'fleet/js/operator_document_ocr.js' %}"></script>
+    <script src="{% static 'fleet/js/operator_assignment.js' %}"></script>
     <script src="{% static 'fleet/js/logistics_menu.js' %}"></script>
     <script src="{% static 'fleet/js/logistics_deployment.js' %}"></script>
 

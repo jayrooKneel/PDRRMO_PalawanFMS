@@ -222,6 +222,38 @@ class Vehicle(models.Model):
     deployment_purpose = models.CharField(max_length=255, blank=True, null=True)
     deployment_time = models.DateTimeField(blank=True, null=True)
 
+    @property
+    def illustration_category(self):
+        vehicle_type_name = self.vehicle_type.name if self.vehicle_type_id else ''
+        description = ' '.join(
+            value for value in (
+                vehicle_type_name,
+                self.vehicle_category,
+                self.body_type,
+                self.model_name,
+                self.hull_type,
+            ) if value
+        ).casefold()
+
+        if 'ambulance' in description:
+            return 'ambulance'
+        if any(term in description for term in ('motorcycle', 'motorbike', 'motor cycle')):
+            return 'motorcycle'
+        if any(term in description for term in ('truck', 'lorry')):
+            return 'truck'
+        if any(term in description for term in ('rubber boat', 'inflatable boat', 'zodiac')):
+            return 'rubber-boat'
+        if vehicle_type_name.strip().casefold() in {'sea', 'sea craft'} or any(
+            term in description
+            for term in ('marine', 'maritime', 'sea craft', 'seacraft', 'vessel', 'boat')
+        ):
+            return 'seacraft'
+        return 'land-vehicle'
+
+    @property
+    def illustration_path(self):
+        return f'fleet/images/{self.illustration_category}.svg'
+
     def save(self, *args, **kwargs):
         previous = None
         if not self._state.adding:

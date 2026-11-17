@@ -834,7 +834,15 @@ def assign_vehicle_operator(vehicle, driver, allow_seacraft_reassignment=False):
     return None
 
 
-def save_vehicle_driver_assignment(request, vehicle):
+def user_can_access_seacraft_dispatch(user):
+    return (
+        user.is_superuser
+        or user.groups.filter(name="Seacraft Dispatch").exists()
+        or any(x in user.username.lower() for x in ["sea", "maritime"])
+    )
+
+
+def save_vehicle_driver_assignment(request, vehicle, allow_seacraft_reassignment=False):
     previous_driver_id = vehicle.assigned_driver_id
     released_vehicle_id = None
 
@@ -849,7 +857,7 @@ def save_vehicle_driver_assignment(request, vehicle):
             'driver_name': vehicle.assigned_driver.name if vehicle.assigned_driver else '',
         }, status=status)
 
-    if vehicle.status in {'DEPLOYED', 'PENDING_DISPOSAL', 'ARCHIVED'}:
+    if vehicle.status in {'DEPLOYED', 'PENDING_DISPOSAL', 'ARCHIVED', 'DISPOSED'}:
         return assignment_response(
             f"Operator assignments cannot be changed while '{vehicle.model_name}' is {vehicle.get_status_display().lower()}.",
             False,
@@ -882,14 +890,18 @@ def save_vehicle_driver_assignment(request, vehicle):
             previous_assignment = Vehicle.objects.filter(
                 assigned_driver=driver_obj,
             ).exclude(pk=vehicle.pk).first()
-            conflicting_vehicle = assign_vehicle_operator(vehicle, driver_obj)
+            conflicting_vehicle = assign_vehicle_operator(
+                vehicle,
+                driver_obj,
+                allow_seacraft_reassignment=allow_seacraft_reassignment,
+            )
             if conflicting_vehicle:
                 return assignment_response(
                     f"RESTRICTION: Personnel '{driver_obj.name}' is already assigned to active fleet asset '{conflicting_vehicle.model_name}'.",
                     False,
                     409,
                 )
-            if previous_assignment and previous_assignment.assigned_driver_id is None:
+            if previous_assignment:
                 released_vehicle_id = previous_assignment.pk
         vehicle.save()
 
@@ -2810,6 +2822,12 @@ def logistics_dashboard(request):
         'management_sea_assets': management_sea_assets,
         'today': today,
         'fleet_total': len(land_vehicles) + len(sea_crafts),
+        'readiness_assets_caption': (
+            f'{len(land_vehicles)} land · {len(sea_crafts)} seacraft'
+        ),
+        'readiness_operators_caption': (
+            f'{len(land_drivers)} drivers · {len(sea_drivers)} seacraft'
+        ),
         'operational_total': len(land_standby) + len(sea_standby),
         'deployed_total': len(land_deployed) + len(sea_deployed),
         'maintenance_total': len(land_maintenance) + len(sea_maintenance),
@@ -2907,6 +2925,37 @@ def logistics_assign_driver(request, vehicle_id):
             status=404,
         )
     return save_vehicle_driver_assignment(request, vehicle)
+
+
+@login_required
+def seacraft_assign_driver(request, vehicle_id):
+    if request.method != 'POST':
+        return JsonResponse(
+            {'ok': False, 'message': 'Driver assignments must be submitted with POST.'},
+            status=405,
+        )
+    if not user_can_access_seacraft_dispatch(request.user):
+        return JsonResponse(
+            {'ok': False, 'message': 'Access restricted to authorized Maritime Dispatchers.'},
+            status=403,
+        )
+    vehicle = Vehicle.objects.select_related(
+        'vehicle_type',
+        'assigned_driver',
+    ).filter(
+        seacraft_vehicle_type_filter(),
+        pk=vehicle_id,
+    ).first()
+    if vehicle is None:
+        return JsonResponse(
+            {'ok': False, 'message': 'This seacraft no longer exists. Refresh the dashboard and try again.'},
+            status=404,
+        )
+    return save_vehicle_driver_assignment(
+        request,
+        vehicle,
+        allow_seacraft_reassignment=True,
+    )
 
 
 @login_required
@@ -3034,11 +3083,7 @@ def logistics_registration_document(request, document_id):
 @login_required
 def seacraft_dispatch_view(request):
     user = request.user
-    if not (
-        user.is_superuser
-        or user.groups.filter(name="Seacraft Dispatch").exists()
-        or any(x in user.username.lower() for x in ["sea", "maritime"])
-    ):
+    if not user_can_access_seacraft_dispatch(user):
         messages.error(request, "Access restricted to authorized Maritime Dispatchers.")
         return redirect("dashboard_portal:homepage")
 
@@ -3129,6 +3174,46 @@ def seacraft_dispatch_view(request):
                 messages.success(request, f"Seacraft '{registered_crafts[0].model_name}' registered.")
             else:
                 messages.success(request, f"{len(registered_crafts)} seacrafts registered.")
+            return redirect("dashboard_portal:seacraft_dispatch")
+
+        if action == "update_seacraft":
+            vehicle = get_object_or_404(
+                Vehicle.objects.filter(seacraft_vehicle_type_filter()),
+                pk=request.POST.get("vehicle_id"),
+            )
+            form = FleetAssetRegistrationForm(
+                request.POST,
+                request.FILES,
+                prefix="edit-craft",
+                instance=vehicle,
+            )
+            form.fields["vehicle_type"].queryset = VehicleType.objects.filter(
+                Q(name__iexact="MARINE") | Q(name__iexact="MARITIME")
+            ).order_by("name")
+            if form.is_valid():
+                updated_craft = form.save(commit=False)
+                updated_craft.odometer_km = None
+                updated_craft.save()
+                for uploaded_file in form.cleaned_data.get("registration_documents", []):
+                    VehicleRegistrationDocument.objects.create(
+                        vehicle=updated_craft,
+                        file=uploaded_file,
+                    )
+                log_action_to_admin(
+                    request,
+                    updated_craft,
+                    CHANGE,
+                    f"Updated seacraft record for '{updated_craft.model_name}'.",
+                )
+                messages.success(
+                    request,
+                    f"Seacraft '{updated_craft.model_name}' was updated.",
+                )
+            else:
+                for field, errors in form.errors.items():
+                    label = form.fields[field].label if field in form.fields else "Seacraft"
+                    for error in errors:
+                        messages.error(request, f"{label}: {error}")
             return redirect("dashboard_portal:seacraft_dispatch")
 
         vehicle = get_object_or_404(
@@ -3369,12 +3454,37 @@ def seacraft_dispatch_view(request):
         )
     )
     sea_crafts = add_disposal_reasons(sea_crafts)
+    management_sea_assets = (
+        Vehicle.objects.filter(seacraft_vehicle_type_filter())
+        .select_related("vehicle_type", "assigned_driver")
+        .order_by("status", "model_name")
+    )
+    seacraft_categories = sorted(
+        {
+            (craft.vehicle_category or craft.vehicle_type.name).strip()
+            for craft in management_sea_assets
+        },
+        key=str.casefold,
+    )
     sea_standby = [craft for craft in sea_crafts if craft.status == "OPERATIONAL"]
     sea_deployed = [craft for craft in sea_crafts if craft.status == "DEPLOYED"]
     sea_maintenance = [
         craft for craft in sea_crafts
         if craft.status in {"MAINTENANCE", "PENDING_DISPOSAL"}
     ]
+    readiness_license_alert_total = sum(
+        driver_license_is_expired(driver, today)
+        for driver in sea_drivers
+    ) + sum(
+        bool(craft.assigned_driver)
+        and not driver_license_is_expired(craft.assigned_driver, today)
+        and driver_license_expires_soon(craft.assigned_driver, today)
+        for craft in sea_crafts
+    )
+    seacraft_update_form = FleetAssetRegistrationForm(prefix="edit-craft")
+    seacraft_update_form.fields["vehicle_type"].queryset = VehicleType.objects.filter(
+        Q(name__iexact="MARINE") | Q(name__iexact="MARITIME")
+    ).order_by("name")
 
     return render(
         request,
@@ -3384,11 +3494,23 @@ def seacraft_dispatch_view(request):
             "sea_standby": sea_standby,
             "sea_deployed": sea_deployed,
             "sea_maintenance": sea_maintenance,
+            "management_sea_assets": management_sea_assets,
+            "seacraft_categories": seacraft_categories,
+            "readiness_asset_total": len(sea_crafts),
+            "readiness_assets_caption": "Seacraft fleet only",
+            "readiness_operational_total": len(sea_standby),
+            "readiness_deployed_total": len(sea_deployed),
+            "readiness_maintenance_total": len(sea_maintenance),
+            "readiness_operator_total": len(sea_drivers),
+            "readiness_operators_caption": "Active seacraft operators",
+            "readiness_license_alert_total": readiness_license_alert_total,
             "drivers": sea_drivers,
+            "fleet_assets": sea_crafts,
             "assigned_driver_ids": assigned_driver_ids,
             "maintenance_priority_choices": Vehicle.MAINTENANCE_PRIORITY_CHOICES,
             "operator_form": OperatorDetailsForm(allowed_operator_type='SEA'),
             "seacraft_forms": [SeacraftRegistrationForm(prefix='craft-0')],
+            "seacraft_update_form": seacraft_update_form,
             "incident_form": FleetIncidentForm(
                 vehicle_queryset=sea_crafts.select_related('vehicle_type'),
             ),

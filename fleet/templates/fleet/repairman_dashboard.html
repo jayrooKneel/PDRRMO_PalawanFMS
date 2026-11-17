@@ -106,7 +106,7 @@
                     </thead>
                     <tbody>
                         {% for vehicle in vehicles %}
-                        <tr data-land-fleet-group="{% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' %}maintenance{% else %}operational{% endif %}"{% if vehicle.status == 'OPERATIONAL' or vehicle.status == 'DEPLOYED' %} hidden{% endif %}>
+                        <tr data-illustration="{{ vehicle.illustration_category }}" data-land-fleet-group="{% if vehicle.status == 'MAINTENANCE' or vehicle.status == 'PENDING_DISPOSAL' %}maintenance{% else %}operational{% endif %}"{% if vehicle.status == 'OPERATIONAL' or vehicle.status == 'DEPLOYED' %} hidden{% endif %}>
                             <td class="fw-bold text-dark">
                                 {{ vehicle.model_name }} 
                                 <span class="badge bg-secondary font-monospace text-uppercase ms-1">{{ vehicle.vehicle_type.name }}</span>

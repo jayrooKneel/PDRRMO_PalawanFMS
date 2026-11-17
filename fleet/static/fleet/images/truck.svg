@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-labelledby="title">
+  <title id="title">Rescue truck</title>
+  <rect width="640" height="240" rx="24" fill="#e8eef5"/>
+  <path d="M0 190h640v50H0z" fill="#cbd5e1"/>
+  <path d="M63 98h322a16 16 0 0 1 16 16v64H63z" fill="#1a365d"/>
+  <path d="M401 125h97l55 53H401z" fill="#ef5b25"/>
+  <path d="M430 139h58l34 31h-92z" fill="#bae6fd"/>
+  <path d="M83 117h93v37H83zM193 117h93v37h-93zM303 117h78v37h-78z" fill="#bae6fd"/>
+  <path d="M54 171h535v19H54z" fill="#334155"/>
+  <circle cx="160" cy="184" r="33" fill="#0f172a"/>
+  <circle cx="160" cy="184" r="15" fill="#cbd5e1"/>
+  <circle cx="475" cy="184" r="33" fill="#0f172a"/>
+  <circle cx="475" cy="184" r="15" fill="#cbd5e1"/>
+  <path d="M81 158h28v11H81zM548 158h27v11h-27z" fill="#fbbf24"/>
+  <path d="M129 76h119v9H129z" fill="#ef4444"/>
+  <path d="M155 77v14m68-14v14" stroke="#1a365d" stroke-width="6"/>
+  <path d="M262 129h20v7h-20zM297 129h20v7h-20z" fill="#f8fafc"/>
+</svg>

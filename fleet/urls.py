@@ -35,6 +35,11 @@ urlpatterns = [
         name='logistics_assign_driver',
     ),
     path(
+        'seacraft/vehicles/<int:vehicle_id>/driver/',
+        views.seacraft_assign_driver,
+        name='seacraft_assign_driver',
+    ),
+    path(
         'logistics/registration-documents/<int:document_id>/',
         views.logistics_registration_document,
         name='logistics_registration_document',

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-labelledby="title">
+  <title id="title">Ambulance</title>
+  <rect width="640" height="240" rx="24" fill="#e8eef5"/>
+  <path d="M0 190h640v50H0z" fill="#cbd5e1"/>
+  <path d="M89 91h296a20 20 0 0 1 20 20v66H69v-66a20 20 0 0 1 20-20Z" fill="#1a365d"/>
+  <path d="M405 123h94l61 55H405z" fill="#ef5b25"/>
+  <path d="M437 137h53l32 30h-85z" fill="#bae6fd"/>
+  <path d="M91 108h91v45H91zM197 108h84v45h-84zM296 108h78v45h-78z" fill="#bae6fd"/>
+  <path d="M105 158h422v13H105z" fill="#fff"/>
+  <path d="M54 171h535v19H54z" fill="#334155"/>
+  <circle cx="160" cy="184" r="33" fill="#0f172a"/>
+  <circle cx="160" cy="184" r="15" fill="#cbd5e1"/>
+  <circle cx="475" cy="184" r="33" fill="#0f172a"/>
+  <circle cx="475" cy="184" r="15" fill="#cbd5e1"/>
+  <path d="M81 158h28v11H81zM548 158h27v11h-27z" fill="#fbbf24"/>
+  <path d="M133 120h14v12h12v14h-12v12h-14v-12h-12v-14h12z" fill="#dc2626"/>
+  <path d="M181 76h115v9H181z" fill="#ef4444"/>
+</svg>

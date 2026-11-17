@@ -68,6 +68,29 @@
     box-shadow: 0 2px 8px rgb(15 23 42 / 6%);
 }
 
+.dashboard-shell .readiness-card {
+    border: 0;
+    border-left: 5px solid #1a365d;
+    min-height: 112px;
+}
+
+.dashboard-shell .readiness-card.is-ready {
+    border-left-color: #198754;
+}
+
+.dashboard-shell .readiness-card.is-active {
+    border-left-color: #0d6efd;
+}
+
+.dashboard-shell .readiness-card.is-alert {
+    border-left-color: #dc3545;
+}
+
+.dashboard-shell .dashboard-section-label {
+    letter-spacing: .08em;
+    font-size: .75rem;
+}
+
 @media (max-width: 767.98px) {
     .dashboard-shell > main,
     .dashboard-shell > .container-fluid {

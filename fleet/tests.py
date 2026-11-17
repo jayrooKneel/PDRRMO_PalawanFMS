@@ -34,6 +34,36 @@ from .vehicle_document_ocr import (
 )
 
 
+class VehicleIllustrationTests(TestCase):
+    def test_selects_an_illustration_from_vehicle_category_and_description(self):
+        land_type = VehicleType.objects.create(name='LAND')
+        marine_type = VehicleType.objects.create(name='MARINE')
+        sea_type = VehicleType.objects.create(name='SEA')
+        examples = (
+            (land_type, 'Rescue Ambulance 01', '', 'ambulance'),
+            (land_type, 'Response Unit', 'Motorcycle', 'motorcycle'),
+            (land_type, 'Rescue Truck', '', 'truck'),
+            (marine_type, 'Coastal Response', 'Rubber Boat', 'rubber-boat'),
+            (marine_type, 'Coastal Vessel', '', 'seacraft'),
+            (sea_type, 'Coastal Unit', '', 'seacraft'),
+            (land_type, 'Utility Vehicle', '', 'land-vehicle'),
+        )
+
+        for index, (vehicle_type, name, category, expected) in enumerate(examples):
+            with self.subTest(name=name):
+                vehicle = Vehicle.objects.create(
+                    model_name=name,
+                    plate_number=f'ILLUSTRATION-{index}',
+                    vehicle_type=vehicle_type,
+                    vehicle_category=category,
+                )
+                self.assertEqual(vehicle.illustration_category, expected)
+                self.assertEqual(
+                    vehicle.illustration_path,
+                    f'fleet/images/{expected}.svg',
+                )
+
+
 class SeedDriverDemoDataTests(TestCase):
     def test_seed_replaces_drivers_and_clears_vehicle_assignments(self):
         vehicle_type = VehicleType.objects.create(name='TRUCK')
@@ -1348,6 +1378,20 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'value="inventory">Fleet inventory')
         self.assertContains(response, 'View more vehicle details')
 
+    def test_logistics_cards_use_category_specific_vehicle_illustrations(self):
+        motorcycle_type = VehicleType.objects.create(name='MOTORCYCLE')
+        Vehicle.objects.create(
+            model_name='Rescue Motorcycle',
+            plate_number='MOTO-ILLUSTRATION-01',
+            vehicle_type=motorcycle_type,
+        )
+
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '/static/fleet/images/motorcycle.svg')
+        self.assertContains(response, 'alt="Rescue Motorcycle illustration"')
+
     def test_dashboard_prompts_users_without_recovery_settings(self):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
 
@@ -2351,6 +2395,10 @@ class DispatchDashboardAlignmentTests(TestCase):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['fleet_total'], 2)
+        self.assertEqual(response.context['operational_total'], 2)
+        self.assertContains(response, 'Fleet Readiness Summary')
+        self.assertContains(response, '1 land · 1 seacraft')
         self.assertContains(response, 'src="/static/fleet/js/dashboard_auto_refresh.js"')
         self.assertContains(response, 'data-logistics-dashboard')
         for section in (
@@ -3103,6 +3151,7 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertNotContains(response, 'Save All Operator Assignments')
         self.assertContains(response, 'data-driver-assignment-form')
         self.assertContains(response, 'data-assignment-status')
+        self.assertContains(response, 'fleet/js/operator_assignment.js')
         self.assertNotContains(response, 'onchange="this.form.submit()"')
         self.assertNotContains(response, 'name="action" value="set_driver"')
         self.assertContains(
@@ -4037,6 +4086,174 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(response.content.count(b'data-horizontal-card-scroll="true"'), 3)
         self.assertNotContains(response, 'data-vertical-card-scroll="true"')
 
+    def test_seacraft_dispatch_exposes_seacraft_only_management_controls(self):
+        sea_vehicle = self.create_vehicle(
+            model_name='Managed Dispatch Vessel',
+            plate_number='SEA-MANAGED-01',
+            vehicle_type=self.marine_type,
+            vehicle_category='Rubber Boat',
+        )
+        self.create_vehicle(
+            model_name='Excluded Land Vehicle',
+            plate_number='LAND-MANAGED-01',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        response = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-menu-action="manage-seacraft"')
+        self.assertContains(response, 'data-bs-target="#manageSeacraftModal"')
+        self.assertContains(response, 'data-bs-target="#seacraftOperatorAssignmentDrawer"')
+        self.assertContains(response, 'id="manageSeacraftModal"')
+        self.assertContains(response, 'Fleet Asset Management')
+        self.assertContains(response, 'Vehicle category')
+        self.assertContains(response, 'value="rubber boat">Rubber Boat</option>')
+        self.assertContains(response, 'data-vehicle-category="rubber boat"')
+        self.assertContains(response, 'data-seacraft-management-row')
+        self.assertContains(response, 'data-edit-seacraft')
+        self.assertContains(response, 'data-open-maintenance-report')
+        self.assertContains(response, 'Managed Dispatch Vessel')
+        self.assertNotContains(response, 'Excluded Land Vehicle')
+        self.assertEqual(
+            list(response.context['management_sea_assets']),
+            [sea_vehicle],
+        )
+
+    def test_seacraft_dispatch_can_edit_only_seacraft_assets(self):
+        sea_vehicle = self.create_vehicle(
+            model_name='Original Dispatch Vessel',
+            plate_number='SEA-EDIT-01',
+            vehicle_type=self.marine_type,
+            hull_type='Banca',
+        )
+        land_vehicle = self.create_vehicle(
+            model_name='Protected Land Vehicle',
+            plate_number='LAND-EDIT-01',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.seacraft_user)
+        edit_data = {
+            'action': 'update_seacraft',
+            'vehicle_id': sea_vehicle.pk,
+            'edit-craft-model_name': 'Updated Dispatch Vessel',
+            'edit-craft-plate_number': sea_vehicle.plate_number,
+            'edit-craft-vehicle_type': self.maritime_type.pk,
+            'edit-craft-hull_type': 'RHIB',
+            'edit-craft-make': 'Updated Marine Make',
+        }
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            edit_data,
+        )
+
+        self.assertRedirects(response, reverse('dashboard_portal:seacraft_dispatch'))
+        sea_vehicle.refresh_from_db()
+        self.assertEqual(sea_vehicle.model_name, 'Updated Dispatch Vessel')
+        self.assertEqual(sea_vehicle.hull_type, 'RHIB')
+        self.assertEqual(sea_vehicle.make, 'Updated Marine Make')
+        self.assertEqual(sea_vehicle.vehicle_type, self.maritime_type)
+
+        invalid_type_data = {
+            **edit_data,
+            'vehicle_id': sea_vehicle.pk,
+            'edit-craft-model_name': 'Invalid Land Type Update',
+            'edit-craft-vehicle_type': self.land_type.pk,
+        }
+        rejected_type = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            invalid_type_data,
+        )
+        self.assertRedirects(
+            rejected_type,
+            reverse('dashboard_portal:seacraft_dispatch'),
+        )
+        sea_vehicle.refresh_from_db()
+        self.assertEqual(sea_vehicle.model_name, 'Updated Dispatch Vessel')
+
+        edit_data['vehicle_id'] = land_vehicle.pk
+        denied = self.client.post(
+            reverse('dashboard_portal:seacraft_dispatch'),
+            edit_data,
+        )
+        self.assertEqual(denied.status_code, 404)
+        land_vehicle.refresh_from_db()
+        self.assertEqual(land_vehicle.model_name, 'Protected Land Vehicle')
+
+    def test_seacraft_readiness_summary_excludes_land_assets_and_operators(self):
+        tomorrow = timezone.localdate() + timedelta(days=10)
+        self.create_vehicle(
+            model_name='Readiness Operational Craft',
+            plate_number='SEA-READY-01',
+            vehicle_type=self.marine_type,
+            assigned_driver=self.operator,
+        )
+        self.create_vehicle(
+            model_name='Readiness Deployed Craft',
+            plate_number='SEA-READY-02',
+            vehicle_type=self.maritime_type,
+            status='DEPLOYED',
+        )
+        self.create_vehicle(
+            model_name='Readiness Maintenance Craft',
+            plate_number='SEA-READY-03',
+            vehicle_type=self.marine_type,
+            status='MAINTENANCE',
+        )
+        self.create_vehicle(
+            model_name='Readiness Disposal Craft',
+            plate_number='SEA-READY-04',
+            vehicle_type=self.marine_type,
+            status='PENDING_DISPOSAL',
+        )
+        expiring_operator = Driver.objects.create(
+            name='Readiness Expiring Operator',
+            license_number='MAR-READY-SOON',
+            license_expiry=tomorrow,
+        )
+        self.create_vehicle(
+            model_name='Readiness Expiring Craft',
+            plate_number='SEA-READY-05',
+            vehicle_type=self.marine_type,
+            status='DEPLOYED',
+            assigned_driver=expiring_operator,
+        )
+        Driver.objects.create(
+            name='Readiness Expired Operator',
+            license_number='MAR-READY-EXPIRED',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        land_expired_operator = Driver.objects.create(
+            name='Readiness Expired Land Driver',
+            license_number='LTO-READY-EXPIRED',
+            license_expiry=timezone.localdate() - timedelta(days=1),
+        )
+        self.create_vehicle(
+            model_name='Readiness Land Vehicle',
+            plate_number='LAND-READY-01',
+            vehicle_type=self.land_type,
+            assigned_driver=land_expired_operator,
+        )
+
+        dispatch_group = Group.objects.create(name='Seacraft Dispatch')
+        dispatch_user = User.objects.create_user(username='readiness_dispatcher')
+        dispatch_user.groups.add(dispatch_group)
+        self.client.force_login(dispatch_user)
+        response = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['readiness_asset_total'], 5)
+        self.assertEqual(response.context['readiness_operational_total'], 1)
+        self.assertEqual(response.context['readiness_deployed_total'], 2)
+        self.assertEqual(response.context['readiness_maintenance_total'], 2)
+        self.assertEqual(response.context['readiness_operator_total'], 3)
+        self.assertEqual(response.context['readiness_license_alert_total'], 2)
+        self.assertContains(response, 'Seacraft Fleet Readiness Summary')
+        self.assertContains(response, 'Seacraft fleet only')
+        self.assertNotContains(response, 'Readiness Land Vehicle')
+
     def test_seacraft_dispatch_colors_scheduled_maintenance_and_faults_differently(self):
         regular_maintenance = self.create_vehicle(
             model_name='Scheduled Service Craft',
@@ -4077,7 +4294,7 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, "form.addEventListener('submit'")
 
     def test_seacraft_dispatch_header_actions_are_in_menu_drawer(self):
-        self.create_vehicle(
+        craft = self.create_vehicle(
             model_name='Assignment Drawer Seacraft',
             plate_number='SEA-DRAWER-01',
             vehicle_type=self.marine_type,
@@ -4092,8 +4309,12 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertContains(response, 'data-menu-action="print"')
         self.assertContains(response, 'data-menu-action="add-operator"')
         self.assertContains(response, 'id="seacraftOperatorAssignmentDrawer"')
-        self.assertContains(response, 'name="action" value="set_driver"')
-        self.assertContains(response, 'Confirm operator assignment change')
+        self.assertContains(
+            response,
+            f'action="{reverse("dashboard_portal:seacraft_assign_driver", args=[craft.pk])}"',
+        )
+        self.assertContains(response, 'data-driver-assignment-form')
+        self.assertNotContains(response, 'Confirm operator assignment change')
         self.assertNotContains(response, 'RESET</button>')
         self.assertContains(response, 'Connected to Dispatch Server')
         self.assertContains(response, 'Log Out')
@@ -4127,6 +4348,12 @@ class DispatchDashboardAlignmentTests(TestCase):
             assignment_response,
             '[Reassign from Current Operator Vessel]',
         )
+        self.assertEqual(
+            assignment_response.content.decode().count(
+                'Reassign from Current Operator Vessel'
+            ),
+            2,
+        )
 
         response = self.client.post(
             reverse('dashboard_portal:seacraft_dispatch'),
@@ -4143,6 +4370,110 @@ class DispatchDashboardAlignmentTests(TestCase):
         target_craft.refresh_from_db()
         self.assertIsNone(source_craft.assigned_driver)
         self.assertEqual(target_craft.assigned_driver, self.operator)
+
+    def test_seacraft_assignment_endpoint_returns_json_and_reassigns_operational_operator(self):
+        source_craft = self.create_vehicle(
+            model_name='AJAX Source Vessel',
+            plate_number='SEA-AJAX-SOURCE',
+            vehicle_type=self.marine_type,
+            assigned_driver=self.operator,
+        )
+        target_craft = self.create_vehicle(
+            model_name='AJAX Target Vessel',
+            plate_number='SEA-AJAX-TARGET',
+            vehicle_type=self.maritime_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_assign_driver', args=[target_craft.pk]),
+            {'driver_id': self.operator.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.assertEqual(response.json()['released_vehicle_id'], source_craft.pk)
+        self.assertEqual(response.json()['driver_id'], self.operator.pk)
+        source_craft.refresh_from_db()
+        target_craft.refresh_from_db()
+        self.assertIsNone(source_craft.assigned_driver)
+        self.assertEqual(target_craft.assigned_driver, self.operator)
+
+    def test_seacraft_assignment_endpoint_rejects_unqualified_operator(self):
+        land_operator = Driver.objects.create(
+            name='Unqualified Land Operator',
+            license_number='LTO-SEACRAFT-01',
+        )
+        craft = self.create_vehicle(
+            model_name='Qualified Target Vessel',
+            plate_number='SEA-AJAX-INVALID',
+            vehicle_type=self.marine_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_assign_driver', args=[craft.pk]),
+            {'driver_id': land_operator.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+        self.assertIn('qualified', response.json()['message'])
+        craft.refresh_from_db()
+        self.assertIsNone(craft.assigned_driver)
+
+    def test_seacraft_assignment_endpoint_cannot_target_land_assets(self):
+        land_vehicle = self.create_vehicle(
+            model_name='Out of Scope Land Vehicle',
+            plate_number='LAND-AJAX-OUT-OF-SCOPE',
+            vehicle_type=self.land_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_assign_driver', args=[land_vehicle.pk]),
+            {'driver_id': self.operator.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(response.json()['ok'])
+        land_vehicle.refresh_from_db()
+        self.assertIsNone(land_vehicle.assigned_driver)
+
+    def test_seacraft_assignment_endpoint_requires_dispatch_access(self):
+        craft = self.create_vehicle(
+            model_name='Restricted Assignment Vessel',
+            plate_number='SEA-AJAX-RESTRICTED',
+            vehicle_type=self.marine_type,
+        )
+        unauthorized_user = User.objects.create_user(username='unauthorized_dispatch')
+        self.client.force_login(unauthorized_user)
+
+        response = self.client.post(
+            reverse('dashboard_portal:seacraft_assign_driver', args=[craft.pk]),
+            {'driver_id': self.operator.pk},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.json()['ok'])
+
+    def test_seacraft_assignment_surfaces_use_shared_ajax_form(self):
+        craft = self.create_vehicle(
+            model_name='AJAX Form Vessel',
+            plate_number='SEA-AJAX-FORM',
+            vehicle_type=self.marine_type,
+        )
+        self.client.force_login(self.seacraft_user)
+
+        response = self.client.get(reverse('dashboard_portal:seacraft_dispatch'))
+
+        self.assertContains(response, 'fleet/js/operator_assignment.js')
+        self.assertContains(response, reverse('dashboard_portal:seacraft_assign_driver', args=[craft.pk]))
+        self.assertGreaterEqual(response.content.decode().count('data-driver-assignment-form'), 2)
 
     def test_seacraft_dispatch_does_not_reassign_operator_from_deployed_vessel(self):
         source_craft = self.create_vehicle(

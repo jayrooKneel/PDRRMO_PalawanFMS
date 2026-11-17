@@ -103,7 +103,7 @@
                     </thead>
                     <tbody class="divide-y divide-gray-200 text-gray-700">
                         {% for craft in vehicles %}
-                            <tr data-sea-fleet-group="{% if craft.status == 'MAINTENANCE' or craft.status == 'PENDING_DISPOSAL' %}maintenance{% else %}operational{% endif %}"{% if craft.status == 'OPERATIONAL' or craft.status == 'DEPLOYED' %} hidden{% endif %}>
+                            <tr data-illustration="{{ craft.illustration_category }}" data-sea-fleet-group="{% if craft.status == 'MAINTENANCE' or craft.status == 'PENDING_DISPOSAL' %}maintenance{% else %}operational{% endif %}"{% if craft.status == 'OPERATIONAL' or craft.status == 'DEPLOYED' %} hidden{% endif %}>
                                 <td class="px-6 py-4 font-semibold text-gray-900">
                                     {{ craft.model_name }}
                                     {% include "fleet/_seacraft_specs.html" with craft=craft %}

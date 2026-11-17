@@ -1,4 +1,4 @@
-<tr data-driver-assignment-row data-fleet-management-row data-vehicle-category="{{ vehicle.vehicle_category|default:vehicle.vehicle_type.name|lower }}" data-vehicle-status="{{ vehicle.status }}">
+<tr data-driver-assignment-row data-fleet-management-row data-vehicle-category="{{ vehicle.vehicle_category|default:vehicle.vehicle_type.name|lower }}" data-vehicle-status="{{ vehicle.status }}" data-illustration="{{ vehicle.illustration_category }}">
     <td>
         <strong>{{ vehicle.model_name }}</strong>
         <div class="small text-muted">{{ vehicle.vehicle_type.name }} · {{ vehicle.plate_number }}</div>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-labelledby="title">
+  <title id="title">Motorcycle</title>
+  <rect width="640" height="240" rx="24" fill="#e8eef5"/>
+  <path d="M0 190h640v50H0z" fill="#cbd5e1"/>
+  <path d="M54 178h532v12H54z" fill="#334155"/>
+  <circle cx="179" cy="174" r="42" fill="#0f172a"/>
+  <circle cx="179" cy="174" r="23" fill="#cbd5e1"/>
+  <circle cx="462" cy="174" r="42" fill="#0f172a"/>
+  <circle cx="462" cy="174" r="23" fill="#cbd5e1"/>
+  <path d="m179 174 67-56 59 56h-81l-45-56h68l54 56 41-56h52l-25 16h-25l-42 56h-37l-49-46-34 46z" fill="#ef5b25"/>
+  <path d="M257 111h60l25 12-10 13h-61z" fill="#1a365d"/>
+  <path d="M277 96h57l18 11-7 11h-66z" fill="#1a365d"/>
+  <path d="M362 112h49l25 14h-62z" fill="#334155"/>
+  <path d="M390 103h42l18 11h-55z" fill="#1a365d"/>
+  <path d="m244 117-18-20 8-7 31 14zM407 112l18-24 8 4-11 24z" fill="#334155"/>
+  <path d="M133 128h18l-7 17h-18z" fill="#fbbf24"/>
+  <rect x="454" y="126" width="21" height="9" rx="4" fill="#fbbf24"/>
+  <path d="M220 90h68v8h-68z" fill="#ef4444"/>
+</svg>
