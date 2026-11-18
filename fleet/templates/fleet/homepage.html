@@ -145,11 +145,25 @@
         .status-pill.op { background-color: var(--status-op-bg); color: var(--status-op); border-color: rgba(21, 128, 61, 0.2); }
         .status-pill.maint { background-color: var(--status-maint-bg); color: var(--status-maint); border-color: rgba(185, 28, 28, 0.2); }
         .status-pill.dep { background-color: var(--status-dep-bg); color: var(--status-dep); border-color: rgba(29, 78, 216, 0.2); }
+        .public-section-tabs .nav-link {
+            background: #ffffff;
+            border: 1px solid var(--brand-border);
+            color: var(--brand-blue);
+            font-weight: 700;
+            min-height: 48px;
+        }
+        .public-section-tabs .nav-link.active {
+            background: var(--brand-blue);
+            border-color: var(--brand-blue);
+            color: #ffffff;
+        }
         
         .print-header { display: none; }
 
         @media print {
             .pdrrmo-nav, .btn, form, .no-print, script { display: none !important; }
+            .public-section-tabs { display: none !important; }
+            .public-dashboard-sections > .tab-pane { display: block !important; opacity: 1 !important; }
             @page { margin: 15mm; }
             body { background: #FFFFFF !important; color: #000000 !important; font-size: 11pt !important; line-height: 1.4; }
             .print-header { display: block !important; margin-bottom: 7mm; border-bottom: 1px solid #64748b !important; padding-bottom: 3mm; }
@@ -240,7 +254,26 @@
 
     <main class="container-fluid py-4 px-4">
         {% include "fleet/_account_security_prompt.html" %}
-        
+
+        <nav class="public-section-tabs mb-4" aria-label="Public dashboard sections">
+            <div class="nav nav-pills nav-fill gap-2" id="public-dashboard-tabs" role="tablist">
+                <button class="nav-link active" id="public-summary-tab" data-bs-toggle="tab" data-bs-target="#public-summary-pane" type="button" role="tab" aria-controls="public-summary-pane" aria-selected="true">
+                    <i class="fa-solid fa-chart-pie me-2" aria-hidden="true"></i>Summary
+                </button>
+                <button class="nav-link" id="public-deployments-tab" data-bs-toggle="tab" data-bs-target="#public-deployments-pane" type="button" role="tab" aria-controls="public-deployments-pane" aria-selected="false">
+                    <i class="fa-solid fa-location-dot me-2" aria-hidden="true"></i>Active Field Deployment
+                </button>
+                <button class="nav-link" id="public-standby-tab" data-bs-toggle="tab" data-bs-target="#public-standby-pane" type="button" role="tab" aria-controls="public-standby-pane" aria-selected="false">
+                    <i class="fa-solid fa-warehouse me-2" aria-hidden="true"></i>Standby Fleets
+                </button>
+                <button class="nav-link" id="public-maintenance-tab" data-bs-toggle="tab" data-bs-target="#public-maintenance-pane" type="button" role="tab" aria-controls="public-maintenance-pane" aria-selected="false">
+                    <i class="fa-solid fa-screwdriver-wrench me-2" aria-hidden="true"></i>Fleet Undergoing Maintenance
+                </button>
+            </div>
+        </nav>
+
+        <div class="tab-content public-dashboard-sections" id="public-dashboard-sections">
+            <section class="tab-pane fade show active" id="public-summary-pane" role="tabpanel" aria-labelledby="public-summary-tab" tabindex="0">
         <div class="row g-3 mb-4">
             
             <div class="col-md-3">
@@ -387,7 +420,9 @@
                 </div>
             </div>
         </div>
+            </section>
 
+            <section class="tab-pane fade" id="public-deployments-pane" role="tabpanel" aria-labelledby="public-deployments-tab" tabindex="0">
         <div class="row mb-4">
             <div class="col-12">
                 <div class="panel-container" style="border-left: 4px solid var(--status-dep);">
@@ -466,7 +501,9 @@
                 </div>
             </div>
         </div>
+            </section>
 
+            <section class="tab-pane fade" id="public-standby-pane" role="tabpanel" aria-labelledby="public-standby-tab" tabindex="0">
         <div class="row g-4 mb-4 d-flex align-items-stretch">
             <div class="col-xl-6">
                 <div class="panel-container h-100 mb-0" style="border-left: 4px solid var(--status-op);">
@@ -552,7 +589,9 @@
                 </div>
             </div>
         </div>
+            </section>
 
+            <section class="tab-pane fade" id="public-maintenance-pane" role="tabpanel" aria-labelledby="public-maintenance-tab" tabindex="0">
         <div class="row">
             <div class="col-12">
                 <div class="panel-container" style="border-left: 4px solid var(--status-maint);">
@@ -628,6 +667,8 @@
                     </div>
                 </div>
             </div>
+        </div>
+            </section>
         </div>
 
     </main> 

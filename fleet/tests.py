@@ -2404,6 +2404,29 @@ class DispatchDashboardAlignmentTests(TestCase):
             license_number='MAR-001',
         )
 
+    def test_public_homepage_uses_button_navigation_for_dashboard_sections(self):
+        response = self.client.get(reverse('dashboard_portal:homepage'))
+
+        self.assertEqual(response.status_code, 200)
+        for label in (
+            'Summary',
+            'Active Field Deployment',
+            'Standby Fleets',
+            'Fleet Undergoing Maintenance',
+        ):
+            with self.subTest(label=label):
+                self.assertContains(response, label)
+        for pane_id in (
+            'public-summary-pane',
+            'public-deployments-pane',
+            'public-standby-pane',
+            'public-maintenance-pane',
+        ):
+            with self.subTest(pane_id=pane_id):
+                self.assertContains(response, f'id="{pane_id}"')
+        self.assertEqual(response.content.count(b'role="tabpanel"'), 4)
+        self.assertContains(response, 'data-bs-toggle="tab"')
+
     def test_deployment_locations_are_scoped_and_reject_custom_values(self):
         land_vehicle = self.create_vehicle(
             model_name='Scoped Location Land Unit',
