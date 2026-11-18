@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin
-from django.contrib.admin.models import LogEntry, CHANGE
+from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.contrib import messages
 from django.contrib.auth.hashers import check_password
@@ -11,6 +11,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.templatetags.static import static
+from .audit import log_vehicle_audit, snapshot_vehicle_details
 from .models import AccountSecurityProfile, FleetIncident, Vehicle, VehicleType, Driver
 
 # =========================================================================
@@ -26,7 +27,14 @@ admin.site.index_title = "Command & Control Configuration Center"
 # =========================================================================
 @admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
-    list_display = ('action_time', 'user', 'content_type', 'object_repr', 'action_flag')
+    list_display = (
+        'action_time',
+        'user',
+        'content_type',
+        'object_repr',
+        'action_flag',
+        'change_message',
+    )
     list_filter = ('action_time', 'user', 'action_flag')
     search_fields = ('object_repr', 'change_message')
     
@@ -182,8 +190,39 @@ class LocationAutocompleteAdminMixin:
         return form
 
 
+class VehicleAuditLogMixin:
+    def save_model(self, request, obj, form, change):
+        if change:
+            previous = self.model._base_manager.get(pk=obj.pk)
+            request._fleet_vehicle_audit_before = snapshot_vehicle_details(previous)
+        else:
+            request._fleet_vehicle_audit_before = None
+        super().save_model(request, obj, form, change)
+
+    def log_addition(self, request, obj, message):
+        return log_vehicle_audit(
+            request,
+            obj,
+            ADDITION,
+            f"Registered new fleet asset '{obj.model_name}' through Django admin.",
+        )
+
+    def log_change(self, request, obj, message):
+        return log_vehicle_audit(
+            request,
+            obj,
+            CHANGE,
+            f"Updated fleet asset record for '{obj.model_name}' through Django admin.",
+            before=request._fleet_vehicle_audit_before,
+        )
+
+
 @admin.register(Vehicle)
-class VehicleAdmin(LocationAutocompleteAdminMixin, admin.ModelAdmin):
+class VehicleAdmin(
+    VehicleAuditLogMixin,
+    LocationAutocompleteAdminMixin,
+    admin.ModelAdmin,
+):
     list_display = [
         'id', 
         'model_name', 
@@ -236,7 +275,11 @@ class ArchivedVehicle(Vehicle):
         verbose_name_plural = "Archived / Disposed Assets"
 
 @admin.register(ArchivedVehicle)
-class ArchivedVehicleAdmin(LocationAutocompleteAdminMixin, admin.ModelAdmin):
+class ArchivedVehicleAdmin(
+    VehicleAuditLogMixin,
+    LocationAutocompleteAdminMixin,
+    admin.ModelAdmin,
+):
     list_display = ['id', 'model_name', 'plate_number', 'vehicle_type', 'status', 'driver_phone']
     list_filter = ('status', 'vehicle_type')
     search_fields = ('model_name', 'plate_number', 'assigned_driver__name')

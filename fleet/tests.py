@@ -5,13 +5,14 @@ from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django.contrib import admin as django_admin
 from django.contrib.admin.models import ADDITION, CHANGE, LogEntry
 from django.contrib.auth.models import Group, User
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command, CommandError
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -350,6 +351,63 @@ class ProgressiveWebAppTests(TestCase):
 
 
 class SystemConsoleTests(TestCase):
+    def test_admin_log_list_shows_change_message_details(self):
+        admin_user = User.objects.create_superuser(
+            username='log_list_admin',
+            email='log-list-admin@example.com',
+            password='SecurePass123!',
+        )
+        LogEntry.objects.create(
+            user=admin_user,
+            content_type=ContentType.objects.get_for_model(User),
+            object_id=str(admin_user.pk),
+            object_repr=admin_user.username,
+            action_flag=CHANGE,
+            change_message='Make: "Toyota" -> "Ford"',
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(reverse('admin:admin_logentry_changelist'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Make: &quot;Toyota&quot; -&gt; &quot;Ford&quot;',
+            html=False,
+        )
+
+    def test_vehicle_admin_change_log_shows_previous_and_current_values(self):
+        admin_user = User.objects.create_superuser(
+            username='audit_admin',
+            email='audit-admin@example.com',
+            password='SecurePass123!',
+        )
+        vehicle_type = VehicleType.objects.create(name='LAND')
+        vehicle = Vehicle.objects.create(
+            model_name='Audit Test Vehicle',
+            plate_number='AUDIT-01',
+            vehicle_type=vehicle_type,
+            make='Toyota',
+        )
+        request = RequestFactory().post(
+            reverse('admin:fleet_vehicle_change', args=[vehicle.pk])
+        )
+        request.user = admin_user
+        vehicle.make = 'Ford'
+        vehicle_admin = django_admin.site._registry[Vehicle]
+        vehicle_admin.save_model(request, vehicle, None, True)
+        vehicle_admin.log_change(request, vehicle, '')
+
+        self.client.force_login(admin_user)
+        response = self.client.get(reverse('admin_system_console'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'Make: &quot;Toyota&quot; -&gt; &quot;Ford&quot;',
+            html=False,
+        )
+
     def test_vehicle_admin_location_fields_load_palawan_autocomplete(self):
         admin_user = User.objects.create_superuser(
             username='location_admin',
@@ -1283,6 +1341,14 @@ Tel No 09171234567
         document = VehicleRegistrationDocument.objects.get(vehicle=vehicle)
         self.assertTrue(document.file.storage.exists(document.file.name))
         self.assertContains(response, 'OR/CR attachments:')
+        audit_entry = LogEntry.objects.get(
+            content_type=ContentType.objects.get_for_model(Vehicle),
+            object_id=str(vehicle.pk),
+            action_flag=ADDITION,
+        )
+        self.assertIn('Initial details:', audit_entry.change_message)
+        self.assertIn('Engine number: "ENGINE-123"', audit_entry.change_message)
+        self.assertIn('OR/CR attachments added: 1', audit_entry.change_message)
 
         download = self.client.get(
             reverse('dashboard_portal:logistics_registration_document', args=[document.pk])
@@ -1379,6 +1445,34 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'View Fleet Detail')
         self.assertContains(response, 'Fleet Detail — LTO OR/CR')
         self.assertContains(response, '<table class="table table-sm table-bordered align-middle mb-0">', html=False)
+
+    def test_asset_update_audit_shows_previous_and_current_field_values(self):
+        self.vehicle.make = 'Toyota'
+        self.vehicle.save()
+
+        response = self.client.post(
+            reverse('dashboard_portal:logistics_dashboard'),
+            {
+                'action': 'update_vehicle',
+                'vehicle_id': self.vehicle.pk,
+                'edit-asset-model_name': self.vehicle.model_name,
+                'edit-asset-plate_number': self.vehicle.plate_number,
+                'edit-asset-vehicle_type': self.land_type.pk,
+                'edit-asset-make': 'Ford',
+                'edit-asset-engine_number': 'ENGINE-NEW',
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        audit_entry = LogEntry.objects.filter(
+            content_type=ContentType.objects.get_for_model(Vehicle),
+            object_id=str(self.vehicle.pk),
+            action_flag=CHANGE,
+        ).order_by('-pk').first()
+        self.assertIsNotNone(audit_entry)
+        self.assertIn('Make: "Toyota" -> "Ford"', audit_entry.change_message)
+        self.assertIn('Engine number: "Not set" -> "ENGINE-NEW"', audit_entry.change_message)
 
     def test_logistics_deployed_cards_show_mission_location_and_deployment_time(self):
         self.vehicle.status = 'DEPLOYED'
@@ -3828,6 +3922,13 @@ class DispatchDashboardAlignmentTests(TestCase):
                 action_flag=ADDITION,
             ).exists()
         )
+        audit_entry = LogEntry.objects.get(
+            content_type=ContentType.objects.get_for_model(Vehicle),
+            object_id=str(craft.pk),
+            action_flag=ADDITION,
+        )
+        self.assertIn('Hull type: "Rigid-hulled inflatable boat"', audit_entry.change_message)
+        self.assertIn('Passenger capacity: "12"', audit_entry.change_message)
 
     def test_seacraft_dispatch_can_register_multiple_seacrafts_at_once(self):
         self.client.force_login(self.seacraft_user)
@@ -4171,6 +4272,17 @@ class DispatchDashboardAlignmentTests(TestCase):
         self.assertEqual(sea_vehicle.hull_type, 'RHIB')
         self.assertEqual(sea_vehicle.make, 'Updated Marine Make')
         self.assertEqual(sea_vehicle.vehicle_type, self.maritime_type)
+        audit_entry = LogEntry.objects.filter(
+            content_type=ContentType.objects.get_for_model(Vehicle),
+            object_id=str(sea_vehicle.pk),
+            action_flag=CHANGE,
+        ).order_by('-pk').first()
+        self.assertIsNotNone(audit_entry)
+        self.assertIn('Hull type: "Banca" -> "RHIB"', audit_entry.change_message)
+        self.assertIn(
+            'Model name: "Original Dispatch Vessel" -> "Updated Dispatch Vessel"',
+            audit_entry.change_message,
+        )
 
         invalid_type_data = {
             **edit_data,

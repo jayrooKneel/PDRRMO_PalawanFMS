@@ -63,6 +63,7 @@ from .models import (
     VehicleAsset,
     OperatorProfile,
 )
+from .audit import log_vehicle_audit, snapshot_vehicle_details
 from .deployment_locations import get_deployment_location_labels
 from .vehicle_document_ocr import (
     RegistrationImageError,
@@ -2500,6 +2501,7 @@ def logistics_dashboard(request):
                 Vehicle.objects.select_related('vehicle_type', 'assigned_driver'),
                 pk=request.POST.get('vehicle_id'),
             )
+            previous_details = snapshot_vehicle_details(vehicle)
             form = FleetAssetRegistrationForm(
                 request.POST,
                 request.FILES,
@@ -2524,16 +2526,19 @@ def logistics_dashboard(request):
                     updated_vehicle.hull_type = ''
                     updated_vehicle.length_m = None
                 updated_vehicle.save()
-                for uploaded_file in form.cleaned_data.get('registration_documents', []):
+                registration_documents = form.cleaned_data.get('registration_documents', [])
+                for uploaded_file in registration_documents:
                     VehicleRegistrationDocument.objects.create(
                         vehicle=updated_vehicle,
                         file=uploaded_file,
                     )
-                log_action_to_admin(
+                log_vehicle_audit(
                     request,
                     updated_vehicle,
                     CHANGE,
                     f"Updated fleet asset record for '{updated_vehicle.model_name}'.",
+                    before=previous_details,
+                    added_document_count=len(registration_documents),
                 )
                 messages.success(request, f"Fleet asset '{updated_vehicle.model_name}' was updated.")
             else:
@@ -2644,12 +2649,19 @@ def logistics_dashboard(request):
                         new_asset.hull_type = ''
                         new_asset.length_m = None
                     new_asset.save()
-                    for uploaded_file in form.cleaned_data['registration_documents']:
+                    registration_documents = form.cleaned_data['registration_documents']
+                    for uploaded_file in registration_documents:
                         VehicleRegistrationDocument.objects.create(
                             vehicle=new_asset,
                             file=uploaded_file,
                         )
-                    log_action_to_admin(request, new_asset, ADDITION, f"Registered new asset unit '{new_asset.model_name}' into inventory records.")
+                    log_vehicle_audit(
+                        request,
+                        new_asset,
+                        ADDITION,
+                        f"Registered new asset unit '{new_asset.model_name}' into inventory records.",
+                        added_document_count=len(registration_documents),
+                    )
                     registered_assets.append(new_asset)
             if len(registered_assets) == 1:
                 messages.success(request, f"New fleet asset '{registered_assets[0].model_name}' has been securely registered to the base depot map.")
@@ -3163,7 +3175,7 @@ def seacraft_dispatch_view(request):
                     new_craft = form.save(commit=False)
                     new_craft.status = "OPERATIONAL"
                     new_craft.save()
-                    log_action_to_admin(
+                    log_vehicle_audit(
                         request,
                         new_craft,
                         ADDITION,
@@ -3181,6 +3193,7 @@ def seacraft_dispatch_view(request):
                 Vehicle.objects.filter(seacraft_vehicle_type_filter()),
                 pk=request.POST.get("vehicle_id"),
             )
+            previous_details = snapshot_vehicle_details(vehicle)
             form = FleetAssetRegistrationForm(
                 request.POST,
                 request.FILES,
@@ -3194,16 +3207,19 @@ def seacraft_dispatch_view(request):
                 updated_craft = form.save(commit=False)
                 updated_craft.odometer_km = None
                 updated_craft.save()
-                for uploaded_file in form.cleaned_data.get("registration_documents", []):
+                registration_documents = form.cleaned_data.get("registration_documents", [])
+                for uploaded_file in registration_documents:
                     VehicleRegistrationDocument.objects.create(
                         vehicle=updated_craft,
                         file=uploaded_file,
                     )
-                log_action_to_admin(
+                log_vehicle_audit(
                     request,
                     updated_craft,
                     CHANGE,
                     f"Updated seacraft record for '{updated_craft.model_name}'.",
+                    before=previous_details,
+                    added_document_count=len(registration_documents),
                 )
                 messages.success(
                     request,
