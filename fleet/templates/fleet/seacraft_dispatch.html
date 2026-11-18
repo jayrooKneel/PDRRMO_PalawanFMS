@@ -500,7 +500,7 @@
                                     <td>
                                         <strong>{{ craft.model_name }}</strong>
                                         <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
-                                        {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                        {% include "fleet/_seacraft_specs.html" with craft=craft detail_id_prefix="seacraft-dispatch-standby" %}
                                         {% if craft.status == 'DEPLOYED' %}
                                             <div class="small mt-1 text-primary"><i class="fa-solid fa-map-pin me-1"></i> {{ craft.deployment_location|default:"Coastal Sector Deployment" }}</div>
                                             {% if craft.deployment_purpose %}
@@ -619,14 +619,10 @@
                                         <td>
                                             <strong>{{ craft.model_name }}</strong>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
-                                            {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                            {% include "fleet/_seacraft_specs.html" with craft=craft detail_id_prefix="seacraft-dispatch-deployed" %}
                                             <div class="small mt-1 text-primary"><i class="fa-solid fa-map-pin me-1"></i> {{ craft.deployment_location|default:"Coastal Sector Deployment" }}</div>
-                                            {% if craft.deployment_purpose %}
-                                                <div class="small text-dark fw-semibold"><i class="fa-solid fa-bullseye text-warning me-1"></i> Mission: {{ craft.deployment_purpose }}</div>
-                                            {% endif %}
-                                            {% if craft.deployment_time %}
-                                                <div class="small text-muted"><i class="fa-solid fa-clock me-1"></i> {{ craft.deployment_time|date:"M d, Y - H:i" }}</div>
-                                            {% endif %}
+                                            <div class="small text-dark fw-semibold"><i class="fa-solid fa-bullseye text-warning me-1"></i> Mission: {{ craft.deployment_purpose|default:"Not specified" }}</div>
+                                            <div class="small text-muted"><i class="fa-solid fa-clock me-1"></i> Deployed: {{ craft.deployment_time|date:"M d, Y - H:i"|default:"Not recorded" }}</div>
                                         </td>
                                         <td><span class="badge bg-secondary font-monospace">{{ craft.plate_number }}</span></td>
                                         <td><span class="badge bg-primary">DEPLOYED</span></td>
@@ -668,7 +664,7 @@
                                         <td>
                                             <strong>{{ craft.model_name }}</strong>
                                             <div class="text-muted small">{{ craft.vehicle_type.name }}</div>
-                                            {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                            {% include "fleet/_seacraft_specs.html" with craft=craft detail_id_prefix="seacraft-dispatch-maintenance" %}
                                         </td>
                                         <td><span class="badge bg-secondary font-monospace">{{ craft.plate_number }}</span></td>
                                         <td>

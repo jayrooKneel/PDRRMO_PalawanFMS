@@ -106,7 +106,7 @@
                             <tr data-illustration="{{ craft.illustration_category }}" data-sea-fleet-group="{% if craft.status == 'MAINTENANCE' or craft.status == 'PENDING_DISPOSAL' %}maintenance{% else %}operational{% endif %}"{% if craft.status == 'OPERATIONAL' or craft.status == 'DEPLOYED' %} hidden{% endif %}>
                                 <td class="px-6 py-4 font-semibold text-gray-900">
                                     {{ craft.model_name }}
-                                    {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                                    {% include "fleet/_seacraft_specs.html" with craft=craft detail_id_prefix="seacraft-dashboard-row" %}
                                 </td>
                                 <td class="px-6 py-4 font-mono text-gray-500 font-medium">{{ craft.plate_number }}</td>
                                 <td class="px-6 py-4">
@@ -133,9 +133,7 @@
                                         <div class="mt-2 max-w-sm rounded border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
                                             <div><strong>Location:</strong> {{ craft.deployment_location|default:"Not specified" }}</div>
                                             <div><strong>Mission detail:</strong> {{ craft.deployment_purpose|default:"Not specified" }}</div>
-                                            {% if craft.deployment_time %}
-                                                <div><strong>Deployed:</strong> {{ craft.deployment_time|date:"M j, Y, P" }}</div>
-                                            {% endif %}
+                                            <div><strong>Deployed:</strong> {{ craft.deployment_time|date:"M j, Y, P"|default:"Not recorded" }}</div>
                                             {% if craft.assigned_driver %}
                                                 <div class="mt-1"><strong>Driver:</strong> {{ craft.assigned_driver.name }}</div>
                                                 {% if craft.assigned_driver.phone_number %}
@@ -291,7 +289,7 @@
                         <div>
                             <h2 class="modal-title fs-5 font-bold" id="seaMaintenanceModalLabel{{ craft.id }}">Maintenance action</h2>
                             <div class="text-sm text-gray-600">{{ craft.model_name }} · {{ craft.plate_number }}</div>
-                            {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                            {% include "fleet/_seacraft_specs.html" with craft=craft detail_id_prefix="seacraft-dashboard-maintenance-modal" %}
                             <div class="text-sm font-semibold text-sky-700"><i class="fa-solid fa-user mr-1"></i> Driver: {{ craft.assigned_driver.name|default:"Unassigned" }}</div>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -369,7 +367,7 @@
                         <div>
                             <h2 class="modal-title fs-5 font-bold" id="seaScheduleModalLabel{{ craft.id }}">Schedule preventive maintenance</h2>
                             <div class="text-sm text-gray-600">{{ craft.model_name }} · {{ craft.plate_number }}</div>
-                            {% include "fleet/_seacraft_specs.html" with craft=craft %}
+                            {% include "fleet/_seacraft_specs.html" with craft=craft detail_id_prefix="seacraft-dashboard-schedule-modal" %}
                             <div class="text-sm font-semibold text-sky-700"><i class="fa-solid fa-user mr-1"></i> Driver: {{ craft.assigned_driver.name|default:"Unassigned" }}</div>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

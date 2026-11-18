@@ -110,7 +110,7 @@
                             <td class="fw-bold text-dark">
                                 {{ vehicle.model_name }} 
                                 <span class="badge bg-secondary font-monospace text-uppercase ms-1">{{ vehicle.vehicle_type.name }}</span>
-                                {% include "fleet/_land_vehicle_specs.html" with vehicle=vehicle %}
+                                {% include "fleet/_land_vehicle_specs.html" with vehicle=vehicle detail_id_prefix="repairman" %}
                             </td>
                             <td><code class="bg-light text-dark border px-2 py-1 rounded font-monospace">{{ vehicle.plate_number }}</code></td>
                             
@@ -126,9 +126,7 @@
                                     <div class="small mt-2 text-primary-emphasis">
                                         <div><strong>Location:</strong> {{ vehicle.deployment_location|default:"Not specified" }}</div>
                                         <div><strong>Mission detail:</strong> {{ vehicle.deployment_purpose|default:"Not specified" }}</div>
-                                        {% if vehicle.deployment_time %}
-                                            <div><strong>Deployed:</strong> {{ vehicle.deployment_time|date:"M j, Y, P" }}</div>
-                                        {% endif %}
+                                        <div><strong>Deployed:</strong> {{ vehicle.deployment_time|date:"M j, Y, P"|default:"Not recorded" }}</div>
                                         {% if vehicle.assigned_driver %}
                                             <div class="mt-1"><strong>Driver:</strong> {{ vehicle.assigned_driver.name }}</div>
                                             {% if vehicle.assigned_driver.phone_number %}

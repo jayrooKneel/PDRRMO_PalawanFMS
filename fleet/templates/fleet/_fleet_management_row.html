@@ -4,19 +4,7 @@
         <div class="small text-muted">{{ vehicle.vehicle_type.name }} · {{ vehicle.plate_number }}</div>
     </td>
     <td class="small">
-        <details class="vehicle-details">
-            <summary class="text-primary text-decoration-underline">View more vehicle details</summary>
-            <div class="mt-1">
-                <div><strong>Category:</strong> {{ vehicle.vehicle_category|default:vehicle.vehicle_type.name }} · <strong>Make:</strong> {{ vehicle.make|default:"—" }}{% if vehicle.model_year %} · <strong>Year:</strong> {{ vehicle.model_year }}{% endif %}</div>
-                <div><strong>Engine:</strong> {{ vehicle.engine_number|default:"—" }} · <strong>Chassis:</strong> {{ vehicle.chassis_number|default:"—" }}</div>
-                <div>
-                    <strong>Registered:</strong> {{ vehicle.registration_date|date:"M j, Y"|default:"—" }} ·
-                    <strong>Registration expires:</strong> {{ vehicle.registration_expiry|date:"M j, Y"|default:"—" }}
-                    {% if vehicle.inspection_expiry %} · <strong>Inspection expires:</strong> {{ vehicle.inspection_expiry|date:"M j, Y" }}{% endif %}
-                </div>
-                {% include "fleet/_vehicle_registration_documents.html" with asset=vehicle %}
-            </div>
-        </details>
+        {% include "fleet/_fleet_detail_modal.html" with asset=vehicle detail_id_prefix="fleet-management" %}
     </td>
     <td><span class="badge {% if vehicle.status == 'OPERATIONAL' %}text-bg-success{% elif vehicle.status == 'DEPLOYED' %}text-bg-primary{% else %}text-bg-warning{% endif %}">{{ vehicle.get_status_display }}</span></td>
     <td>

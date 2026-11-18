@@ -70,6 +70,13 @@
                                     {{ vehicle.get_status_display }}
                                 </span>
                             </div>
+                            {% if vehicle.status == 'DEPLOYED' %}
+                                <div class="border rounded bg-light p-3 mt-3 small" aria-label="Deployment details for {{ vehicle.model_name }}">
+                                    <div><strong>Mission:</strong> {{ vehicle.deployment_purpose|default:"Not specified" }}</div>
+                                    <div><strong>Location:</strong> {{ vehicle.deployment_location|default:vehicle.deployment_destination|default:"Not specified" }}</div>
+                                    <div><strong>Deployed:</strong> {{ vehicle.deployment_time|date:"M j, Y, g:i A"|default:"Not recorded" }}</div>
+                                </div>
+                            {% endif %}
                             <details class="vehicle-details mt-3">
                                 <summary class="text-primary text-decoration-underline">View more trip and maintenance details</summary>
                                 <dl class="row mt-3 mb-3">

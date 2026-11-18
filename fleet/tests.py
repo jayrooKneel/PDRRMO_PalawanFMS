@@ -679,7 +679,7 @@ class SystemConsoleTests(TestCase):
         self.assertEqual(vehicle.inspection_expiry.isoformat(), '2027-03-31')
         self.assertContains(response, 'Toyota')
         self.assertContains(response, '12450.5 km')
-        self.assertContains(response, 'Registration due Apr 2027')
+        self.assertContains(response, '<th scope="row">Registration expiry</th><td>Apr 30, 2027</td>', html=False)
 
     def test_logistics_land_asset_registration_rejects_future_model_year(self):
         group = Group.objects.create(name='Logistics Officers')
@@ -1328,7 +1328,7 @@ Tel No 09171234567
         self.assertEqual(vessel.color, 'White')
         self.assertEqual(vessel.engine_power_hp, Decimal('90'))
         self.assertEqual(vessel.home_port, 'Puerto Princesa')
-        self.assertContains(response, 'Gross tonnage: 8.25')
+        self.assertContains(response, '<th scope="row">Gross tonnage</th><td>8.25</td>', html=False)
 
 
 class LogisticsReportExportTests(TestCase):
@@ -1376,7 +1376,23 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'Fleet Inventory Report')
         self.assertContains(response, 'name="fleet_wide"')
         self.assertContains(response, 'value="inventory">Fleet inventory')
-        self.assertContains(response, 'View more vehicle details')
+        self.assertContains(response, 'View Fleet Detail')
+        self.assertContains(response, 'Fleet Detail — LTO OR/CR')
+        self.assertContains(response, '<table class="table table-sm table-bordered align-middle mb-0">', html=False)
+
+    def test_logistics_deployed_cards_show_mission_location_and_deployment_time(self):
+        self.vehicle.status = 'DEPLOYED'
+        self.vehicle.deployment_location = 'Puerto Princesa'
+        self.vehicle.deployment_purpose = 'Search and Rescue'
+        self.vehicle.deployment_time = timezone.make_aware(datetime(2030, 1, 2, 10, 30))
+        self.vehicle.save()
+
+        response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Puerto Princesa')
+        self.assertContains(response, 'Mission: Search and Rescue')
+        self.assertContains(response, 'Deployed: Jan 02, 2030 - 10:30')
 
     def test_logistics_cards_use_category_specific_vehicle_illustrations(self):
         motorcycle_type = VehicleType.objects.create(name='MOTORCYCLE')
@@ -1438,11 +1454,11 @@ class LogisticsReportExportTests(TestCase):
         self.assertContains(response, 'value="truck">Truck</option>')
         self.assertContains(response, f'data-vehicle-status="ARCHIVED"')
         self.assertContains(response, f'data-asset-id="{archived_vehicle.pk}"')
-        self.assertContains(response, 'Category:</strong> Truck')
-        self.assertContains(response, 'Make:</strong> Ford')
+        self.assertContains(response, '<th scope="row">Vehicle category</th><td>Truck</td>', html=False)
+        self.assertContains(response, '<th scope="row">Make</th><td>Ford</td>', html=False)
         self.assertContains(response, 'ENGINE-ARCH-01')
         self.assertContains(response, 'CHASSIS-ARCH-01')
-        self.assertContains(response, 'Registration expires:</strong> Apr 12, 2026')
+        self.assertContains(response, '<th scope="row">Registration expiry</th><td>Apr 12, 2026</td>', html=False)
 
     def test_asset_forms_offer_dropdown_suggestions_for_common_details(self):
         response = self.client.get(reverse('dashboard_portal:logistics_dashboard'))

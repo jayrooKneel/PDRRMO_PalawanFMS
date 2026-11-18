@@ -1,0 +1,79 @@
+<button
+    type="button"
+    class="btn btn-link btn-sm p-0 text-decoration-underline align-baseline"
+    data-bs-toggle="modal"
+    data-bs-target="#fleet-detail-{{ detail_id_prefix }}-{{ asset.pk }}">
+    View Fleet Detail
+</button>
+
+<div class="modal fade" id="fleet-detail-{{ detail_id_prefix }}-{{ asset.pk }}" tabindex="-1" aria-labelledby="fleet-detail-label-{{ detail_id_prefix }}-{{ asset.pk }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title fs-5" id="fleet-detail-label-{{ detail_id_prefix }}-{{ asset.pk }}">Fleet Detail — LTO OR/CR</h2>
+                    <div class="small text-muted">{{ asset.model_name }} · {{ asset.plate_number }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <tbody>
+                            <tr><th scope="row">Equipment model</th><td>{{ asset.model_name|default:"—" }}</td></tr>
+                            <tr><th scope="row">Fleet type</th><td>{{ asset.vehicle_type.name|default:"—" }}</td></tr>
+                            <tr><th scope="row">Plate / hull number</th><td>{{ asset.plate_number|default:"—" }}</td></tr>
+                            <tr><th scope="row">Status</th><td>{{ asset.get_status_display|default:"—" }}</td></tr>
+                            <tr><th scope="row">Make</th><td>{{ asset.make|default:"—" }}</td></tr>
+                            <tr><th scope="row">Model year</th><td>{{ asset.model_year|default:"—" }}</td></tr>
+                            <tr><th scope="row">Color</th><td>{{ asset.color|default:"—" }}</td></tr>
+                            <tr><th scope="row">Vehicle category</th><td>{{ asset.vehicle_category|default:"—" }}</td></tr>
+                            <tr><th scope="row">Body type</th><td>{{ asset.body_type|default:"—" }}</td></tr>
+                            <tr><th scope="row">Vehicle classification</th><td>{{ asset.vehicle_classification|default:"—" }}</td></tr>
+                            <tr><th scope="row">Hull type</th><td>{{ asset.hull_type|default:"—" }}</td></tr>
+                            <tr><th scope="row">Chassis / hull number</th><td>{{ asset.chassis_number|default:"—" }}</td></tr>
+                            <tr><th scope="row">Engine number</th><td>{{ asset.engine_number|default:"—" }}</td></tr>
+                            <tr><th scope="row">MV file number</th><td>{{ asset.mv_file_number|default:"—" }}</td></tr>
+                            <tr><th scope="row">Air-conditioning type</th><td>{{ asset.aircon_type|default:"—" }}</td></tr>
+                            <tr><th scope="row">Home port</th><td>{{ asset.home_port|default:"—" }}</td></tr>
+                            <tr><th scope="row">Length</th><td>{% if asset.length_m is not None %}{{ asset.length_m }} m{% else %}—{% endif %}</td></tr>
+                            <tr><th scope="row">Gross vehicle weight</th><td>{{ asset.gross_vehicle_weight|default:"—" }}</td></tr>
+                            <tr><th scope="row">Net capacity</th><td>{{ asset.net_capacity|default:"—" }}</td></tr>
+                            <tr><th scope="row">Gross tonnage</th><td>{{ asset.gross_tonnage|default:"—" }}</td></tr>
+                            <tr><th scope="row">Net tonnage</th><td>{{ asset.net_tonnage|default:"—" }}</td></tr>
+                            <tr><th scope="row">Engine details</th><td>{{ asset.engine_details|default:"—" }}</td></tr>
+                            <tr><th scope="row">Engine displacement</th><td>{% if asset.engine_displacement_cc is not None %}{{ asset.engine_displacement_cc }} cc{% else %}—{% endif %}</td></tr>
+                            <tr><th scope="row">Engine power</th><td>{% if asset.engine_power_hp is not None %}{{ asset.engine_power_hp }} hp{% else %}—{% endif %}</td></tr>
+                            <tr><th scope="row">Fuel type</th><td>{{ asset.fuel_type|default:"—" }}</td></tr>
+                            <tr><th scope="row">Passenger capacity</th><td>{% if asset.passenger_capacity is not None %}{{ asset.passenger_capacity }} passengers{% else %}—{% endif %}</td></tr>
+                            <tr><th scope="row">Odometer</th><td>{% if asset.odometer_km is not None %}{{ asset.odometer_km }} km{% else %}—{% endif %}</td></tr>
+                            <tr><th scope="row">Registration date</th><td>{{ asset.registration_date|date:"M j, Y"|default:"—" }}</td></tr>
+                            <tr><th scope="row">Registration expiry</th><td>{{ asset.registration_expiry|date:"M j, Y"|default:"—" }}</td></tr>
+                            <tr><th scope="row">Inspection expiry</th><td>{{ asset.inspection_expiry|date:"M j, Y"|default:"—" }}</td></tr>
+                            <tr><th scope="row">Assigned operator</th><td>{{ asset.assigned_driver.name|default:"Unassigned" }}</td></tr>
+                            <tr><th scope="row">Deployment location</th><td>{{ asset.deployment_location|default:"—" }}</td></tr>
+                            <tr><th scope="row">Deployment destination</th><td>{{ asset.deployment_destination|default:"—" }}</td></tr>
+                            <tr><th scope="row">Mission</th><td>{{ asset.deployment_purpose|default:"—" }}</td></tr>
+                            <tr><th scope="row">Deployment date and time</th><td>{{ asset.deployment_time|date:"M j, Y, g:i A"|default:"—" }}</td></tr>
+                            <tr>
+                                <th scope="row">OR/CR attachments:</th>
+                                <td>
+                                    {% with documents=asset.registration_documents.all %}
+                                        {% for document in documents %}
+                                            <a class="d-block" href="{% url 'dashboard_portal:logistics_registration_document' document.id %}" target="_blank" rel="noopener">View image {{ forloop.counter }}</a>
+                                        {% empty %}
+                                            —
+                                        {% endfor %}
+                                    {% endwith %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
